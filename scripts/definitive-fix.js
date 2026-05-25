@@ -27,6 +27,7 @@ function request(method, path, body = null) {
 // Tool name -> API path mapping
 const TOOL_PATHS = {
   'get_customer_profile': '/api/vapi/get-customer-profile',
+  'create_customer_profile': '/api/vapi/create-customer-profile',
   'get_menu_info': '/api/vapi/get-menu-info',
   'get_item_details': '/api/vapi/get-item-details',
   'get_opening_hours': '/api/vapi/get-opening-hours',

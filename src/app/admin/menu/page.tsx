@@ -81,9 +81,9 @@ export default function MenuPage() {
 
   return (
     <div>
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-white">Menu Management</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Menu Management</h2>
           <p className="text-gray-400 mt-1">Manage dishes and categories.</p>
         </div>
         <div className="flex gap-2">

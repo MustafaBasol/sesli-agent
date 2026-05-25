@@ -49,14 +49,14 @@ export default function TablesPage() {
 
   return (
     <div>
-      <header className="mb-8 flex justify-between items-center">
+      <header className="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-white">Table Management</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white">Table Management</h2>
           <p className="text-gray-400 mt-1">Configure your restaurant layout and table features.</p>
         </div>
         <button 
           onClick={() => { setShowAdd(true); setEditingId(null); setFormData({table_number: '', capacity: 2, location: 'Main Hall', is_active: true}); }}
-          className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all"
+          className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-all self-start sm:self-auto"
         >
           + Add Table
         </button>

@@ -29,6 +29,8 @@ const serverActionsAllowedOrigins = [
 ];
 
 const nextConfig = {
+  // Standalone output: copies only required files so Docker image stays small
+  output: 'standalone',
   ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   experimental: {
     ...(serverActionsAllowedOrigins.length > 0

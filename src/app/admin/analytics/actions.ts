@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 function getDayKey(date = new Date()) {
   return date.toISOString().split('T')[0];
@@ -62,6 +63,7 @@ function hourFromDate(value?: string | null) {
 }
 
 export async function getAnalyticsData(period: AnalyticsPeriod = 'week') {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const today = getDayKey();
   const range = getPeriodRange(period);

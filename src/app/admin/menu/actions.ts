@@ -1,8 +1,10 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 export async function getMenuItems() {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data, error } = await supabase
     .from('menu_items')
@@ -14,6 +16,7 @@ export async function getMenuItems() {
 }
 
 export async function getCategories() {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data, error } = await supabase
     .from('menu_categories')
@@ -25,6 +28,7 @@ export async function getCategories() {
 }
 
 export async function addCategory(name: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('menu_categories')
@@ -35,6 +39,7 @@ export async function addCategory(name: string) {
 }
 
 export async function deleteCategory(id: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('menu_categories')
@@ -46,6 +51,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function addMenuItem(item: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('menu_items')
@@ -56,6 +62,7 @@ export async function addMenuItem(item: any) {
 }
 
 export async function updateMenuItem(id: string, updates: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('menu_items')

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getStaffHandoffs } from './actions';
 
 export default function HandoffsPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -13,8 +13,13 @@ export default function HandoffsPage() {
 
   async function fetchItems() {
     setLoading(true);
-    const { data, error } = await supabase.from('staff_handoffs').select('*').order('created_at', { ascending: false });
-    if (!error) setItems(data || []);
+    try {
+      const data = await getStaffHandoffs();
+      setItems(data || []);
+    } catch (error) {
+      console.error('[HANDOFFS PAGE ERROR]', error);
+      setItems([]);
+    }
     setLoading(false);
   }
 

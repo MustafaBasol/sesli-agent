@@ -1,15 +1,33 @@
 'use server';
 
-export async function verifyAdminPassword(password: string) {
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    console.error('ADMIN_PASSWORD not set in environment.');
-    return { success: false, error: 'System error: Password not configured.' };
+import {
+  clearAdminSession,
+  createAdminSession,
+  verifyAdminPassword,
+} from '@/lib/security/admin-session';
+
+export async function loginAdmin(password: string) {
+  const input = password.trim();
+
+  if (!input) {
+    return { success: false, error: 'Lutfen sifre girin.' };
   }
-  
-  if (password === adminPassword) {
+
+  try {
+    const valid = verifyAdminPassword(input);
+    if (!valid) {
+      return { success: false, error: 'Hatali sifre. Lutfen tekrar deneyin.' };
+    }
+
+    await createAdminSession();
     return { success: true };
+  } catch (error) {
+    console.error('[ADMIN LOGIN ERROR]', error);
+    return { success: false, error: 'Sistem hatasi. Tekrar deneyin.' };
   }
-  
-  return { success: false, error: 'Invalid password.' };
+}
+
+export async function logoutAdmin() {
+  await clearAdminSession();
+  return { success: true };
 }

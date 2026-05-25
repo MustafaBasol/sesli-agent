@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createServerSupabase } from '@/lib/supabase-server';
 import { getCurrentDateInfo } from '@/lib/current-date';
 
 export async function POST(req: Request) {
   try {
+    const supabase = createServerSupabase();
+
     const { date, time, party_size } = await req.json();
     const currentYear = Number(getCurrentDateInfo().today_iso.slice(0, 4));
     const dateParts = String(date || '').split('-');

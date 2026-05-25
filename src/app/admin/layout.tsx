@@ -2,26 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { logoutAdmin } from './login/action';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isAuth, setIsAuth] = useState(false);
-
-  useEffect(() => {
-    if (pathname === '/admin/login') return;
-    
-    const auth = localStorage.getItem('admin_auth');
-    if (!auth) {
-      router.push('/admin/login');
-    } else {
-      setIsAuth(true);
-    }
-  }, [pathname, router]);
 
   if (pathname === '/admin/login') return <>{children}</>;
-  if (!isAuth) return <div className="min-h-screen bg-gray-900" />;
 
   const navItems = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
@@ -66,9 +53,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
         <div className="p-4 border-t border-gray-800">
           <button
-            onClick={() => {
-              localStorage.removeItem('admin_auth');
-              router.push('/admin/login');
+            onClick={async () => {
+              await logoutAdmin();
+              router.replace('/admin/login');
+              router.refresh();
             }}
             className="w-full flex items-center px-4 py-3 text-gray-400 hover:text-red-400 hover:bg-red-500/5 rounded-xl transition-all"
           >

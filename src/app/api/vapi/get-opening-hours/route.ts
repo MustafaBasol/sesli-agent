@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createServerSupabase } from '@/lib/supabase-server';
 import { getCurrentDateInfo } from '@/lib/current-date';
 
 export async function POST(req: Request) {
   try {
+    const supabase = createServerSupabase();
+
     // 1. Fetch Weekly Hours
     const { data: settings } = await supabase.from('restaurant_settings').select('*');
     

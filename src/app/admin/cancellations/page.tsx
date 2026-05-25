@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getReservationCancellations } from './actions';
 
 export default function CancellationsPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -13,8 +13,13 @@ export default function CancellationsPage() {
 
   async function fetchItems() {
     setLoading(true);
-    const { data, error } = await supabase.from('reservation_cancellations').select('*').order('created_at', { ascending: false });
-    if (!error) setItems(data || []);
+    try {
+      const data = await getReservationCancellations();
+      setItems(data || []);
+    } catch (error) {
+      console.error('[CANCELLATIONS PAGE ERROR]', error);
+      setItems([]);
+    }
     setLoading(false);
   }
 

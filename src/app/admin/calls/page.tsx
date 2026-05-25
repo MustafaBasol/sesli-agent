@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getCalls } from './actions';
 
 export default function CallsPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -13,8 +13,13 @@ export default function CallsPage() {
 
   async function fetchItems() {
     setLoading(true);
-    const { data, error } = await supabase.from('calls').select('*').order('created_at', { ascending: false });
-    if (!error) setItems(data || []);
+    try {
+      const data = await getCalls();
+      setItems(data || []);
+    } catch (error) {
+      console.error('[CALLS PAGE ERROR]', error);
+      setItems([]);
+    }
     setLoading(false);
   }
 

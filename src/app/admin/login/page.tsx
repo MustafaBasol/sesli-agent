@@ -1,21 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { loginAdmin } from './action';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Bu fonksiyon hiçbir dış dosyaya ihtiyaç duymadan çalışır
-  const doLogin = () => {
-    const input = password.trim();
-    if (input === 'admin1234') {
-      localStorage.setItem('admin_auth', 'true');
-      alert('Giriş Başarılı! Dashboard\'a yönlendiriliyorsunuz...');
-      window.location.href = '/admin/dashboard';
+  const doLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    setError('');
+
+    const result = await loginAdmin(password);
+
+    if (result.success) {
+      router.replace('/admin/dashboard');
+      router.refresh();
     } else {
-      setError('Hatalı şifre. Lütfen tekrar deneyin.');
+      setError(result.error || 'Giris basarisiz.');
     }
+
+    setLoading(false);
   };
 
   return (
@@ -37,9 +47,10 @@ export default function LoginPage() {
           
           <button
             onClick={doLogin}
+            disabled={loading}
             className="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-xs cursor-pointer"
           >
-            Sisteme Giriş Yap
+            {loading ? 'Kontrol Ediliyor...' : 'Sisteme Giris Yap'}
           </button>
         </div>
         

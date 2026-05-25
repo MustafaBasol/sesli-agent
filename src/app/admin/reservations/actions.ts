@@ -1,8 +1,10 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 export async function getReservations() {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data, error } = await supabase
     .from('reservation_requests')
@@ -14,6 +16,7 @@ export async function getReservations() {
 }
 
 export async function deleteReservation(id: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('reservation_requests')
@@ -25,6 +28,7 @@ export async function deleteReservation(id: string) {
 }
 
 export async function updateReservation(id: string, updates: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   
   if (updates.customer_name || updates.phone_number) {
@@ -47,6 +51,7 @@ export async function updateReservation(id: string, updates: any) {
 }
 
 export async function getAvailableTables(date: string, time: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data: allTables } = await supabase.from('tables').select('*').eq('is_active', true);
   const { data: booked } = await supabase.from('reservation_requests').select('assigned_table_id').eq('reservation_date', date).not('assigned_table_id', 'is', null);
@@ -55,6 +60,7 @@ export async function getAvailableTables(date: string, time: string) {
 }
 
 export async function createManualReservation(reservation: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data: customer } = await supabase.from('customers').upsert({ phone_number: reservation.phone_number, full_name: reservation.customer_name }, { onConflict: 'phone_number' }).select().single();
   const { error } = await supabase.from('reservation_requests').insert({ ...reservation, customer_id: customer?.id, status: reservation.assigned_table_id ? 'confirmed' : 'new' });

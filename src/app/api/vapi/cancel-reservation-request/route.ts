@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createServerSupabase } from '@/lib/supabase-server';
 import { getVapiResponse } from '@/lib/vapi-messages';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 
 export async function POST(req: Request) {
   try {
+    const supabase = createServerSupabase();
+
     const rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
 

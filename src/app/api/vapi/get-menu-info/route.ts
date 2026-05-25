@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createServerSupabase } from '@/lib/supabase-server';
 
 export async function POST(req: Request) {
   try {
+    const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from('menu_items')
       .select('*')

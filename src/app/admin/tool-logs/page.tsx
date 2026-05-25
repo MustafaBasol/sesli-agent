@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getToolLogs } from './actions';
 
 export default function ToolLogsPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -13,8 +13,13 @@ export default function ToolLogsPage() {
 
   async function fetchItems() {
     setLoading(true);
-    const { data, error } = await supabase.from('tool_logs').select('*').order('created_at', { ascending: false });
-    if (!error) setItems(data || []);
+    try {
+      const data = await getToolLogs();
+      setItems(data || []);
+    } catch (error) {
+      console.error('[TOOL LOGS PAGE ERROR]', error);
+      setItems([]);
+    }
     setLoading(false);
   }
 

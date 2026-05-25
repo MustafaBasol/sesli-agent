@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getReservationChanges } from './actions';
 
 export default function ChangesPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -13,8 +13,13 @@ export default function ChangesPage() {
 
   async function fetchItems() {
     setLoading(true);
-    const { data, error } = await supabase.from('reservation_changes').select('*').order('created_at', { ascending: false });
-    if (!error) setItems(data || []);
+    try {
+      const data = await getReservationChanges();
+      setItems(data || []);
+    } catch (error) {
+      console.error('[CHANGES PAGE ERROR]', error);
+      setItems([]);
+    }
     setLoading(false);
   }
 

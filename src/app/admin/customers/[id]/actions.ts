@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 function normalizePhone(value?: string | null) {
   return value?.replace(/\D/g, '') || '';
@@ -19,6 +20,7 @@ function phonesMatch(customerPhone?: string | null, callerPhone?: string | null)
 }
 
 export async function getCustomerDetail(id: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
 
   // 1. Fetch Customer Profile
@@ -84,6 +86,7 @@ export async function getCustomerDetail(id: string) {
 }
 
 export async function addOrderToReservation(order: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase.from('orders').insert(order);
   if (error) throw error;

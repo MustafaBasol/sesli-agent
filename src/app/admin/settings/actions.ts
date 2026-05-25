@@ -1,8 +1,10 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 export async function getSettings() {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data: weekly } = await supabase
     .from('restaurant_settings')
@@ -17,6 +19,7 @@ export async function getSettings() {
 }
 
 export async function updateDaySettings(id: string, updates: any) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('restaurant_settings')
@@ -28,6 +31,7 @@ export async function updateDaySettings(id: string, updates: any) {
 }
 
 export async function updateRule(key: string, value: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { error } = await supabase
     .from('restaurant_rules')
@@ -39,6 +43,7 @@ export async function updateRule(key: string, value: string) {
 }
 
 export async function getBlackoutDates() {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data, error } = await supabase
     .from('blackout_dates')
@@ -49,6 +54,7 @@ export async function getBlackoutDates() {
 }
 
 export async function toggleBlackoutDate(date: string, reason?: string) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const { data: existing } = await supabase.from('blackout_dates').select('*').eq('date', date).single();
 

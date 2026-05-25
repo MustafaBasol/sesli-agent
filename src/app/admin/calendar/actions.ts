@@ -1,8 +1,10 @@
 'use server';
 
 import { createServerSupabase } from '@/lib/supabase-server';
+import { requireAdminSession } from '@/lib/security/admin-session';
 
 export async function getMonthlyReservations(year: number, month: number) {
+  await requireAdminSession();
   const supabase = createServerSupabase();
   const startOfMonth = new Date(year, month, 1).toISOString();
   const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString();

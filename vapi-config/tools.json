@@ -1,0 +1,124 @@
+[
+  {
+    "name": "get_current_date",
+    "description": "Mandatory at the start of every call and before interpreting relative dates like today, tonight, tomorrow, bugün, bu akşam, yarın, ce soir, or demain. Returns the current Paris date in ISO format for tools and natural Turkish spoken text for the caller.",
+    "async": false,
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/get-current-date"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "create_reservation_request",
+    "description": "Use this tool when the caller wants to make a new reservation at Golden Meat. Only call this tool after collecting and confirming the customer's name, phone number, number of guests, reservation date, reservation time, language, and special request if mentioned.",
+    "async": false,
+    "messages": [],
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/create-reservation-request"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "customer_name": { "type": "string", "description": "Full name of the caller" },
+        "phone_number": { "type": "string", "description": "Caller phone number" },
+        "party_size": { "type": "integer", "description": "Number of guests" },
+        "reservation_date": { "type": "string", "description": "Requested reservation date in YYYY-MM-DD format" },
+        "reservation_time": { "type": "string", "description": "Requested reservation time in HH:mm format" },
+        "language": { "type": "string", "description": "Caller language: fr, tr, or en" },
+        "special_request": { "type": "string", "description": "Any special request, dietary need, celebration, terrace preference, child seat, or additional note" },
+        "call_id": { "type": "string", "description": "Vapi call ID if available" }
+      },
+      "required": ["customer_name", "phone_number", "party_size", "reservation_date", "reservation_time", "language"]
+    }
+  },
+  {
+    "name": "modify_reservation_request",
+    "description": "Use this tool when the caller wants to modify an existing reservation. Collect the caller's name, phone number, original reservation date/time if known, and the requested new date/time.",
+    "async": false,
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/modify-reservation-request"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "customer_name": { "type": "string" },
+        "phone_number": { "type": "string" },
+        "original_reservation_date": { "type": "string", "description": "Original reservation date if known, YYYY-MM-DD" },
+        "original_reservation_time": { "type": "string", "description": "Original reservation time if known, HH:mm" },
+        "new_reservation_date": { "type": "string", "description": "Requested new reservation date, YYYY-MM-DD" },
+        "new_reservation_time": { "type": "string", "description": "Requested new reservation time, HH:mm" },
+        "party_size": { "type": "integer" },
+        "language": { "type": "string" },
+        "note": { "type": "string" },
+        "call_id": { "type": "string" }
+      },
+      "required": ["customer_name", "phone_number", "new_reservation_date", "new_reservation_time", "language"]
+    }
+  },
+  {
+    "name": "cancel_reservation_request",
+    "description": "Use this tool when the caller wants to cancel an existing reservation. Collect the caller's name, phone number, reservation date and time if available.",
+    "async": false,
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/cancel-reservation-request"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "customer_name": { "type": "string" },
+        "phone_number": { "type": "string" },
+        "reservation_date": { "type": "string", "description": "Reservation date in YYYY-MM-DD format" },
+        "reservation_time": { "type": "string", "description": "Reservation time in HH:mm format" },
+        "language": { "type": "string" },
+        "reason": { "type": "string" },
+        "call_id": { "type": "string" }
+      },
+      "required": ["customer_name", "phone_number", "language"]
+    }
+  },
+  {
+    "name": "handoff_to_staff",
+    "description": "Use this tool when the caller explicitly asks to speak with a human, has an urgent issue, complains, asks about a complex situation, or the assistant cannot confidently handle the request.",
+    "async": false,
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/handoff-to-staff"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "customer_name": { "type": "string" },
+        "phone_number": { "type": "string" },
+        "language": { "type": "string" },
+        "reason": { "type": "string", "description": "Why the caller needs human assistance" },
+        "conversation_summary": { "type": "string", "description": "Short summary of the caller's request" },
+        "urgency": { "type": "string", "description": "low, normal, or high" },
+        "call_id": { "type": "string" }
+      },
+      "required": ["phone_number", "language", "reason", "conversation_summary"]
+    }
+  },
+  {
+    "name": "log_call_summary",
+    "description": "Use this tool at the end of the call or when a useful summary should be saved. It records the call outcome, caller language, intent, and summary.",
+    "async": false,
+    "server": {
+      "url": "{{PUBLIC_APP_URL}}/api/vapi/log-call-summary"
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "call_id": { "type": "string" },
+        "caller_phone": { "type": "string" },
+        "customer_name": { "type": "string" },
+        "language": { "type": "string" },
+        "intent": { "type": "string", "description": "reservation_create, reservation_modify, reservation_cancel, staff_handoff, restaurant_info, other" },
+        "summary": { "type": "string" },
+        "outcome": { "type": "string", "description": "completed, pending_confirmation, transferred, failed, abandoned" }
+      },
+      "required": ["language", "intent", "summary", "outcome"]
+    }
+  }
+]

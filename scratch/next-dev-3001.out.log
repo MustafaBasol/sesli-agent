@@ -1,0 +1,42 @@
+
+> golden-meat-app@0.1.0 dev
+> next dev --port 3001
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.1.85:3001
+- Environments: .env.local
+✓ Ready in 1702ms
+Creating turbopack project { dir: 'E:\\Ek Gelir\\Siteler\\Sesli Agent', testMode: true }
+- Experiments (use with caution):
+  · serverActions
+
+○ Compiling /api/vapi/log-call-summary ...
+ POST /api/vapi/log-call-summary 200 in 20.2s (next.js: 20.0s, application-code: 213ms)
+ POST /api/vapi/log-call-summary 200 in 332ms (next.js: 113ms, application-code: 218ms)
+ GET / 200 in 2.7s (next.js: 2.3s, application-code: 418ms)
+ GET / 200 in 159ms (next.js: 56ms, application-code: 102ms)
+ GET / 200 in 87ms (next.js: 3ms, application-code: 84ms)
+ GET / 200 in 63ms (next.js: 5ms, application-code: 58ms)
+ GET /admin 404 in 159ms (next.js: 60ms, application-code: 99ms)
+ GET /admin 404 in 208ms (next.js: 50ms, application-code: 159ms)
+ GET /admin 404 in 132ms (next.js: 10ms, application-code: 122ms)
+ GET /admin 404 in 203ms (next.js: 42ms, application-code: 160ms)
+ GET /admin/dashboard 200 in 237ms (next.js: 121ms, application-code: 116ms)
+ GET /admin/login 200 in 81ms (next.js: 29ms, application-code: 51ms)
+ GET /admin/dashboard 200 in 78ms (next.js: 8ms, application-code: 70ms)
+ POST /admin/dashboard 200 in 399ms (next.js: 3ms, application-code: 396ms)
+  └─ ƒ getDashboardStats() in 356ms src/app/admin/dashboard/actions.ts
+ POST /admin/dashboard 200 in 265ms (next.js: 4ms, application-code: 261ms)
+  └─ ƒ getDashboardStats() in 250ms src/app/admin/dashboard/actions.ts
+ GET /admin/customers 200 in 106ms (next.js: 72ms, application-code: 34ms)
+ POST /admin/customers 200 in 137ms (next.js: 4ms, application-code: 133ms)
+  └─ ƒ getCustomers() in 117ms src/app/admin/customers/actions.ts
+ POST /admin/customers 200 in 87ms (next.js: 6ms, application-code: 82ms)
+  └─ ƒ getCustomers() in 69ms src/app/admin/customers/actions.ts
+ GET /admin/customers/7b06be34-ce1c-4027-9439-cdb92cb27baf 200 in 1207ms (next.js: 1067ms, application-code: 140ms)
+ POST /admin/customers/7b06be34-ce1c-4027-9439-cdb92cb27baf 200 in 330ms (next.js: 41ms, application-code: 289ms)
+  └─ ƒ getCustomerDetail("7b06be34-ce1c-4027-9439-cdb92cb27baf") in 274ms src/app/admin/customers/[id]/actions.ts
+ POST /admin/customers/7b06be34-ce1c-4027-9439-cdb92cb27baf 200 in 285ms (next.js: 5ms, application-code: 280ms)
+  └─ ƒ getCustomerDetail("7b06be34-ce1c-4027-9439-cdb92cb27baf") in 266ms src/app/admin/customers/[id]/actions.ts
+[?25h

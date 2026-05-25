@@ -1,0 +1,704 @@
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/admin/cus..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="geist_a715...">
+                          <body
+                            className="min-h-full flex flex-col"
+-                           data-new-gr-c-s-check-loaded="14.1290.0"
+-                           data-gr-ext-installed=""
+                          >
+                  ...
+ 
+    at <unknown> (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at emitPendingHydrationWarnings (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3438:13)
+    at completeWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6885:102)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:131)
+    at completeUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9622:23)
+    at performUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9557:28)
+    at workLoopConcurrentByScheduler (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/admin/cus..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="geist_a715...">
+                          <body
+                            className="min-h-full flex flex-col"
+-                           data-new-gr-c-s-check-loaded="14.1290.0"
+-                           data-gr-ext-installed=""
+                          >
+                  ...
+ 
+    at <unknown> (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at emitPendingHydrationWarnings (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3438:13)
+    at completeWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6885:102)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:131)
+    at completeUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9622:23)
+    at performUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9557:28)
+    at workLoopConcurrentByScheduler (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[browser] ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found 
+    at handleErrors (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+    at processMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13914:21)
+    at WebSocket.handleMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13358:52) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+[browser] ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found 
+    at handleErrors (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+    at processMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13914:21)
+    at WebSocket.handleMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13358:52) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[browser] ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found 
+    at handleErrors (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+    at processMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13914:21)
+    at WebSocket.handleMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13358:52) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13851:21)
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  [90m2 |[0m
+  [90m3 |[0m [36mimport[0m { useEffect, useState } [36mfrom[0m [32m'react'[0m;
+[31m[1m>[0m [90m4 |[0m [36mimport[0m { getAnalyticsData } [36mfrom[0m [32m'./actions'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m5 |[0m
+  [90m6 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mAnalyticsPage[0m() {
+  [90m7 |[0m   [36mconst[0m [data, setData] = useState<any>([36mnull[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[browser] Uncaught Error: ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (Error: ./src/app/admin/analytics/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (Error: (./src/app/admin/analytics/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+[browser] Uncaught Error: ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (Error: ./src/app/admin/analytics/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (Error: (./src/app/admin/analytics/page.tsx:4:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+[browser] ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found 
+    at handleErrors (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2774:21)
+    at processMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2835:28)
+    at <unknown> (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2680:13)
+    at WebSocket.handleMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2325:17) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2774:21)
+[browser] ./src/app/admin/analytics/page.tsx:4:1
+Module not found: Can't resolve './actions'
+  2 |
+  3 | import { useEffect, useState } from 'react';
+> 4 | import { getAnalyticsData } from './actions';
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 |
+  6 | export default function AnalyticsPage() {
+  7 |   const [data, setData] = useState<any>(null);
+
+Import traces:
+  Client Component Browser:
+    ./src/app/admin/analytics/page.tsx [Client Component Browser]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/admin/analytics/page.tsx [Client Component SSR]
+    ./src/app/admin/analytics/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found 
+    at handleErrors (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2774:21)
+    at processMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2835:28)
+    at <unknown> (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2680:13)
+    at WebSocket.handleMessage (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2325:17) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_client_0pe1dg-._.js:2774:21)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/admin/ana..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="tr" className="geist_fe37...">
+                          <body
+                            className="min-h-full flex flex-col"
+-                           data-new-gr-c-s-check-loaded="14.1290.0"
+-                           data-gr-ext-installed=""
+                          >
+                  ...
+ 
+    at <unknown> (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at emitPendingHydrationWarnings (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3438:13)
+    at completeWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6885:102)
+    at runWithFiberInDEV (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:131)
+    at completeUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9622:23)
+    at performUnitOfWork (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9557:28)
+    at workLoopConcurrentByScheduler (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64) (file://E:/Ek Gelir/Siteler/Sesli Agent/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3439:25)

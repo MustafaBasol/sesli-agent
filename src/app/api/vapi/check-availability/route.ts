@@ -1,23 +1,60 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { getCurrentDateInfo } from '@/lib/current-date';
+import { parseVapiPayload } from '@/lib/vapi-parser';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import {
+  getValueFromAliases,
+  normalizeDate,
+  normalizeTime,
+  normalizePartySize,
+  buildMissingFieldsResponse,
+} from '@/lib/vapi-normalizers';
 
 export async function POST(req: Request) {
   let rawBody: any = {};
   try {
-    const supabase = createServerSupabase();
     rawBody = await req.json();
-    const { date, time, party_size } = rawBody;
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
     const currentYear = Number(getCurrentDateInfo().today_iso.slice(0, 4));
-    const dateParts = String(date || '').split('-');
-    let checkDate = String(date || '');
 
-    if (dateParts.length === 3 && Number(dateParts[0]) < currentYear) {
-      checkDate = `${currentYear}-${dateParts[1]}-${dateParts[2]}`;
+    const requestedDate = getValueFromAliases(allSources, [
+      'date', 'reservation_date', 'requested_date', 'new_date', 'new_reservation_date',
+    ]);
+    const requestedTime = getValueFromAliases(allSources, [
+      'time', 'reservation_time', 'requested_time', 'new_time', 'new_reservation_time',
+    ]);
+    const requestedPartySize = getValueFromAliases(allSources, [
+      'party_size', 'partySize', 'guests', 'guest_count', 'number_of_people', 'people', 'new_party_size',
+    ]);
+
+    const normalizedDate = normalizeDate(requestedDate, currentYear);
+    const normalizedTime = normalizeTime(requestedTime);
+    const partySize = normalizePartySize(requestedPartySize);
+
+    console.log('[CHECK_AVAILABILITY INPUT]', {
+      requestedDate, requestedTime, requestedPartySize,
+      normalizedDate, normalizedTime, partySize,
+    });
+
+    const missingFields: string[] = [];
+    if (!normalizedDate) missingFields.push('date');
+    if (!normalizedTime) missingFields.push('time');
+    if (!partySize) missingFields.push('party_size');
+
+    if (missingFields.length > 0) {
+      return createVapiToolResponse(rawBody, buildMissingFieldsResponse(
+        missingFields,
+        `I need the ${missingFields.join(', ')} before checking availability.`,
+      ));
     }
 
+    const checkDate = normalizedDate!;
+    const time = normalizedTime!;
     const dayOfWeek = new Date(`${checkDate}T12:00:00Z`).getUTCDay();
+
+    const supabase = createServerSupabase();
 
     // 1. Fetch all settings and rules in parallel
     const [
@@ -62,7 +99,7 @@ export async function POST(req: Request) {
 
     // C. Max Party Size Check
     const maxPartySize = parseInt(rules?.find(r => r.key === 'max_party_size')?.value || '10');
-    if (party_size > maxPartySize) {
+    if (partySize! > maxPartySize) {
       return createVapiToolResponse(rawBody, { 
         available: false, 
         reason: "Party Too Large", 
@@ -73,7 +110,7 @@ export async function POST(req: Request) {
     // --- CALENDAR / TABLE CHECKS ---
 
     const bookedTableIds = existingBookings?.map(b => b.assigned_table_id) || [];
-    const availableTables = allTables?.filter(t => !bookedTableIds.includes(t.id) && t.capacity >= party_size);
+    const availableTables = allTables?.filter(t => !bookedTableIds.includes(t.id) && t.capacity >= partySize!);
 
     if (!availableTables || availableTables.length === 0) {
       return createVapiToolResponse(rawBody, { 
@@ -86,7 +123,7 @@ export async function POST(req: Request) {
 
     // D. Manual Approval Threshold
     const manualThreshold = parseInt(rules?.find(r => r.key === 'manual_approval_threshold')?.value || '8');
-    const needsApproval = party_size >= manualThreshold;
+    const needsApproval = partySize! >= manualThreshold;
 
     return createVapiToolResponse(rawBody, {
       available: true,

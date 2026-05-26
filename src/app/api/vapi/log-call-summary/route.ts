@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import { getValueFromAliases, normalizePhone } from '@/lib/vapi-normalizers';
 
 export async function POST(req: Request) {
   let rawBody: any = {};
@@ -9,6 +10,7 @@ export async function POST(req: Request) {
     const supabase = createServerSupabase();
     rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
 
     const webhookCustomerPhone =
       rawBody?.customer?.number ||
@@ -16,21 +18,23 @@ export async function POST(req: Request) {
       rawBody?.message?.call?.customer?.number ||
       rawBody?.call?.customer?.number;
 
-    const { 
-      call_id,
-      caller_phone,
-      phone_number,
-      customer_name,
-      language,
-      intent,
-      summary,
-      outcome
-    } = body;
-
-    const resolvedPhone = caller_phone || phone_number || webhookCustomerPhone || null;
+    const call_id: string | null = body.call_id || null;
+    const rawPhone = getValueFromAliases(allSources, [
+      'caller_phone', 'phone_number', 'phone', 'customer_phone',
+    ]) || webhookCustomerPhone || null;
+    const caller_phone = normalizePhone(rawPhone);
+    const customer_name: string | null =
+      getValueFromAliases(allSources, ['customer_name', 'full_name', 'name']) || null;
+    const language: string | null = getValueFromAliases(allSources, ['language', 'lang']) || null;
+    const intent: string | null =
+      getValueFromAliases(allSources, ['intent', 'call_intent', 'reason']) || null;
+    const summary: string | null =
+      getValueFromAliases(allSources, ['summary', 'conversation_summary', 'notes']) || null;
+    const outcome: string | null =
+      getValueFromAliases(allSources, ['outcome', 'status', 'result']) || null;
     const callLog = {
       vapi_call_id: call_id,
-      caller_phone: resolvedPhone,
+      caller_phone: caller_phone,
       customer_name,
       language,
       intent,

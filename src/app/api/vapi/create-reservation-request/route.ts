@@ -4,31 +4,71 @@ import { getVapiResponse } from '@/lib/vapi-messages';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 import { getCurrentDateInfo } from '@/lib/current-date';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import {
+  getValueFromAliases,
+  normalizeDate,
+  normalizeTime,
+  normalizePartySize,
+  normalizePhone,
+  buildMissingFieldsResponse,
+} from '@/lib/vapi-normalizers';
 
 export async function POST(req: Request) {
   let rawBody: any = {};
   try {
-    const supabase = createServerSupabase();
     rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
-
-    const { 
-      customer_name, 
-      phone_number, 
-      party_size, 
-      reservation_date, 
-      reservation_time, 
-      language, 
-      special_request,
-      call_id 
-    } = body;
+    const allSources = [body, rawBody];
     const currentYear = Number(getCurrentDateInfo().today_iso.slice(0, 4));
-    const dateParts = String(reservation_date || '').split('-');
-    let finalReservationDate = String(reservation_date || '');
 
-    if (dateParts.length === 3 && Number(dateParts[0]) < currentYear) {
-      finalReservationDate = `${currentYear}-${dateParts[1]}-${dateParts[2]}`;
+    const customer_name: string =
+      getValueFromAliases(allSources, ['customer_name', 'full_name', 'name', 'customerName']) || '';
+    const rawPhone = getValueFromAliases(allSources, [
+      'phone_number', 'phone', 'caller_phone', 'customer_phone',
+    ]) ||
+      rawBody?.customer?.number ||
+      rawBody?.message?.customer?.number ||
+      rawBody?.message?.call?.customer?.number ||
+      rawBody?.call?.customer?.number ||
+      null;
+    const phone_number = normalizePhone(rawPhone);
+
+    const reservation_date = normalizeDate(
+      getValueFromAliases(allSources, ['reservation_date', 'date', 'requested_date']),
+      currentYear,
+    );
+    const reservation_time = normalizeTime(
+      getValueFromAliases(allSources, ['reservation_time', 'time', 'requested_time']),
+    );
+    const party_size = normalizePartySize(
+      getValueFromAliases(allSources, [
+        'party_size', 'partySize', 'guests', 'guest_count', 'number_of_people', 'people',
+      ]),
+    );
+    const language: string =
+      getValueFromAliases(allSources, ['language', 'lang']) || 'tr';
+    const special_request: string | null =
+      getValueFromAliases(allSources, ['special_request', 'notes', 'request', 'special_notes']) || null;
+    const call_id: string | null = body.call_id || null;
+
+    console.log('[CREATE_RESERVATION INPUT]', {
+      customer_name, phone_number, reservation_date, reservation_time, party_size, language,
+    });
+
+    const missingFields: string[] = [];
+    if (!customer_name) missingFields.push('customer_name');
+    if (!phone_number) missingFields.push('phone_number');
+    if (!reservation_date) missingFields.push('reservation_date');
+    if (!reservation_time) missingFields.push('reservation_time');
+    if (!party_size) missingFields.push('party_size');
+
+    if (missingFields.length > 0) {
+      return createVapiToolResponse(rawBody, buildMissingFieldsResponse(missingFields));
     }
+
+    const finalReservationDate = reservation_date!;
+
+    const supabase = createServerSupabase();
 
     // 1. Log Tool Call
     await supabase.from('tool_logs').insert({
@@ -59,7 +99,7 @@ export async function POST(req: Request) {
         phone_number,
         party_size,
         reservation_date: finalReservationDate,
-        reservation_time,
+        reservation_time: reservation_time!,
         language,
         special_request,
         raw_payload: rawBody,

@@ -2,29 +2,35 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import { getValueFromAliases, normalizePhone } from '@/lib/vapi-normalizers';
 
-function normalizePhone(value?: string | null) {
+function normalizePhoneDigits(value?: string | null) {
   return value?.replace(/\D/g, '') || '';
 }
 
 export async function POST(req: Request) {
   let rawBody: any = {};
   try {
-    const supabase = createServerSupabase();
     rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
-    const phoneNumber =
-      body.phone_number ||
+    const allSources = [body, rawBody];
+
+    const rawPhone = getValueFromAliases(allSources, [
+      'phone_number', 'phone', 'caller_phone', 'customer_phone',
+    ]) ||
       rawBody?.customer?.number ||
       rawBody?.message?.customer?.number ||
       rawBody?.message?.call?.customer?.number ||
-      rawBody?.call?.customer?.number;
+      rawBody?.call?.customer?.number ||
+      null;
+    const phoneNumber = normalizePhone(rawPhone);
 
     if (!phoneNumber) {
       return createVapiToolErrorResponse(rawBody, 'Phone number is required');
     }
 
-    const phoneSuffix = normalizePhone(phoneNumber).slice(-9);
+    const supabase = createServerSupabase();
+    const phoneSuffix = normalizePhoneDigits(phoneNumber).slice(-9);
     const { data, error } = await supabase
       .from('customers')
       .select('id, phone_number, full_name, notes, total_reservations, last_visit_at')

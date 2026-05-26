@@ -1,13 +1,24 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import { getValueFromAliases, buildMissingFieldsResponse } from '@/lib/vapi-normalizers';
+import { parseVapiPayload } from '@/lib/vapi-parser';
 
 export async function POST(req: Request) {
   let rawBody: any = {};
   try {
-    const supabase = createServerSupabase();
     rawBody = await req.json();
-    const { item_name } = rawBody;
+    const body = parseVapiPayload(rawBody);
+    const item_name: string | null = getValueFromAliases(
+      [body, rawBody],
+      ['item_name', 'item', 'dish', 'product_name', 'menu_item', 'name'],
+    ) || null;
+
+    if (!item_name) {
+      return createVapiToolResponse(rawBody, buildMissingFieldsResponse(['item_name']));
+    }
+
+    const supabase = createServerSupabase();
 
     const { data, error } = await supabase
       .from('menu_items')

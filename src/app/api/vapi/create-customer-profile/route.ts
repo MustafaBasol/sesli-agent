@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
+import { getValueFromAliases, normalizePhone } from '@/lib/vapi-normalizers';
 
 export async function POST(req: Request) {
   let rawBody: any = {};
@@ -9,28 +10,33 @@ export async function POST(req: Request) {
     const supabase = createServerSupabase();
     rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
 
-    const phoneNumber =
-      body.phone_number ||
+    const rawPhone = getValueFromAliases(allSources, [
+      'phone_number', 'phone', 'caller_phone', 'customer_phone',
+    ]) ||
       rawBody?.customer?.number ||
       rawBody?.message?.customer?.number ||
       rawBody?.message?.call?.customer?.number ||
-      rawBody?.call?.customer?.number;
+      rawBody?.call?.customer?.number ||
+      null;
+    const phoneNumber = normalizePhone(rawPhone);
 
     if (!phoneNumber) {
       return createVapiToolErrorResponse(rawBody, 'Phone number is required');
     }
 
     const fullName: string =
-      body.full_name ||
-      body.customer_name ||
+      getValueFromAliases(allSources, ['full_name', 'customer_name', 'name', 'customerName']) ||
       rawBody?.customer?.name ||
       rawBody?.message?.customer?.name ||
       rawBody?.message?.call?.customer?.name ||
       rawBody?.call?.customer?.name ||
       'Unknown Customer';
 
-    const { language, notes, call_id, intent, conversation_summary } = body;
+    const notes: string | null =
+      getValueFromAliases(allSources, ['notes', 'conversation_summary', 'summary', 'request']) || null;
+    const { language, call_id, intent, conversation_summary } = body;
 
     // 1. Log tool call
     await supabase.from('tool_logs').insert({

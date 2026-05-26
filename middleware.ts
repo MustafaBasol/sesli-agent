@@ -34,9 +34,24 @@ function guardAdmin(request: NextRequest): NextResponse | null {
   return null;
 }
 
+function withCors(response: NextResponse): NextResponse {
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-vapi-secret, x-vapi-server-secret');
+  return response;
+}
+
 function guardVapi(request: NextRequest): NextResponse | null {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/vapi/')) return null;
+
+  if (request.method === 'OPTIONS') {
+    return withCors(new NextResponse(null, { status: 204 }));
+  }
+
+  if (pathname === '/api/vapi/webhook') {
+    return null;
+  }
 
   const expectedSecret = getExpectedVapiSecret();
 

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-    const rawBody = await req.json();
+    rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
 
     const phoneNumber =
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
       rawBody?.call?.customer?.number;
 
     if (!phoneNumber) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+      return createVapiToolErrorResponse(rawBody, 'Phone number is required');
     }
 
     const fullName: string =
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
         ...(call_id ? { vapi_call_id: call_id } : {}),
       });
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       success: true,
       customer_id: customerData?.id,
       full_name: fullName,
@@ -128,6 +130,6 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Error in create-customer-profile:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 function normalizePhone(value?: string | null) {
   return value?.replace(/\D/g, '') || '';
 }
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-    const rawBody = await req.json();
+    rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
     const phoneNumber =
       body.phone_number ||
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
       rawBody?.call?.customer?.number;
 
     if (!phoneNumber) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+      return createVapiToolErrorResponse(rawBody, 'Phone number is required');
     }
 
     const phoneSuffix = normalizePhone(phoneNumber).slice(-9);
@@ -30,14 +32,14 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (error || !data) {
-      return NextResponse.json({
+      return createVapiToolResponse(rawBody, {
         is_known: false,
         caller_phone: phoneNumber,
         message: 'New customer',
       });
     }
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       is_known: true,
       customer_id: data.id,
       full_name: data.full_name,
@@ -51,6 +53,6 @@ export async function POST(req: Request) {
       customer_message_en: `Welcome back, ${data.full_name}! Great to see you again.`,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

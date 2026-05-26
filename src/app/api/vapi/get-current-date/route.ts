@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentDateInfo } from '@/lib/current-date';
+import { createVapiToolResponse } from '@/lib/vapi-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,22 +10,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const info = getCurrentDateInfo();
-
+  let rawBody: any = {};
   try {
-    const body = await req.json();
-    const toolCalls = body?.message?.toolCallList || body?.toolCallList;
-
-    if (Array.isArray(toolCalls) && toolCalls.length > 0) {
-      return NextResponse.json({
-        results: toolCalls.map((toolCall: any) => ({
-          toolCallId: toolCall.id,
-          result: JSON.stringify(info),
-        })),
-      });
-    }
+    rawBody = await req.json();
   } catch {
     // Direct health checks may POST without a JSON body.
   }
-
-  return NextResponse.json(info);
+  return createVapiToolResponse(rawBody, info);
 }

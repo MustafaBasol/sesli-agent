@@ -3,11 +3,13 @@ import { createServerSupabase } from '@/lib/supabase-server';
 import { getVapiResponse } from '@/lib/vapi-messages';
 import { parseVapiPayload } from '@/lib/vapi-parser';
 import { getCurrentDateInfo } from '@/lib/current-date';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-    const rawBody = await req.json();
+    rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
 
     const { 
@@ -87,10 +89,10 @@ export async function POST(req: Request) {
       .update({ status: 'success', response_payload: { id: resData.id } })
       .match({ vapi_call_id: call_id, tool_name: 'create_reservation_request', status: 'processing' });
 
-    return NextResponse.json(getVapiResponse('reservation_received', language));
+    return createVapiToolResponse(rawBody, getVapiResponse('reservation_received', language));
 
   } catch (error: any) {
     console.error('Error in create-reservation-request:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

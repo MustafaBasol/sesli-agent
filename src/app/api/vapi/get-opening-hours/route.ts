@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { getCurrentDateInfo } from '@/lib/current-date';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
+  try {
+    rawBody = await req.json();
+  } catch {}
   try {
     const supabase = createServerSupabase();
 
@@ -24,13 +29,13 @@ export async function POST(req: Request) {
     const blackoutsFormatted = blackouts?.length ? 
       blackouts.map(b => `${b.date} (${b.reason})`).join(', ') : 'None';
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       opening_hours: hoursFormatted,
       holiday_closures: blackoutsFormatted,
       instruction: "If the requested reservation date is in holiday_closures, or outside opening_hours, inform the guest we are closed."
     });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

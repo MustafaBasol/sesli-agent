@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { parseVapiPayload } from '@/lib/vapi-parser';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-    const rawBody = await req.json();
+    rawBody = await req.json();
     const body = parseVapiPayload(rawBody);
 
     const webhookCustomerPhone =
@@ -43,10 +45,10 @@ export async function POST(req: Request) {
 
     if (resError) throw resError;
 
-    return NextResponse.json({ status: 'success', message: 'Call summary logged.' });
+    return createVapiToolResponse(rawBody, { status: 'success', message: 'Call summary logged.' });
 
   } catch (error: any) {
     console.error('Error in log-call-summary:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

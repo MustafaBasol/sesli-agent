@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-
-    const { item_name } = await req.json();
+    rawBody = await req.json();
+    const { item_name } = rawBody;
 
     const { data, error } = await supabase
       .from('menu_items')
@@ -15,12 +17,12 @@ export async function POST(req: Request) {
       .single();
 
     if (error || !data) {
-      return NextResponse.json({ 
+      return createVapiToolResponse(rawBody, { 
         message: "I couldn't find detailed information for this specific item. Please refer to the general menu or ask a staff member." 
       });
     }
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       name: data.name,
       price: `${data.price} ${data.currency}`,
       description: data.description || "No detailed description available in the system.",
@@ -30,6 +32,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 import { getCurrentDateInfo } from '@/lib/current-date';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
   try {
     const supabase = createServerSupabase();
-
-    const { date, time, party_size } = await req.json();
+    rawBody = await req.json();
+    const { date, time, party_size } = rawBody;
     const currentYear = Number(getCurrentDateInfo().today_iso.slice(0, 4));
     const dateParts = String(date || '').split('-');
     let checkDate = String(date || '');
@@ -36,7 +38,7 @@ export async function POST(req: Request) {
 
     // A. Holiday Check
     if (blackouts) {
-      return NextResponse.json({ 
+      return createVapiToolResponse(rawBody, { 
         available: false, 
         reason: "Holiday/Closure", 
         message: `I'm sorry, we are closed on this date: ${blackouts.reason || 'Special Holiday'}.` 
@@ -45,13 +47,13 @@ export async function POST(req: Request) {
 
     // B. Day & Hours Check
     if (!settings || settings.is_closed) {
-      return NextResponse.json({ available: false, reason: "Closed", message: "We are closed on this day of the week." });
+      return createVapiToolResponse(rawBody, { available: false, reason: "Closed", message: "We are closed on this day of the week." });
     }
 
     const openTime = settings.open_time;
     const closeTime = settings.close_time;
     if (time < openTime || time > closeTime) {
-      return NextResponse.json({ 
+      return createVapiToolResponse(rawBody, { 
         available: false, 
         reason: "Outside Hours", 
         message: `We are only open between ${openTime.slice(0,5)} and ${closeTime.slice(0,5)}.` 
@@ -61,7 +63,7 @@ export async function POST(req: Request) {
     // C. Max Party Size Check
     const maxPartySize = parseInt(rules?.find(r => r.key === 'max_party_size')?.value || '10');
     if (party_size > maxPartySize) {
-      return NextResponse.json({ 
+      return createVapiToolResponse(rawBody, { 
         available: false, 
         reason: "Party Too Large", 
         message: `Our maximum table size is ${maxPartySize} people. For larger groups, please contact us directly.` 
@@ -74,7 +76,7 @@ export async function POST(req: Request) {
     const availableTables = allTables?.filter(t => !bookedTableIds.includes(t.id) && t.capacity >= party_size);
 
     if (!availableTables || availableTables.length === 0) {
-      return NextResponse.json({ 
+      return createVapiToolResponse(rawBody, { 
         available: false, 
         reason: "Fully Booked", 
         message: "We are fully booked at this time. Would you like to try another time or a different date?",
@@ -86,7 +88,7 @@ export async function POST(req: Request) {
     const manualThreshold = parseInt(rules?.find(r => r.key === 'manual_approval_threshold')?.value || '8');
     const needsApproval = party_size >= manualThreshold;
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       available: true,
       needs_approval: needsApproval,
       best_table_id: availableTables[0].id,
@@ -97,6 +99,6 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

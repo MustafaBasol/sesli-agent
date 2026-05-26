@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
+import { createVapiToolResponse, createVapiToolErrorResponse } from '@/lib/vapi-response';
 
 export async function POST(req: Request) {
+  let rawBody: any = {};
+  try {
+    rawBody = await req.json();
+  } catch {}
   try {
     const supabase = createServerSupabase();
     const { data, error } = await supabase
@@ -16,12 +21,12 @@ export async function POST(req: Request) {
       `- ${item.name} (${item.category}): ${item.price} ${item.currency}. Description: ${item.description}`
     ).join('\n');
 
-    return NextResponse.json({
+    return createVapiToolResponse(rawBody, {
       menu_info: menuFormatted,
       footer_message: "Please inform the guest that all prices are inclusive of VAT."
     });
 
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createVapiToolErrorResponse(rawBody, error.message);
   }
 }

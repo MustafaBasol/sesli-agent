@@ -49,7 +49,11 @@ export async function POST(req: Request) {
 
     if (resError) throw resError;
 
-    return createVapiToolResponse(rawBody, { status: 'success', message: 'Call summary logged.' });
+    return createVapiToolResponse(rawBody, {
+      success: true,
+      silent: true,
+      assistant_instruction: "Do not tell the caller to wait. If the caller is ending the call, say a short polite goodbye."
+    });
 
   } catch (error: any) {
     console.error('Error in log-call-summary:', error);

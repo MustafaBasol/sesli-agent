@@ -102,7 +102,7 @@
   },
   {
     "name": "log_call_summary",
-    "description": "Use this tool at the end of the call or when a useful summary should be saved. It records the call outcome, caller language, intent, and summary.",
+    "description": "Use this tool at the end of the call or when a useful summary should be saved. It records the call outcome, caller language, intent, and summary. This tool is silent. Do not say please hold before calling it. After calling it, say only a short goodbye if the caller is ending the call.",
     "async": false,
     "server": {
       "url": "{{PUBLIC_APP_URL}}/api/vapi/log-call-summary"

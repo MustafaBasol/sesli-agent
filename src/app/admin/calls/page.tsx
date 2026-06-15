@@ -3,13 +3,18 @@
 import { useEffect, useState } from 'react';
 import { getCalls } from './actions';
 
+const Spinner = () => (
+  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+  </svg>
+);
+
 export default function CallsPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
@@ -24,44 +29,60 @@ export default function CallsPage() {
   }
 
   return (
-    <div>
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">Call History</h2>
-        <p className="text-gray-400 mt-1">Full list of inbound calls handled by the receptionist.</p>
+    <div className="space-y-6 pb-10">
+      <header>
+        <p className="page-label">AI Activity</p>
+        <h2 className="page-title">Call History</h2>
+        <p className="page-subtitle">Full list of inbound calls handled by the AI receptionist.</p>
       </header>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="card">
         {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-800/50 text-gray-400 uppercase text-xs font-bold">
+        <div className="hidden sm:block table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Intent</th>
-                <th className="px-6 py-4">Outcome</th>
-                <th className="px-6 py-4">Summary</th>
+                {['Date', 'Customer', 'Intent', 'Outcome', 'Summary'].map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading calls...</td></tr>
+                <tr>
+                  <td colSpan={5} className="text-center py-12">
+                    <div className="flex items-center justify-center gap-2" style={{ color: 'var(--p-text-4)' }}>
+                      <Spinner />
+                      <span className="text-sm">Loading calls...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-16">
+                    <p className="text-sm" style={{ color: 'var(--p-text-5)' }}>No calls recorded yet</p>
+                  </td>
+                </tr>
               ) : items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-400">{new Date(item.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <div className="text-white font-medium">{item.customer_name || 'Unknown'}</div>
-                    <div className="text-xs text-gray-500">{item.caller_phone}</div>
+                <tr key={item.id}>
+                  <td className="whitespace-nowrap font-mono text-xs" style={{ color: 'var(--p-text-4)' }}>
+                    {new Date(item.created_at).toLocaleString()}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-gray-800 rounded text-xs border border-gray-700">{item.intent}</span>
+                  <td>
+                    <div className="font-semibold text-sm" style={{ color: 'var(--p-text-1)' }}>{item.customer_name || 'Unknown'}</div>
+                    <div className="text-xs mt-0.5 font-mono" style={{ color: 'var(--p-text-5)' }}>{item.caller_phone}</div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                      item.outcome === 'completed' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
-                    }`}>{item.outcome}</span>
+                  <td>
+                    <span className="badge badge-gray">{item.intent}</span>
                   </td>
-                  <td className="px-6 py-4 max-w-xs truncate text-gray-400" title={item.summary}>{item.summary}</td>
+                  <td>
+                    <span className={`badge ${item.outcome === 'completed' ? 'badge-green' : 'badge-amber'}`}>
+                      {item.outcome}
+                    </span>
+                  </td>
+                  <td className="max-w-xs truncate text-xs" style={{ color: 'var(--p-text-4)' }} title={item.summary}>
+                    {item.summary}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -69,25 +90,26 @@ export default function CallsPage() {
         </div>
 
         {/* Mobile cards */}
-        <div className="sm:hidden divide-y divide-gray-800">
+        <div className="sm:hidden divide-y" style={{ '--tw-divide-color': 'var(--p-border-2)' } as React.CSSProperties}>
           {loading ? (
-            <div className="px-4 py-10 text-center text-gray-500">Loading calls...</div>
+            <div className="flex items-center justify-center gap-2 py-12" style={{ color: 'var(--p-text-4)' }}>
+              <Spinner />
+              <span className="text-sm">Loading...</span>
+            </div>
           ) : items.map((item) => (
-            <div key={item.id} className="p-4 space-y-2">
+            <div key={item.id} className="p-4 space-y-2.5">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-medium text-white">{item.customer_name || 'Unknown'}</p>
-                  <p className="text-xs text-gray-500">{item.caller_phone}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>{item.customer_name || 'Unknown'}</p>
+                  <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--p-text-5)' }}>{item.caller_phone}</p>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                  item.outcome === 'completed' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
-                }`}>{item.outcome}</span>
+                <span className={`badge ${item.outcome === 'completed' ? 'badge-green' : 'badge-amber'}`}>{item.outcome}</span>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <span className="px-2 py-1 bg-gray-800 rounded text-xs border border-gray-700">{item.intent}</span>
-                <span className="text-xs text-gray-500">{new Date(item.created_at).toLocaleString()}</span>
+                <span className="badge badge-gray">{item.intent}</span>
+                <span className="text-xs font-mono" style={{ color: 'var(--p-text-5)' }}>{new Date(item.created_at).toLocaleString()}</span>
               </div>
-              {item.summary && <p className="text-xs text-gray-400 line-clamp-2">{item.summary}</p>}
+              {item.summary && <p className="text-xs line-clamp-2" style={{ color: 'var(--p-text-4)' }}>{item.summary}</p>}
             </div>
           ))}
         </div>

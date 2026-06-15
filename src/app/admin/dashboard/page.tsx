@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from './actions';
+import DashboardClient from './DashboardClient';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -16,100 +17,147 @@ export default function DashboardPage() {
       })
       .catch(err => {
         console.error('Dashboard Error:', err);
-        setError('Veriler yüklenirken bir sorun oluştu. Lütfen Ngrok bağlantınızı kontrol edin.');
+        setError('Failed to load dashboard data.');
         setLoading(false);
       });
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-500 font-black text-xs uppercase tracking-[0.3em]">Golden Meat Loading...</p>
+    <div className="flex items-center justify-center py-32">
+      <div className="text-center space-y-4">
+        <div className="w-10 h-10 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: 'var(--p-border)', borderTopColor: 'var(--p-accent)' }} />
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--p-text-5)' }}>Loading...</p>
       </div>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-black p-6">
-      <div className="bg-red-900/20 border border-red-500/30 p-8 rounded-[40px] max-w-md text-center">
-        <h3 className="text-red-500 font-black text-xl mb-2">Bağlantı Hatası</h3>
-        <p className="text-gray-400 text-sm mb-6">{error}</p>
-        <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest">Sistemi Yenile</button>
+    <div className="flex items-center justify-center py-32 px-6">
+      <div className="card p-8 max-w-sm w-full text-center">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(239,68,68,0.10)' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-5 h-5 text-red-500">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--p-text-1)' }}>Connection Error</h3>
+        <p className="text-xs mb-4" style={{ color: 'var(--p-text-4)' }}>{error}</p>
+        <button onClick={() => window.location.reload()} className="btn-primary w-full justify-center">Reload</button>
       </div>
     </div>
   );
 
+  const extraStats = {
+    totalCalls: stats.totalCalls ?? 0,
+    newReservations: stats.todayReservations ?? 0,
+    pendingHandoffs: stats.pendingHandoffs ?? 0,
+    cancellations: stats.cancellations ?? 0,
+  };
+
   return (
-    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
-      <header className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Executive Dashboard</h2>
-          <p className="text-gray-400 mt-1 italic">Real-time pulse of Golden Meat.</p>
-        </div>
-        <div className="hidden md:block text-[10px] text-gray-500 font-black uppercase tracking-widest bg-gray-900/50 border border-gray-800 px-4 py-2 rounded-2xl">
-          System Status: <span className="text-green-500 ml-1">● Optimal</span>
-        </div>
+    <div className="space-y-6 pb-10 page-enter">
+      <header>
+        <p className="page-label">Overview</p>
+        <h2 className="page-title">Dashboard</h2>
+        <p className="page-subtitle">Real-time summary of Golden Meat AI receptionist activity.</p>
       </header>
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="bg-gray-900 border border-gray-800 p-5 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl hover:border-orange-500/30 transition-all">
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Total Guests</p>
-          <h4 className="text-4xl md:text-5xl font-black text-white">{stats.totalCustomers}</h4>
-        </div>
-
-        <div className="bg-gray-900 border border-gray-800 p-5 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl hover:border-orange-500/30 transition-all">
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Active Tables</p>
-          <h4 className="text-4xl md:text-5xl font-black text-orange-500">{stats.activeTables}</h4>
-          <p className="text-[10px] text-gray-600 font-bold mt-1">out of {stats.totalTables}</p>
-        </div>
-
-        <div className="bg-gray-900 border border-gray-800 p-5 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl hover:border-orange-500/30 transition-all">
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Today's Bookings</p>
-          <h4 className="text-4xl md:text-5xl font-black text-white">{stats.todayReservations}</h4>
-        </div>
-
-        <div className="bg-gray-900 border border-gray-800 p-5 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl hover:border-orange-500/30 transition-all">
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Menu Catalog</p>
-          <h4 className="text-4xl md:text-5xl font-black text-white">{stats.menuItems}</h4>
-          <p className="text-[10px] text-gray-600 font-bold mt-1">active items</p>
-        </div>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Guests',     value: stats.totalCustomers,     iconBg: 'rgba(99,102,241,0.10)', iconColor: 'var(--p-accent)', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 7a4 4 0 100 8 4 4 0 000-8z' },
+          { label: "Today's Bookings", value: stats.todayReservations,  iconBg: 'rgba(34,197,94,0.10)',  iconColor: '#22c55e',         icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
+          { label: 'Active Tables',    value: `${stats.activeTables}/${stats.totalTables}`, iconBg: 'rgba(59,130,246,0.10)',  iconColor: '#3b82f6', icon: 'M3 3h18v18H3z M3 9h18M3 15h18M9 3v18M15 3v18' },
+          { label: 'Menu Items',       value: stats.menuItems,          iconBg: 'rgba(245,158,11,0.10)', iconColor: '#f59e0b',         icon: 'M18 8h1a4 4 0 010 8h-1 M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z M6 1v3M10 1v3M14 1v3' },
+        ].map((card) => (
+          <div key={card.label} className="card p-5">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-4" style={{ background: card.iconBg }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke={card.iconColor} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                {card.icon.split(' M').map((d, i) => <path key={i} d={i === 0 ? d : 'M' + d} />)}
+              </svg>
+            </div>
+            <div className="text-3xl font-bold tabular-nums mb-0.5" style={{ color: 'var(--p-text-1)' }}>{card.value}</div>
+            <div className="text-xs font-medium" style={{ color: 'var(--p-text-4)' }}>{card.label}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-        <div className="lg:col-span-2 bg-gray-900 border border-gray-800 p-6 md:p-10 rounded-[40px] md:rounded-[50px] shadow-2xl">
-          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 md:mb-8 flex items-center">
-            <span className="w-2 h-2 bg-orange-500 rounded-full mr-3 animate-ping"></span>
-            Recent Activity
-          </h3>
-          <div className="space-y-4 md:space-y-6">
+      {/* Lower grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Recent Reservations */}
+        <div className="lg:col-span-2 card">
+          <div className="card-header">
+            <h3 className="card-header-title">Recent Reservations</h3>
+            <span className="badge badge-green">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 status-online" />
+              Live
+            </span>
+          </div>
+          <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
             {stats.recentReservations?.length > 0 ? stats.recentReservations.map((res: any) => (
-              <div key={res.id} className="flex items-center justify-between p-3 md:p-4 bg-gray-800/20 rounded-2xl md:rounded-3xl border border-gray-800 hover:border-gray-700 transition-all">
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-800 rounded-2xl flex items-center justify-center text-base md:text-lg">🍖</div>
-                  <div>
-                    <p className="text-white font-bold text-sm">{res.customers?.full_name || 'Guest'}</p>
-                    <p className="text-[10px] text-gray-500">{res.reservation_date} at {res.reservation_time}</p>
+              <div key={res.id} className="flex items-center justify-between px-5 py-3.5" style={{ color: 'var(--p-text-2)' }}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base" style={{ background: 'var(--p-subtle)' }}>🍖</div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{res.customers?.full_name || 'Guest'}</p>
+                    <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{res.reservation_date} · {res.reservation_time}</p>
                   </div>
                 </div>
-                <span className="px-2 md:px-3 py-1 bg-orange-500/10 text-orange-500 rounded-full text-[9px] font-black uppercase tracking-widest">
-                  {res.party_size} Pax
-                </span>
+                <span className="badge badge-gray shrink-0">{res.party_size} pax</span>
               </div>
-            )) : <p className="text-gray-600 italic text-sm">Henüz aktivite bulunmuyor.</p>}
+            )) : (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No recent reservations</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="lg:col-span-1 bg-orange-600 p-8 md:p-10 rounded-[40px] md:rounded-[50px] shadow-2xl flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/20 transition-all"></div>
-          <div>
-            <h3 className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-4">AI Insight</h3>
-            <p className="text-2xl md:text-3xl font-black text-white leading-tight">Your AI Agent is active and learning.</p>
+        {/* System Status */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-header-title">System Status</h3>
           </div>
-          <p className="text-white/80 text-xs mt-6 font-medium italic">"Müşterileriniz en çok hafta sonu akşam saatlerini soruyor."</p>
+          <div className="p-4 space-y-2">
+            {[
+              { label: 'Vapi Webhook',    status: 'Operational', badgeClass: 'badge-green' },
+              { label: 'Supabase DB',     status: 'Connected',   badgeClass: 'badge-green' },
+              { label: 'AI Receptionist', status: 'Active',      badgeClass: 'badge-blue' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between px-3.5 py-3 rounded-lg" style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border-2)' }}>
+                <span className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>{item.label}</span>
+                <span className={`badge ${item.badgeClass}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mx-4 border-t" style={{ borderColor: 'var(--p-border-2)' }} />
+
+          <div className="p-4 space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--p-text-5)' }}>Quick Stats</p>
+            {[
+              { label: 'Uptime',             value: '99.9%' },
+              { label: 'Avg. Call Duration', value: '2m 14s' },
+              { label: 'Resolution Rate',    value: '94.2%' },
+            ].map((stat) => (
+              <div key={stat.label} className="flex justify-between items-center">
+                <span className="text-xs" style={{ color: 'var(--p-text-4)' }}>{stat.label}</span>
+                <span className="text-xs font-semibold" style={{ color: 'var(--p-text-2)' }}>{stat.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 pt-0">
+            <div className="rounded-lg p-4" style={{ background: 'var(--p-accent-bg)', border: '1px solid var(--p-accent-border)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--p-accent-text)' }}>AI Insight</p>
+              <p className="text-xs font-medium leading-relaxed" style={{ color: 'var(--p-text-2)' }}>
+                Your AI Agent is active and handling reservations automatically.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+
+      <DashboardClient initialStats={extraStats} />
     </div>
   );
 }

@@ -9,9 +9,7 @@ export default function CustomersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ full_name: '', notes: '' });
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
@@ -26,7 +24,7 @@ export default function CustomersPage() {
       await updateCustomer(editingId, formData);
       setEditingId(null);
       fetchItems();
-    } catch (error) {
+    } catch {
       alert('Error updating customer');
     }
   }
@@ -37,62 +35,59 @@ export default function CustomersPage() {
   };
 
   return (
-    <div>
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">Customer Directory</h2>
-        <p className="text-gray-400 mt-1">Manage guest history and loyalty data.</p>
+    <div className="space-y-6 pb-10">
+      <header>
+        <p className="page-label">Operations</p>
+        <h2 className="page-title">Customer Directory</h2>
+        <p className="page-subtitle">Guest history and loyalty data.</p>
       </header>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-800/50 text-gray-400 uppercase text-xs font-bold">
+      <div className="card">
+        {/* Desktop */}
+        <div className="hidden sm:block table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Customer Name</th>
-                <th className="px-6 py-4">Phone</th>
-                <th className="px-6 py-4">Notes</th>
-                <th className="px-6 py-4 text-right">Action</th>
+                {['Customer', 'Phone', 'Notes', ''].map((h, i) => (
+                  <th key={i} style={i === 3 ? { textAlign: 'right' } : {}}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-500">Loading...</td></tr>
+                <tr><td colSpan={4} className="text-center py-12 text-sm" style={{ color: 'var(--p-text-5)' }}>Loading customers...</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-16 text-sm" style={{ color: 'var(--p-text-5)' }}>No customers yet</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4">
+                <tr key={item.id}>
+                  <td>
                     {editingId === item.id ? (
-                      <input 
-                        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white w-full"
-                        value={formData.full_name}
-                        onChange={e => setFormData({...formData, full_name: e.target.value})}
-                      />
+                      <input className="form-input" style={{ maxWidth: '200px' }} value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
                     ) : (
-                      <a href={`/admin/customers/${item.id}`} className="font-bold text-white hover:text-orange-500 transition-colors">
+                      <a href={`/admin/customers/${item.id}`} className="text-sm font-semibold transition-colors" style={{ color: 'var(--p-text-1)' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--p-accent)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--p-text-1)'}
+                      >
                         {item.full_name || 'Anonymous'}
                       </a>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-gray-400 font-mono">{item.phone_number}</td>
-                  <td className="px-6 py-4">
+                  <td className="font-mono text-sm" style={{ color: 'var(--p-text-4)' }}>{item.phone_number}</td>
+                  <td>
                     {editingId === item.id ? (
-                      <input 
-                        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white w-full"
-                        value={formData.notes}
-                        onChange={e => setFormData({...formData, notes: e.target.value})}
-                      />
+                      <input className="form-input" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Notes..." />
                     ) : (
-                      <span className="text-xs text-gray-500 italic">{item.notes || '-'}</span>
+                      <span className="text-xs italic" style={{ color: 'var(--p-text-5)' }}>{item.notes || '—'}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td style={{ textAlign: 'right' }}>
                     {editingId === item.id ? (
                       <div className="flex gap-2 justify-end">
-                        <button onClick={handleUpdate} className="text-green-500 font-bold text-xs">Save</button>
-                        <button onClick={() => setEditingId(null)} className="text-gray-500 font-bold text-xs">Cancel</button>
+                        <button onClick={handleUpdate} className="btn-primary" style={{ padding: '0.3125rem 0.75rem', fontSize: '0.75rem', boxShadow: 'none' }}>Save</button>
+                        <button onClick={() => setEditingId(null)} className="btn-ghost" style={{ padding: '0.3125rem 0.75rem', fontSize: '0.75rem' }}>Cancel</button>
                       </div>
                     ) : (
-                      <button onClick={() => startEdit(item)} className="text-orange-500 hover:underline text-xs">Edit</button>
+                      <button onClick={() => startEdit(item)} className="btn-ghost" style={{ padding: '0.3125rem 0.75rem', fontSize: '0.75rem' }}>Edit</button>
                     )}
                   </td>
                 </tr>
@@ -101,34 +96,36 @@ export default function CustomersPage() {
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="sm:hidden divide-y divide-gray-800">
+        {/* Mobile */}
+        <div className="sm:hidden">
           {loading ? (
-            <div className="px-4 py-10 text-center text-gray-500">Loading...</div>
+            <div className="py-12 text-center text-sm" style={{ color: 'var(--p-text-5)' }}>Loading...</div>
           ) : items.map((item) => (
-            <div key={item.id} className="p-4 space-y-2">
+            <div key={item.id} className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--p-border-2)' }}>
               <div className="flex justify-between items-start">
-                <div>
+                <div className="flex-1 mr-3">
                   {editingId === item.id ? (
-                    <input className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm w-full mb-1" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
+                    <input className="form-input" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
                   ) : (
-                    <a href={`/admin/customers/${item.id}`} className="font-bold text-white hover:text-orange-500">{item.full_name || 'Anonymous'}</a>
+                    <a href={`/admin/customers/${item.id}`} className="text-sm font-semibold block" style={{ color: 'var(--p-text-1)' }}>
+                      {item.full_name || 'Anonymous'}
+                    </a>
                   )}
-                  <p className="text-xs text-gray-500 font-mono mt-0.5">{item.phone_number}</p>
+                  <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--p-text-5)' }}>{item.phone_number}</p>
                 </div>
                 {editingId === item.id ? (
-                  <div className="flex gap-2">
-                    <button onClick={handleUpdate} className="text-green-500 font-bold text-xs">Save</button>
-                    <button onClick={() => setEditingId(null)} className="text-gray-500 font-bold text-xs">Cancel</button>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={handleUpdate} className="btn-primary" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem', boxShadow: 'none' }}>Save</button>
+                    <button onClick={() => setEditingId(null)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={() => startEdit(item)} className="text-orange-500 text-xs">Edit</button>
+                  <button onClick={() => startEdit(item)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>Edit</button>
                 )}
               </div>
               {editingId === item.id ? (
-                <input className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-sm w-full" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Notes..." />
+                <input className="form-input" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Notes..." />
               ) : (
-                item.notes && <p className="text-xs text-gray-500 italic">{item.notes}</p>
+                item.notes && <p className="text-xs italic" style={{ color: 'var(--p-text-5)' }}>{item.notes}</p>
               )}
             </div>
           ))}

@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,5 +22,381 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Admin Theme Variables ─────────────────────────────────────── */
+
+:root,
+[data-theme="dark"] {
+  --p-bg:             #080b0f;
+  --p-sidebar:        #0d1117;
+  --p-surface:        #0d1117;
+  --p-surface-2:      #111827;
+  --p-border:         rgba(255,255,255,0.07);
+  --p-border-2:       rgba(255,255,255,0.04);
+  --p-subtle:         rgba(255,255,255,0.04);
+  --p-hover:          rgba(255,255,255,0.03);
+  --p-text-1:         #f3f4f6;
+  --p-text-2:         #d1d5db;
+  --p-text-3:         #9ca3af;
+  --p-text-4:         #6b7280;
+  --p-text-5:         #4b5563;
+  --p-input-bg:       rgba(0,0,0,0.25);
+  --p-card-shadow:    none;
+  --p-sidebar-shadow: none;
+  /* Accent (indigo) */
+  --p-accent:         #6366f1;
+  --p-accent-bg:      rgba(99,102,241,0.12);
+  --p-accent-border:  rgba(99,102,241,0.28);
+  --p-accent-text:    #a5b4fc;
+  /* Brand (Golden Meat amber — logo/tiny accents only) */
+  --p-brand:          #f59e0b;
+  --p-scrollbar:      #374151;
+  --p-scrollbar-hover:#4b5563;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --p-bg:             #f1f5f9;
+  --p-sidebar:        #ffffff;
+  --p-surface:        #ffffff;
+  --p-surface-2:      #f8fafc;
+  --p-border:         #e2e8f0;
+  --p-border-2:       #f1f5f9;
+  --p-subtle:         rgba(0,0,0,0.03);
+  --p-hover:          rgba(0,0,0,0.025);
+  --p-text-1:         #0f172a;
+  --p-text-2:         #1e293b;
+  --p-text-3:         #475569;
+  --p-text-4:         #64748b;
+  --p-text-5:         #94a3b8;
+  --p-input-bg:       #ffffff;
+  --p-card-shadow:    0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --p-sidebar-shadow: 2px 0 8px rgba(0,0,0,0.06);
+  /* Accent (indigo) */
+  --p-accent:         #4f46e5;
+  --p-accent-bg:      #eef2ff;
+  --p-accent-border:  #c7d2fe;
+  --p-accent-text:    #4338ca;
+  /* Brand (Golden Meat amber — logo/tiny accents only) */
+  --p-brand:          #f59e0b;
+  --p-scrollbar:      #cbd5e1;
+  --p-scrollbar-hover:#94a3b8;
+  color-scheme: light;
+}
+
+/* ── Component Classes ─────────────────────────────────────────── */
+
+/* Card */
+.card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--p-border);
+  background: var(--p-surface);
+  box-shadow: var(--p-card-shadow);
+  overflow: hidden;
+}
+
+/* Page header typography */
+.page-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--p-text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.25rem;
+}
+.page-title {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--p-text-1);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+@media (min-width: 768px) {
+  .page-title { font-size: 1.875rem; }
+}
+.page-subtitle {
+  font-size: 0.875rem;
+  color: var(--p-text-4);
+  margin-top: 0.25rem;
+}
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5625rem 1rem;
+  background: var(--p-accent);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.20);
+}
+.btn-primary:hover { background: #4338ca; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5625rem 1rem;
+  background: var(--p-subtle);
+  color: var(--p-text-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  border: 1px solid var(--p-border);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-ghost:hover { color: var(--p-text-1); background: var(--p-hover); border-color: var(--p-text-5); }
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5625rem 1rem;
+  background: transparent;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  border: 1px solid rgba(239,68,68,0.25);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-danger:hover { background: #ef4444; color: #ffffff; }
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.badge-red    { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.badge-amber  { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.badge-blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.badge-purple { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
+.badge-gray   { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+
+[data-theme="dark"] .badge-green  { background: rgba(34,197,94,0.10);  color: #4ade80; border-color: rgba(34,197,94,0.20); }
+[data-theme="dark"] .badge-red    { background: rgba(239,68,68,0.10);  color: #f87171; border-color: rgba(239,68,68,0.20); }
+[data-theme="dark"] .badge-amber  { background: rgba(245,158,11,0.10); color: #fbbf24; border-color: rgba(245,158,11,0.20); }
+[data-theme="dark"] .badge-blue   { background: rgba(59,130,246,0.10); color: #60a5fa; border-color: rgba(59,130,246,0.20); }
+[data-theme="dark"] .badge-purple { background: rgba(139,92,246,0.10); color: #a78bfa; border-color: rgba(139,92,246,0.20); }
+[data-theme="dark"] .badge-gray   { background: rgba(255,255,255,0.05); color: #9ca3af; border-color: rgba(255,255,255,0.08); }
+
+/* Form inputs */
+.form-input {
+  width: 100%;
+  background: var(--p-input-bg);
+  border: 1px solid var(--p-border);
+  border-radius: 0.625rem;
+  padding: 0.6875rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--p-text-1);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.form-input::placeholder { color: var(--p-text-5); }
+.form-input:hover { border-color: var(--p-text-5); }
+.form-input:focus {
+  border-color: var(--p-accent);
+  box-shadow: 0 0 0 3px var(--p-accent-bg);
+}
+.form-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--p-text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.375rem;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+}
+.admin-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+.admin-table th {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--p-text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--p-border);
+  white-space: nowrap;
+  background: var(--p-surface-2);
+}
+.admin-table td {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--p-border-2);
+  color: var(--p-text-2);
+  font-size: 0.875rem;
+}
+.admin-table tbody tr:last-child td { border-bottom: none; }
+.admin-table tbody tr {
+  transition: background 0.12s;
+}
+.admin-table tbody tr:hover {
+  background: var(--p-hover);
+}
+
+/* Card header */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--p-border);
+}
+.card-header-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-text-1);
+}
+
+/* ── Sidebar Nav ───────────────────────────────────────────────── */
+
+.admin-sidebar {
+  background: var(--p-sidebar);
+  border-right: 1px solid var(--p-border);
+  box-shadow: var(--p-sidebar-shadow);
+}
+
+/* Nav active — matches DisKlinikCRM indigo style */
+.nav-active {
+  background: var(--p-accent-bg) !important;
+  color: var(--p-accent-text) !important;
+  border: 1px solid var(--p-accent-border) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Nav hover */
+.nav-item-hover:hover {
+  background: var(--p-subtle);
+  color: var(--p-text-2);
+}
+
+/* ── Light mode overrides for remaining hardcoded dark bg classes ── */
+
+[data-theme="light"] [class*="bg-[#080b0f]"] {
+  background-color: var(--p-bg) !important;
+}
+[data-theme="light"] [class*="bg-[#0d1117]"] {
+  background-color: var(--p-surface) !important;
+  border-color: var(--p-border) !important;
+  box-shadow: var(--p-card-shadow) !important;
+}
+[data-theme="light"] [class*="bg-white/"] {
+  background-color: rgba(0,0,0,0.03) !important;
+}
+[data-theme="light"] [class*="border-white/"] {
+  border-color: var(--p-border) !important;
+}
+[data-theme="light"] .text-white {
+  color: var(--p-text-1) !important;
+}
+[data-theme="light"] [class*="text-gray-200"] { color: var(--p-text-2) !important; }
+[data-theme="light"] [class*="text-gray-300"] { color: var(--p-text-2) !important; }
+[data-theme="light"] [class*="text-gray-400"] { color: var(--p-text-3) !important; }
+[data-theme="light"] [class*="text-gray-500"] { color: var(--p-text-4) !important; }
+[data-theme="light"] [class*="text-gray-600"] { color: var(--p-text-4) !important; }
+[data-theme="light"] [class*="text-gray-700"] { color: var(--p-text-5) !important; }
+[data-theme="light"] [class*="bg-black/"]    { background-color: var(--p-input-bg) !important; }
+[data-theme="light"] [class*="bg-gray-950"],
+[data-theme="light"] [class*="bg-gray-900"],
+[data-theme="light"] [class*="bg-gray-800"]  { background-color: var(--p-surface) !important; }
+[data-theme="light"] [class*="border-gray-8"],
+[data-theme="light"] [class*="border-gray-7"] { border-color: var(--p-border) !important; }
+[data-theme="light"] [class*="divide-white/"] > * + * { border-color: var(--p-border-2) !important; }
+[data-theme="light"] [class*="hover:bg-white/"] { --tw-bg-opacity: 1; }
+[data-theme="light"] [class*="bg-[#080b0f]/"] { background-color: rgba(241,245,249,0.97) !important; }
+[data-theme="light"] pre {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--p-scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--p-scrollbar-hover); }
+
+/* Focus ring */
+input:focus, select:focus, textarea:focus, button:focus-visible {
+  outline: 2px solid rgba(99,102,241,0.5);
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes pulse-ring {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+}
+
+.pulse-dot    { animation: pulse-ring 2s ease-in-out infinite; }
+.page-enter   { animation: page-in 0.25s ease-out forwards; }
+.status-online { animation: status-pulse 2s ease-in-out infinite; }
+
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #4338ca 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Brand accent text (Golden Meat — logo only) */
+.brand-text {
+  color: var(--p-brand);
+}
+
+/* Theme transition */
+*, *::before, *::after {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.1s ease,
+    box-shadow 0.15s ease;
+}
+.transition-all, .transition-colors, .transition-opacity, .transition-transform,
+[class*="animate-"], [class*="duration-"] {
+  transition: unset;
 }

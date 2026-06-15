@@ -7,9 +7,7 @@ export default function ChangesPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
@@ -24,37 +22,38 @@ export default function ChangesPage() {
   }
 
   return (
-    <div>
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">Modification Requests</h2>
-        <p className="text-gray-400 mt-1">Changes to existing reservations.</p>
+    <div className="space-y-6 pb-10">
+      <header>
+        <p className="page-label">AI Activity</p>
+        <h2 className="page-title">Modification Requests</h2>
+        <p className="page-subtitle">Changes to existing reservations made by the AI.</p>
       </header>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-800/50 text-gray-400 uppercase text-xs font-bold">
+      <div className="card">
+        <div className="hidden sm:block table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Original Date</th>
-                <th className="px-6 py-4">New Date</th>
-                <th className="px-6 py-4">Status</th>
+                {['Customer', 'Original', 'New Date', 'Status'].map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-500">Loading changes...</td></tr>
+                <tr><td colSpan={4} className="text-center py-12 text-sm" style={{ color: 'var(--p-text-5)' }}>Loading...</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-16 text-sm" style={{ color: 'var(--p-text-5)' }}>No modification requests</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-white">{item.customer_name}</div>
-                    <div className="text-xs text-gray-500">{item.phone_number}</div>
+                <tr key={item.id}>
+                  <td>
+                    <div className="font-semibold text-sm" style={{ color: 'var(--p-text-1)' }}>{item.customer_name}</div>
+                    <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--p-text-5)' }}>{item.phone_number}</div>
                   </td>
-                  <td className="px-6 py-4 text-gray-400">{item.original_reservation_date} {item.original_reservation_time}</td>
-                  <td className="px-6 py-4 text-orange-400 font-bold">{item.new_reservation_date} {item.new_reservation_time}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-500/10 text-blue-500">{item.status}</span>
+                  <td className="text-sm" style={{ color: 'var(--p-text-4)' }}>{item.original_reservation_date} {item.original_reservation_time}</td>
+                  <td className="text-sm font-semibold" style={{ color: 'var(--p-accent-text)' }}>{item.new_reservation_date} {item.new_reservation_time}</td>
+                  <td>
+                    <span className="badge badge-blue">{item.status}</span>
                   </td>
                 </tr>
               ))}
@@ -62,27 +61,26 @@ export default function ChangesPage() {
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="sm:hidden divide-y divide-gray-800">
+        <div className="sm:hidden">
           {loading ? (
-            <div className="px-4 py-10 text-center text-gray-500">Loading changes...</div>
+            <div className="py-12 text-center text-sm" style={{ color: 'var(--p-text-5)' }}>Loading...</div>
           ) : items.map((item) => (
-            <div key={item.id} className="p-4 space-y-2">
+            <div key={item.id} className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--p-border-2)' }}>
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-bold text-white">{item.customer_name}</p>
-                  <p className="text-xs text-gray-500">{item.phone_number}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>{item.customer_name}</p>
+                  <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--p-text-5)' }}>{item.phone_number}</p>
                 </div>
-                <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-blue-500/10 text-blue-500">{item.status}</span>
+                <span className="badge badge-blue">{item.status}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-gray-500 uppercase font-black text-[10px]">Original</p>
-                  <p className="text-gray-400">{item.original_reservation_date} {item.original_reservation_time}</p>
+                  <p className="form-label">Original</p>
+                  <p className="text-xs" style={{ color: 'var(--p-text-3)' }}>{item.original_reservation_date} {item.original_reservation_time}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 uppercase font-black text-[10px]">New</p>
-                  <p className="text-orange-400 font-bold">{item.new_reservation_date} {item.new_reservation_time}</p>
+                  <p className="form-label">New</p>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>{item.new_reservation_date} {item.new_reservation_time}</p>
                 </div>
               </div>
             </div>

@@ -106,11 +106,11 @@ export default function CustomerDetailPage() {
       {/* Profile Card */}
       <div className="lg:col-span-1 space-y-6">
         <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 sticky top-8 shadow-2xl">
-          <div className="w-20 h-20 bg-orange-600 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-lg shadow-orange-900/40 font-black text-white">
+          <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl mb-5 font-black text-white shadow-sm" style={{ background: 'var(--p-accent)', boxShadow: '0 4px 12px rgba(99,102,241,0.25)' }}>
             {data.profile.full_name?.charAt(0) || 'U'}
           </div>
           <h2 className="text-2xl font-black text-white">{data.profile.full_name || 'Anonymous'}</h2>
-          <p className="text-orange-500 font-mono mt-1">{data.profile.phone_number}</p>
+          <p className="font-mono mt-1 text-sm" style={{ color: 'var(--p-text-4)' }}>{data.profile.phone_number}</p>
           
           <div className="mt-8 space-y-4 border-t border-gray-800 pt-8">
             <div className="flex justify-between">
@@ -129,7 +129,7 @@ export default function CustomerDetailPage() {
       <div className="lg:col-span-2 space-y-8">
         <section>
           <h3 className="text-xl font-black text-white mb-4 flex items-center">
-            <span className="mr-3 text-orange-500">📅</span> Reservation History
+            <span className="mr-3">📅</span> Reservation History
           </h3>
           <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
             <table className="w-full text-left text-sm">
@@ -148,7 +148,7 @@ export default function CustomerDetailPage() {
                   <tr key={res.id} className="hover:bg-gray-800/20 transition-all">
                     <td className="px-6 py-4 text-white font-bold">{res.reservation_date} @ {res.reservation_time}</td>
                     <td className="px-6 py-4">
-                      {res.tables ? <span className="text-orange-500 font-black">T-{res.tables.table_number}</span> : <span className="text-gray-700">-</span>}
+                      {res.tables ? <span className="font-bold" style={{ color: 'var(--p-accent-text)' }}>T-{res.tables.table_number}</span> : <span className="text-gray-700">-</span>}
                     </td>
                     <td className="px-6 py-4 text-gray-400 font-black">👥 {res.party_size}</td>
                     <td className="px-6 py-4">

@@ -7,9 +7,7 @@ export default function ToolLogsPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   async function fetchItems() {
     setLoading(true);
@@ -24,48 +22,57 @@ export default function ToolLogsPage() {
   }
 
   return (
-    <div>
-      <header className="mb-6 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white">System Tool Logs</h2>
-        <p className="text-gray-400 mt-1">Raw request/response data for debugging Vapi tool calls.</p>
+    <div className="space-y-6 pb-10">
+      <header>
+        <p className="page-label">System</p>
+        <h2 className="page-title">Tool Logs</h2>
+        <p className="page-subtitle">Raw request/response data for Vapi tool calls.</p>
       </header>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl text-xs font-mono">
-        {/* Desktop table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-gray-800/50 text-gray-400 uppercase text-[10px] font-bold">
+      <div className="card font-mono text-xs">
+        <div className="hidden sm:block table-container">
+          <table className="admin-table">
+            <thead>
               <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Tool Name</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Payloads</th>
+                {['Timestamp', 'Tool', 'Status', 'Payloads'].map((h) => (
+                  <th key={h} style={{ fontFamily: 'inherit' }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-500">Loading logs...</td></tr>
+                <tr><td colSpan={4} className="text-center py-12 text-sm" style={{ color: 'var(--p-text-5)', fontFamily: 'inherit' }}>Loading logs...</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={4} className="text-center py-16 text-sm" style={{ color: 'var(--p-text-5)', fontFamily: 'inherit' }}>No logs recorded</td></tr>
               ) : items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">{new Date(item.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4"><span className="text-orange-500 font-bold">{item.tool_name}</span></td>
-                  <td className="px-6 py-4">
-                    <span className={`px-1.5 py-0.5 rounded ${
-                      item.status === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                    }`}>{item.status}</span>
+                <tr key={item.id}>
+                  <td className="whitespace-nowrap text-[11px]" style={{ color: 'var(--p-text-5)' }}>{new Date(item.created_at).toLocaleString()}</td>
+                  <td>
+                    <span className="font-bold" style={{ color: 'var(--p-accent-text)' }}>{item.tool_name}</span>
                   </td>
-                  <td className="px-6 py-4 space-y-2">
+                  <td>
+                    <span className={`badge ${item.status === 'success' ? 'badge-green' : 'badge-red'}`}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="space-y-2">
                     <details className="cursor-pointer">
-                      <summary className="text-blue-400 hover:underline">View Request</summary>
-                      <pre className="mt-2 p-2 bg-gray-950 rounded border border-gray-800 overflow-x-auto max-w-lg">{JSON.stringify(item.request_payload, null, 2)}</pre>
+                      <summary className="text-[11px] select-none" style={{ color: '#60a5fa' }}>View Request</summary>
+                      <pre className="mt-2 p-3 rounded-lg overflow-x-auto max-w-lg leading-relaxed text-[11px]" style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {JSON.stringify(item.request_payload, null, 2)}
+                      </pre>
                     </details>
                     {item.response_payload && (
                       <details className="cursor-pointer">
-                        <summary className="text-purple-400 hover:underline">View Response</summary>
-                        <pre className="mt-2 p-2 bg-gray-950 rounded border border-gray-800 overflow-x-auto max-w-lg">{JSON.stringify(item.response_payload, null, 2)}</pre>
+                        <summary className="text-[11px] select-none" style={{ color: '#c084fc' }}>View Response</summary>
+                        <pre className="mt-2 p-3 rounded-lg overflow-x-auto max-w-lg leading-relaxed text-[11px]" style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          {JSON.stringify(item.response_payload, null, 2)}
+                        </pre>
                       </details>
                     )}
-                    {item.error_message && <div className="text-red-400 mt-1">Error: {item.error_message}</div>}
+                    {item.error_message && (
+                      <p className="text-[11px] mt-1 text-red-400">Error: {item.error_message}</p>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -73,30 +80,31 @@ export default function ToolLogsPage() {
           </table>
         </div>
 
-        {/* Mobile cards */}
-        <div className="sm:hidden divide-y divide-gray-800">
+        <div className="sm:hidden">
           {loading ? (
-            <div className="px-4 py-10 text-center text-gray-500">Loading logs...</div>
+            <div className="py-12 text-center text-sm" style={{ color: 'var(--p-text-5)' }}>Loading...</div>
           ) : items.map((item) => (
-            <div key={item.id} className="p-4 space-y-2">
+            <div key={item.id} className="p-4 space-y-2" style={{ borderBottom: '1px solid var(--p-border-2)' }}>
               <div className="flex justify-between items-center">
-                <span className="text-orange-500 font-bold">{item.tool_name}</span>
-                <span className={`px-1.5 py-0.5 rounded ${
-                  item.status === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
-                }`}>{item.status}</span>
+                <span className="font-bold" style={{ color: 'var(--p-accent-text)' }}>{item.tool_name}</span>
+                <span className={`badge ${item.status === 'success' ? 'badge-green' : 'badge-red'}`}>{item.status}</span>
               </div>
-              <p className="text-gray-500 text-[10px]">{new Date(item.created_at).toLocaleString()}</p>
+              <p className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{new Date(item.created_at).toLocaleString()}</p>
               <details className="cursor-pointer">
-                <summary className="text-blue-400 hover:underline text-[11px]">View Request</summary>
-                <pre className="mt-2 p-2 bg-gray-950 rounded border border-gray-800 overflow-x-auto text-[10px]">{JSON.stringify(item.request_payload, null, 2)}</pre>
+                <summary style={{ color: '#60a5fa' }} className="text-[11px]">View Request</summary>
+                <pre className="mt-2 p-2 rounded-lg overflow-x-auto text-[10px]" style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  {JSON.stringify(item.request_payload, null, 2)}
+                </pre>
               </details>
               {item.response_payload && (
                 <details className="cursor-pointer">
-                  <summary className="text-purple-400 hover:underline text-[11px]">View Response</summary>
-                  <pre className="mt-2 p-2 bg-gray-950 rounded border border-gray-800 overflow-x-auto text-[10px]">{JSON.stringify(item.response_payload, null, 2)}</pre>
+                  <summary style={{ color: '#c084fc' }} className="text-[11px]">View Response</summary>
+                  <pre className="mt-2 p-2 rounded-lg overflow-x-auto text-[10px]" style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {JSON.stringify(item.response_payload, null, 2)}
+                  </pre>
                 </details>
               )}
-              {item.error_message && <div className="text-red-400 text-[11px]">Error: {item.error_message}</div>}
+              {item.error_message && <p className="text-red-400 text-[11px]">Error: {item.error_message}</p>}
             </div>
           ))}
         </div>

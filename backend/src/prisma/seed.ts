@@ -1,4 +1,9 @@
 import { prisma } from "./client";
+import { hashPassword } from "../utils/password";
+
+// Dev-only default so a fresh seed is immediately loginable; production
+// seeds should set SEED_OWNER_PASSWORD explicitly.
+const SEED_OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "ChangeMe123!";
 
 // Trigger keys match docs/04_INTEGRATIONS_GUIDE.md "Automation triggers".
 const AUTOMATION_TRIGGERS = [
@@ -57,12 +62,14 @@ async function main() {
     },
   });
 
+  const ownerPasswordHash = await hashPassword(SEED_OWNER_PASSWORD);
   const owner = await prisma.user.upsert({
     where: { email: "owner@golden-meat.example" },
     update: {},
     create: {
       email: "owner@golden-meat.example",
       name: "Golden Meat Owner",
+      passwordHash: ownerPasswordHash,
       status: "active",
     },
   });

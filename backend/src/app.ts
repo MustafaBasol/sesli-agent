@@ -4,7 +4,9 @@ import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestId } from "./middleware/requestId";
+import { authRouter } from "./routes/auth";
 import { healthRouter } from "./routes/health";
+import { restaurantsRouter } from "./routes/restaurants";
 import { logger } from "./utils/logger";
 
 export function createApp(): express.Express {
@@ -23,6 +25,8 @@ export function createApp(): express.Express {
 
   app.use("/health", healthRouter);
   app.use("/api/health", healthRouter);
+  app.use("/api/auth", authRouter);
+  app.use("/api/restaurants", restaurantsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

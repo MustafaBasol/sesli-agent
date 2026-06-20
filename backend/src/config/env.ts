@@ -19,6 +19,13 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   DATABASE_URL: optionalString(),
   REDIS_URL: optionalString(),
+  // Required in production; falls back to an insecure dev-only value so
+  // `npm run dev` keeps working without a .env file. See docs/08.
+  JWT_SECRET: optionalString(),
+  JWT_EXPIRES_IN: z.string().min(1).default("8h"),
+  // Used only by prisma:seed to set the seeded owner's password; never
+  // read outside the seed script.
+  SEED_OWNER_PASSWORD: optionalString(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -34,7 +41,15 @@ function loadEnv(): Env {
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
 
+  if (parsed.data.NODE_ENV === "production" && !parsed.data.JWT_SECRET) {
+    throw new Error("JWT_SECRET is required when NODE_ENV=production");
+  }
+
   return parsed.data;
 }
 
 export const env = loadEnv();
+
+// Dev-only fallback so `npm run dev` works without a .env file. Production
+// always supplies its own secret (enforced above) or loadEnv() throws.
+export const jwtSecret = env.JWT_SECRET ?? "dev-only-insecure-jwt-secret-change-me";

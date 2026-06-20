@@ -6,9 +6,11 @@ import { z } from "zod";
 const optionalString = () =>
   z.preprocess((val) => (val === "" ? undefined : val), z.string().min(1).optional());
 
-// Phase 1 only needs the server to boot and report health. DATABASE_URL and
-// REDIS_URL are validated when present (so misconfiguration fails fast) but
-// stay optional until Prisma/BullMQ land in later phases (see docs/03).
+// The Express app itself only needs to boot and report health, so
+// DATABASE_URL/REDIS_URL are validated when present (fail fast on
+// misconfiguration) but stay optional here. Prisma commands (migrate, seed)
+// and any future DB-backed route do require DATABASE_URL — see
+// src/prisma/client.ts and docs/03.
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),

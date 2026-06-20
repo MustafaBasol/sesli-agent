@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "title": "Golden Meat AI Panel",
+    "description": "Golden Meat restaurant operations and AI call management."
+  },
+  "public": {
+    "headline": "To get started, edit the page.tsx file.",
+    "bodyPrefix": "Looking for a starting point or more instructions? Head over to",
+    "templates": "Templates",
+    "bodyMiddle": "or the",
+    "learning": "Learning",
+    "bodySuffix": "center.",
+    "deploy": "Deploy Now",
+    "docs": "Documentation",
+    "nextLogoAlt": "Next.js logo",
+    "vercelLogoAlt": "Vercel logomark"
+  },
+  "admin": {
+    "status": {
+      "admin": "Admin",
+      "online": "Online",
+      "signOut": "Sign Out",
+      "aiPanel": "AI Panel",
+      "switchLight": "Switch to Light Mode",
+      "switchDark": "Switch to Dark Mode",
+      "closeMenu": "Close menu",
+      "openMenu": "Open menu"
+    },
+    "language": {
+      "label": "Language"
+    },
+    "navGroups": {
+      "overview": "Overview",
+      "operations": "Operations",
+      "aiActivity": "AI Activity",
+      "system": "System"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "analytics": "Analytics",
+      "calendar": "Calendar",
+      "reservations": "Reservations",
+      "customers": "Customers",
+      "tables": "Tables",
+      "menu": "Menu",
+      "calls": "Calls",
+      "changes": "Changes",
+      "cancellations": "Cancellations",
+      "handoffs": "Staff Handoffs",
+      "toolLogs": "Tool Logs",
+      "settings": "Settings"
+    }
+  },
+  "text": {}
+}

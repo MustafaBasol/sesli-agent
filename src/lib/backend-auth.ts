@@ -10,6 +10,7 @@ import { loginBackend, type BackendLoginResponse, type BackendUser } from './bac
 const TOKEN_KEY = 'backend-auth-token';
 const USER_KEY = 'backend-auth-user';
 const RESTAURANTS_KEY = 'backend-auth-restaurant-ids';
+const SELECTED_RESTAURANT_KEY = 'backend-auth-selected-restaurant-id';
 
 export const backendAuth = {
   async login(email: string, password: string): Promise<BackendLoginResponse> {
@@ -27,6 +28,7 @@ export const backendAuth = {
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(USER_KEY);
     window.localStorage.removeItem(RESTAURANTS_KEY);
+    window.localStorage.removeItem(SELECTED_RESTAURANT_KEY);
   },
 
   getToken(): string | null {
@@ -44,5 +46,15 @@ export const backendAuth = {
     if (typeof window === 'undefined') return [];
     const raw = window.localStorage.getItem(RESTAURANTS_KEY);
     return raw ? (JSON.parse(raw) as string[]) : [];
+  },
+
+  setSelectedRestaurantId(restaurantId: string): void {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SELECTED_RESTAURANT_KEY, restaurantId);
+  },
+
+  getSelectedRestaurantId(): string | null {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(SELECTED_RESTAURANT_KEY);
   },
 };

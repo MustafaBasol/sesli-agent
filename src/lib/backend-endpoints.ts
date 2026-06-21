@@ -67,10 +67,48 @@ export function getDashboardSummary(restaurantId: string, token: string): Promis
   return backendRequest<DashboardSummary>(`/restaurants/${restaurantId}/dashboard/summary`, { token });
 }
 
+export type CustomerLite = {
+  id: string | null;
+  fullName: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+};
+
+export type RecentReservationRequest = {
+  id: string;
+  status: string;
+  customer: CustomerLite;
+  reservationDate: string;
+  reservationTime: string;
+  partySize: number;
+  channel: string;
+  provider: string | null;
+  createdAt: string;
+};
+
+export type RecentCustomer = {
+  id: string;
+  fullName: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+  createdAt: string;
+};
+
+export type RecentConversation = {
+  id: string;
+  customer: CustomerLite;
+  channel: string;
+  provider: string | null;
+  status: string;
+  lastMessageSummary: string | null;
+  lastMessageAt: string | null;
+  updatedAt: string;
+};
+
 export type DashboardRecent = {
-  recentReservationRequests: unknown[];
-  recentCustomers: unknown[];
-  recentConversations: unknown[];
+  recentReservationRequests: RecentReservationRequest[];
+  recentCustomers: RecentCustomer[];
+  recentConversations: RecentConversation[];
 };
 
 export function getDashboardRecent(

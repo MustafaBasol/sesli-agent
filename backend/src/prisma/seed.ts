@@ -152,6 +152,23 @@ async function main() {
     });
   }
 
+  // Dev-only test connection so the Phase 4 Vapi webhook endpoint is reachable
+  // locally/on the VPS without real Vapi credentials. No secret is stored —
+  // see docs/06_SECURITY_AND_TENANCY_RULES.md (credentials must not be
+  // stored in plain text; this connection carries none).
+  await prisma.integrationConnection.upsert({
+    where: { publicWebhookKey: "dev_vapi_golden_meat" },
+    update: { restaurantId: restaurant.id },
+    create: {
+      restaurantId: restaurant.id,
+      channel: "vapi",
+      provider: "vapi",
+      displayName: "Vapi (dev/test)",
+      status: "active",
+      publicWebhookKey: "dev_vapi_golden_meat",
+    },
+  });
+
   console.log(`Seed complete for restaurant "${restaurant.name}" (${restaurant.id}).`);
 }
 

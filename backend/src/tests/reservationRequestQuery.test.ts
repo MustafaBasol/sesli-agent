@@ -28,8 +28,16 @@ async function main() {
   const searchWhere = buildReservationRequestListWhere("rest-1", { search: "Ada" });
   assert.ok(Array.isArray(searchWhere.OR) && searchWhere.OR.length === 3, "search must OR across name/phone fields");
 
-  // Status transitions: same-status is always a no-op allow.
+  // Status transitions: same-status is a no-op allow only for non-terminal statuses.
   assert.equal(isValidStatusTransition("new", "new"), true);
+  assert.equal(isValidStatusTransition("pending_info", "pending_info"), true);
+  assert.equal(isValidStatusTransition("confirmed", "confirmed"), true);
+
+  // Terminal statuses reject same-status "transitions" too — no idempotent
+  // double reject/cancel/done without an explicit product decision to do so.
+  assert.equal(isValidStatusTransition("rejected", "rejected"), false);
+  assert.equal(isValidStatusTransition("cancelled", "cancelled"), false);
+  assert.equal(isValidStatusTransition("done", "done"), false);
 
   // Forward transitions defined in the map are allowed.
   assert.equal(isValidStatusTransition("new", "confirmed"), true);

@@ -16,11 +16,20 @@ export const STATUS_TRANSITIONS: Record<ReservationRequestStatus, ReservationReq
   done: [],
 };
 
+/**
+ * Terminal statuses have no outgoing transitions at all, including into
+ * themselves: a second reject/confirm/etc. on an already-terminal request
+ * must be a controlled 400, not a silent no-op success.
+ */
+function isTerminalStatus(status: ReservationRequestStatus): boolean {
+  return STATUS_TRANSITIONS[status].length === 0;
+}
+
 export function isValidStatusTransition(
   current: ReservationRequestStatus,
   next: ReservationRequestStatus
 ): boolean {
-  if (current === next) return true;
+  if (current === next) return !isTerminalStatus(current);
   return STATUS_TRANSITIONS[current].includes(next);
 }
 

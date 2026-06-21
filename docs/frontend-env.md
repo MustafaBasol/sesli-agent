@@ -18,6 +18,17 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:4000/api
 NEXT_PUBLIC_ENABLE_BACKEND_TEST_PAGE=false
 ```
 
+## Backend admin beta dashboard (Phase 10, see AGENTS.md)
+
+```env
+# Enables the /[lang]/backend-admin beta dashboard, a parallel UI that
+# consumes the backend's auth + dashboard APIs. Does not replace or touch the
+# production Supabase admin at /admin. Defaults to disabled; when disabled
+# the route returns 404. Must stay "false" (or unset) in production unless
+# the beta is intentionally being rolled out.
+NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA=false
+```
+
 ## Do not expose these to the frontend
 
 These are backend-only and must never be prefixed with `NEXT_PUBLIC_` or

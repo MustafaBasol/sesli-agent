@@ -5,6 +5,8 @@ import pinoHttp from "pino-http";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestId } from "./middleware/requestId";
 import { authRouter } from "./routes/auth";
+import { conversationsRouter } from "./routes/conversations";
+import { customersRouter } from "./routes/customers";
 import { healthRouter } from "./routes/health";
 import { reservationRequestsRouter } from "./routes/reservationRequests";
 import { restaurantsRouter } from "./routes/restaurants";
@@ -30,6 +32,8 @@ export function createApp(): express.Express {
   app.use("/api/auth", authRouter);
   app.use("/api/restaurants", restaurantsRouter);
   app.use("/api/restaurants", reservationRequestsRouter);
+  app.use("/api/restaurants", customersRouter);
+  app.use("/api/restaurants", conversationsRouter);
   app.use("/api/webhooks/vapi", vapiWebhookRouter);
 
   app.use(notFoundHandler);

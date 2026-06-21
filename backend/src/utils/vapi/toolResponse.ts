@@ -57,7 +57,12 @@ export function sendVapiToolResponse(res: Response, rawBody: any, payload: unkno
   res.status(httpStatus).json(body);
 }
 
-export function sendVapiToolErrorResponse(res: Response, rawBody: any, message: string): void {
-  const { status, body } = buildVapiErrorPayload(rawBody, message);
+export function sendVapiToolErrorResponse(
+  res: Response,
+  rawBody: any,
+  message: string,
+  fallbackStatus = 500
+): void {
+  const { status, body } = buildVapiErrorPayload(rawBody, message, fallbackStatus);
   res.status(status).json(body);
 }

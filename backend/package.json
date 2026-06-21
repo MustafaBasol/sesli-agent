@@ -16,11 +16,13 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx src/prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers",
+    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:reservation-request-query",
     "test:restaurant-access": "tsx src/tests/restaurantAccess.test.ts",
     "test:auth-utils": "tsx src/tests/authUtils.test.ts",
     "test:vapi-normalizers": "tsx src/tests/vapiNormalizers.test.ts",
-    "test:vapi-webhook-integration": "tsx src/tests/vapiWebhook.integration.test.ts"
+    "test:reservation-request-query": "tsx src/tests/reservationRequestQuery.test.ts",
+    "test:vapi-webhook-integration": "tsx src/tests/vapiWebhook.integration.test.ts",
+    "test:reservation-requests-integration": "tsx src/tests/reservationRequests.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

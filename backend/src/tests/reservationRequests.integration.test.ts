@@ -248,23 +248,50 @@ async function main() {
     const confirmedRow = await prisma.reservationRequest.findUnique({ where: { id: request1.id } });
     assert.equal(confirmedRow?.status, "confirmed");
 
-    // 12. reject endpoint on an already-terminal request (request2 is "confirmed" -> reject allowed once).
-    const rejectRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${request2.id}/reject`, {
+    // 12. reject happy-path needs a fresh fixture in a valid source status
+    // ("new"/"pending_info"). request2 is "confirmed", and per
+    // STATUS_TRANSITIONS confirmed only goes to {done, cancelled} — confirmed
+    // reservations are cancelled, not "rejected" (rejection is a pre-confirmation
+    // decision), so reusing request2 here was the bug: it could never reach 200.
+    const rejectCandidate = await prisma.reservationRequest.create({
+      data: { restaurantId: restaurant.id, channel: "website", customerName: "Carol Reject Me", partySize: 3, status: "pending_info" },
+    });
+    const rejectRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${rejectCandidate.id}/reject`, {
       method: "POST",
       headers: { ...authed(ownerToken), "Content-Type": "application/json" },
       body: JSON.stringify({ reason: "Fully booked" }),
     });
     assert.equal(rejectRes.status, 200);
-    const rejectedRow = await prisma.reservationRequest.findUnique({ where: { id: request2.id } });
+    const rejectedRow = await prisma.reservationRequest.findUnique({ where: { id: rejectCandidate.id } });
     assert.equal(rejectedRow?.status, "rejected");
     assert.equal(rejectedRow?.internalNote, "Fully booked");
 
-    // 13. reject again on a now-terminal ("rejected") request -> controlled 400.
-    const rejectAgainRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${request2.id}/reject`, {
+    // 13. reject again on that now-terminal ("rejected") request -> controlled 400.
+    const rejectAgainRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${rejectCandidate.id}/reject`, {
       method: "POST",
       headers: authed(ownerToken),
     });
     assert.equal(rejectAgainRes.status, 400, "rejecting an already-rejected request must be a controlled 400");
+
+    // 13b. Dedicated terminal-status fixture (separate from the reject-twice
+    // case above): a request created directly as "cancelled" must also
+    // reject the reject attempt with a controlled 400, never a 200.
+    const cancelledFixture = await prisma.reservationRequest.create({
+      data: { restaurantId: restaurant.id, channel: "website", customerName: "Dana Cancelled", partySize: 2, status: "cancelled" },
+    });
+    const rejectCancelledRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${cancelledFixture.id}/reject`, {
+      method: "POST",
+      headers: authed(ownerToken),
+    });
+    assert.equal(rejectCancelledRes.status, 400, "rejecting a cancelled (terminal) request must be a controlled 400");
+
+    // 13c. request2 ("confirmed") legitimately cannot be rejected per business
+    // rules; confirm that this still returns a controlled 400, not a 200.
+    const rejectConfirmedRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests/${request2.id}/reject`, {
+      method: "POST",
+      headers: authed(ownerToken),
+    });
+    assert.equal(rejectConfirmedRes.status, 400, "a confirmed request cannot be rejected (only done/cancelled)");
 
     // 14. Cross-tenant access: STAFF assigned only to `restaurant` must not reach otherRestaurant's data.
     const crossTenantRes = await fetch(`${baseUrl}/${otherRestaurant.id}/reservation-requests`, {

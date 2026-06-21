@@ -7,6 +7,7 @@ import { requestId } from "./middleware/requestId";
 import { authRouter } from "./routes/auth";
 import { conversationsRouter } from "./routes/conversations";
 import { customersRouter } from "./routes/customers";
+import { dashboardRouter } from "./routes/dashboard";
 import { healthRouter } from "./routes/health";
 import { integrationsRouter } from "./routes/integrations";
 import { reservationRequestsRouter } from "./routes/reservationRequests";
@@ -36,6 +37,7 @@ export function createApp(): express.Express {
   app.use("/api/restaurants", customersRouter);
   app.use("/api/restaurants", conversationsRouter);
   app.use("/api/restaurants", integrationsRouter);
+  app.use("/api/restaurants", dashboardRouter);
   app.use("/api/webhooks/vapi", vapiWebhookRouter);
 
   app.use(notFoundHandler);

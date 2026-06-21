@@ -16,7 +16,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx src/prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption",
+    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query",
     "test:restaurant-access": "tsx src/tests/restaurantAccess.test.ts",
     "test:auth-utils": "tsx src/tests/authUtils.test.ts",
     "test:vapi-normalizers": "tsx src/tests/vapiNormalizers.test.ts",
@@ -24,11 +24,13 @@
     "test:customer-query": "tsx src/tests/customerQuery.test.ts",
     "test:conversation-query": "tsx src/tests/conversationQuery.test.ts",
     "test:encryption": "tsx src/tests/encryption.test.ts",
+    "test:dashboard-query": "tsx src/tests/dashboardQuery.test.ts",
     "test:vapi-webhook-integration": "tsx src/tests/vapiWebhook.integration.test.ts",
     "test:reservation-requests-integration": "tsx src/tests/reservationRequests.integration.test.ts",
     "test:customers-integration": "tsx src/tests/customers.integration.test.ts",
     "test:conversations-integration": "tsx src/tests/conversations.integration.test.ts",
-    "test:integrations-integration": "tsx src/tests/integrations.integration.test.ts"
+    "test:integrations-integration": "tsx src/tests/integrations.integration.test.ts",
+    "test:dashboard-integration": "tsx src/tests/dashboard.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

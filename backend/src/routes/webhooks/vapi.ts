@@ -36,7 +36,12 @@ vapiWebhookRouter.post(
 
     const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
     if (!connection) {
-      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key");
+      // An unknown/inactive key is a caller authentication problem, not a server
+      // failure: it must never surface as a 500 (which pino-http logs as
+      // "request errored" and which would page on-call for a non-incident).
+      // If Vapi sent a toolCallId, buildVapiErrorPayload still wraps this as a
+      // 200 tool-result-with-error, matching the existing Vapi-compatible shape.
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
       return;
     }
     const { restaurantId } = connection;

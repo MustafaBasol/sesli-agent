@@ -158,14 +158,29 @@ async function main() {
     assert.equal(noReservationForMissing, null, "missing-fields requests must not create a ReservationRequest");
 
     // 3. Unknown publicWebhookKey -> error response, nothing created anywhere.
+    const unknownKeyCallId = `${TEST_TAG}_call_unknown_key`;
     const unknownRes = await fetch(`${baseUrl}/${TEST_TAG}_does_not_exist/create-reservation-request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(validPayload),
+      body: JSON.stringify({ ...validPayload, call_id: unknownKeyCallId }),
     });
     const unknownBody = await readVapiJson(unknownRes);
-    assert.ok(unknownRes.status === 200 || unknownRes.status === 500);
-    assert.ok(unknownBody.error, "unknown webhook key must return an error payload");
+    assert.equal(unknownRes.status, 401, "unknown webhook key must return a controlled 401, never a 500");
+    assert.equal(
+      unknownBody.error,
+      "Unknown or inactive webhook key",
+      "unknown webhook key must return a Vapi-compatible error payload, not an internal-error shape"
+    );
+
+    const noToolLogForUnknownKey = await prisma.toolLog.findFirst({
+      where: { externalCallId: unknownKeyCallId },
+    });
+    assert.equal(noToolLogForUnknownKey, null, "unknown webhook key must not create a ToolLog under any restaurant");
+
+    const noReservationForUnknownKey = await prisma.reservationRequest.findFirst({
+      where: { sourceExternalId: unknownKeyCallId },
+    });
+    assert.equal(noReservationForUnknownKey, null, "unknown webhook key must not create a ReservationRequest");
 
     // 4. Same phone again -> upsert reuses the Customer (no duplicate row).
     const secondCallPayload = { ...validPayload, call_id: `${TEST_TAG}_call_2` };

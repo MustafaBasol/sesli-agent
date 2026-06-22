@@ -1132,3 +1132,59 @@ export function removeTeamMember(
     token,
   });
 }
+
+// --- Restaurant settings (Phase 18 backend API + beta UI) ---
+// Restaurant only has name/slug/status/phone/email/address/timezone/
+// defaultLanguage columns today (see prisma/schema.prisma) — this type
+// deliberately mirrors only those, plus a safe organization summary. No
+// website/description/currency/openingHours/reservation-defaults fields
+// exist yet, so none are invented here (see AGENTS.md Phase 18).
+
+export type OrganizationSummary = {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RestaurantSettings = {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  status: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  timezone: string;
+  defaultLanguage: string;
+  createdAt: string;
+  updatedAt: string;
+  organization: OrganizationSummary;
+};
+
+export function getRestaurantSettings(restaurantId: string, token: string): Promise<RestaurantSettings> {
+  return backendRequest<RestaurantSettings>(`/restaurants/${restaurantId}/settings`, { token });
+}
+
+export type UpdateRestaurantSettingsPayload = {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  timezone?: string;
+  defaultLanguage?: string;
+};
+
+export function updateRestaurantSettings(
+  restaurantId: string,
+  token: string,
+  payload: UpdateRestaurantSettingsPayload
+): Promise<RestaurantSettings> {
+  return backendRequest<RestaurantSettings>(`/restaurants/${restaurantId}/settings`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}

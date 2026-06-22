@@ -61,7 +61,7 @@ export function buildMissingArgsResponse(missingFields: string[]): VapiCheckAvai
   };
 }
 
-const BLOCKED_REASON_MESSAGES: Record<string, string> = {
+export const BLOCKED_REASON_MESSAGES: Record<string, string> = {
   restaurant_not_found: "Sorry, I couldn't find that restaurant.",
   restaurant_inactive: "Sorry, this restaurant isn't accepting reservations right now.",
   reservations_disabled: "Sorry, online reservations are currently disabled.",

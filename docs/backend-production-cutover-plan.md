@@ -159,6 +159,14 @@ or backfill strategy). That phase is out of scope here.
   (`backend/src/routes/webhooks/vapi.ts`). The backend route set is **not
   feature-complete** relative to the Next.js routes and must not be treated
   as a drop-in replacement yet.
+- As of Phase 28, `create-reservation-request` has been further **hardened**
+  (camelCase/nested payload aliases, an availability hard-block pre-check, a
+  best-effort idempotency guard, connection-status enforcement, and an
+  additive-but-compatible response contract — see
+  `docs/vapi-create-reservation-request-contract.md` and
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 11). This is
+  still **hardening, not a cutover** — the live Vapi dashboard URL is
+  unchanged and continues to serve `src/app/api/vapi/create-reservation-request/route.ts`.
 - `check-availability` parity needs the `RestaurantSettings`/`BlackoutDate`
   models added in Phase 24 (`/api/restaurants/:restaurantId/availability/*`,
   `getRestaurantAvailabilityConfig` read helper in

@@ -59,6 +59,7 @@ disposable test/beta database (these mutate that database):
 ```bash
 npm run test:vapi-webhook-integration
 npm run test:vapi-check-availability
+npm run test:vapi-create-reservation-request
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -179,6 +180,27 @@ Expect `200` and a `success` field in the JSON body. Do not assert
 `available:true` — the restaurant under test may have no opening hours or
 tables configured, in which case `success:true, available:false` with a
 `blocked_reason` is the correct, non-failing response.
+
+```bash
+# Phase 28 — backend Vapi create-reservation-request webhook adapter. This
+# WRITES a ReservationRequest/Customer/ToolLog row, so it is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is NOT run by default. Only run this
+# against a disposable test/beta database, never production.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  FUTURE_DATE=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
+  curl -s -o /tmp/vapi-create-reservation-request-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/create-reservation-request" \
+    -H "Content-Type: application/json" \
+    -d "{\"customer_name\":\"Smoke Test Guest\",\"phone_number\":\"+33000000000\",\"reservation_date\":\"$FUTURE_DATE\",\"reservation_time\":\"20:00\",\"party_size\":2,\"special_request\":\"SMOKE_TEST_DO_NOT_USE\"}"
+fi
+```
+
+Expect `200` and `success:true` in the response body, and a new
+`ReservationRequest` row created in the test database (never run this
+against a production database). Include
+`/tmp/vapi-create-reservation-request-response.json` in the section F
+sensitive-field grep below.
 
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the

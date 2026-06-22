@@ -99,21 +99,66 @@ export async function listCustomers(restaurantId: string, query: ListCustomersQu
   };
 }
 
+// Recent reservation-request/conversation rows embedded in customer detail
+// are deliberately fetched with an explicit `select` instead of a bare
+// findMany — rawPayload/stateJson (and any other internal/debug field added
+// later) must never reach this response, so the allowlist is enforced at
+// the query itself rather than relying on a later omit step.
+async function loadRecentReservationRequests(restaurantId: string, customerId: string) {
+  return prisma.reservationRequest.findMany({
+    where: { restaurantId, customerId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      status: true,
+      channel: true,
+      provider: true,
+      requestType: true,
+      customerName: true,
+      phoneNumber: true,
+      partySize: true,
+      reservationDate: true,
+      reservationTime: true,
+      language: true,
+      specialRequest: true,
+      internalNote: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
+
+async function loadRecentConversations(restaurantId: string, customerId: string) {
+  return prisma.conversation.findMany({
+    where: { restaurantId, customerId },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      channel: true,
+      provider: true,
+      externalThreadId: true,
+      customerName: true,
+      customerPhone: true,
+      customerHandle: true,
+      status: true,
+      assignedToUserId: true,
+      lastMessageAt: true,
+      lastMessagePreview: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+}
+
 export async function getCustomerDetail(restaurantId: string, customerId: string) {
   const customer = await findCustomerForRestaurant(restaurantId, customerId);
   if (!customer) return null;
 
   const [reservationRequests, conversations] = await Promise.all([
-    prisma.reservationRequest.findMany({
-      where: { restaurantId, customerId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    prisma.conversation.findMany({
-      where: { restaurantId, customerId },
-      orderBy: { updatedAt: "desc" },
-      take: 20,
-    }),
+    loadRecentReservationRequests(restaurantId, customerId),
+    loadRecentConversations(restaurantId, customerId),
   ]);
 
   return { ...customer, reservationRequests, conversations };

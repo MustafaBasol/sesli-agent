@@ -45,6 +45,15 @@ async function loadConversationSummaries(conversationIds: string[]): Promise<Map
   return new Map(conversations.map((c) => [c.id, c]));
 }
 
+// rawPayload can carry provider-internal call/webhook data (e.g. raw Vapi
+// tool-call arguments). It must never be returned by default — only the
+// detail endpoint exposes it, and only for OWNER/MANAGER with explicit opt-in.
+function omitRawPayload<T extends { rawPayload: unknown }>(row: T): Omit<T, "rawPayload"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { rawPayload, ...rest } = row;
+  return rest;
+}
+
 export async function listReservationRequests(restaurantId: string, query: ListReservationRequestsQuery) {
   const where = buildReservationRequestListWhere(restaurantId, query);
 
@@ -67,7 +76,7 @@ export async function listReservationRequests(restaurantId: string, query: ListR
   ]);
 
   const data = rows.map((row) => ({
-    ...row,
+    ...omitRawPayload(row),
     customer: row.customerId ? customers.get(row.customerId) ?? null : null,
     conversation: row.conversationId ? conversations.get(row.conversationId) ?? null : null,
   }));
@@ -142,7 +151,8 @@ export async function updateReservationRequest(
   if (patch.reservationTime !== undefined) data.reservationTime = patch.reservationTime;
   if (patch.specialRequest !== undefined) data.specialRequest = patch.specialRequest;
 
-  return prisma.reservationRequest.update({ where: { id: requestId }, data });
+  const updated = await prisma.reservationRequest.update({ where: { id: requestId }, data });
+  return omitRawPayload(updated);
 }
 
 export async function setReservationRequestStatus(
@@ -150,11 +160,12 @@ export async function setReservationRequestStatus(
   status: ReservationRequestStatus,
   internalNote?: string
 ) {
-  return prisma.reservationRequest.update({
+  const updated = await prisma.reservationRequest.update({
     where: { id: requestId },
     data: {
       status,
       ...(internalNote !== undefined ? { internalNote } : {}),
     },
   });
+  return omitRawPayload(updated);
 }

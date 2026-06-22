@@ -149,10 +149,17 @@ async function main() {
     // 3. OWNER can list for their own restaurant.
     const listRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests`, { headers: authed(ownerToken) });
     assert.equal(listRes.status, 200);
-    const listBody = (await listRes.json()) as { data: Array<{ id: string }>; pagination: { total: number } };
+    const listBody = (await listRes.json()) as {
+      data: Array<{ id: string; rawPayload?: unknown }>;
+      pagination: { total: number };
+    };
     assert.equal(listBody.pagination.total, 2, "list must only include this restaurant's requests");
     assert.ok(listBody.data.some((r) => r.id === request1.id));
     assert.ok(!listBody.data.some((r) => r.id === otherRequest.id), "must never include another tenant's request");
+    assert.ok(
+      listBody.data.every((r) => r.rawPayload === undefined),
+      "list endpoint must never include rawPayload, even for OWNER"
+    );
 
     // 4. Filter by status.
     const filteredRes = await fetch(`${baseUrl}/${restaurant.id}/reservation-requests?status=confirmed`, {
@@ -217,6 +224,8 @@ async function main() {
       body: JSON.stringify({ internalNote: "Called back, confirmed verbally", partySize: 5 }),
     });
     assert.equal(patchRes.status, 200);
+    const patchBody = (await patchRes.json()) as { rawPayload?: unknown };
+    assert.equal(patchBody.rawPayload, undefined, "PATCH response must not include rawPayload");
     const patched = await prisma.reservationRequest.findUnique({ where: { id: request1.id } });
     assert.equal(patched?.internalNote, "Called back, confirmed verbally");
     assert.equal(patched?.partySize, 5);
@@ -245,6 +254,8 @@ async function main() {
       headers: authed(ownerToken),
     });
     assert.equal(confirmRes.status, 200);
+    const confirmBody = (await confirmRes.json()) as { rawPayload?: unknown };
+    assert.equal(confirmBody.rawPayload, undefined, "confirm response must not include rawPayload");
     const confirmedRow = await prisma.reservationRequest.findUnique({ where: { id: request1.id } });
     assert.equal(confirmedRow?.status, "confirmed");
 
@@ -262,6 +273,8 @@ async function main() {
       body: JSON.stringify({ reason: "Fully booked" }),
     });
     assert.equal(rejectRes.status, 200);
+    const rejectBody = (await rejectRes.json()) as { rawPayload?: unknown };
+    assert.equal(rejectBody.rawPayload, undefined, "reject response must not include rawPayload");
     const rejectedRow = await prisma.reservationRequest.findUnique({ where: { id: rejectCandidate.id } });
     assert.equal(rejectedRow?.status, "rejected");
     assert.equal(rejectedRow?.internalNote, "Fully booked");

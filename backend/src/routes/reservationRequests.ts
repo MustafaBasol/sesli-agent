@@ -10,6 +10,7 @@ import {
 } from "../schemas/reservationRequests";
 import { isValidStatusTransition } from "../services/reservationRequestQuery";
 import {
+  confirmReservationRequestWithReservation,
   findReservationRequestForRestaurant,
   getReservationRequestDetail,
   listReservationRequests,
@@ -106,7 +107,21 @@ reservationRequestsRouter.post(
       return;
     }
 
-    const updated = await setReservationRequestStatus(req.params.requestId, "confirmed");
+    if (!existing.reservationDate || !existing.reservationTime || !existing.partySize) {
+      res.status(400).json({
+        error: { message: "Cannot confirm a reservation request that is missing date, time, or party size" },
+      });
+      return;
+    }
+
+    const updated = await confirmReservationRequestWithReservation(req.restaurantId!, {
+      id: existing.id,
+      customerId: existing.customerId,
+      channel: existing.channel,
+      reservationDate: existing.reservationDate,
+      reservationTime: existing.reservationTime,
+      partySize: existing.partySize,
+    });
     res.json(updated);
   })
 );

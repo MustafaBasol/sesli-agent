@@ -321,6 +321,7 @@ async function main() {
     console.log("reservationRequests.integration.test.ts: all checks passed");
   } finally {
     server.close();
+    await prisma.reservation.deleteMany({ where: { restaurantId: { in: [restaurant.id, otherRestaurant.id] } } });
     await prisma.message.deleteMany({ where: { restaurantId: { in: [restaurant.id, otherRestaurant.id] } } });
     await prisma.conversation.deleteMany({ where: { restaurantId: { in: [restaurant.id, otherRestaurant.id] } } });
     await prisma.reservationRequest.deleteMany({ where: { restaurantId: { in: [restaurant.id, otherRestaurant.id] } } });

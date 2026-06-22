@@ -632,3 +632,144 @@ export function listConversationMessages(
     }
   );
 }
+
+// --- Integrations (Phase 7 backend API, Phase 14 beta UI) ---
+// Backend service (backend/src/services/integrationService.ts) never returns
+// credentials, credentialsEncrypted, or webhookVerifyTokenHash — only a
+// derived hasCredentials boolean. These types mirror that allowlist; do not
+// add raw secret fields here even if the backend response object includes
+// extra keys in the future (see AGENTS.md Phase 14).
+
+export const INTEGRATION_CHANNELS = ['vapi', 'sms', 'whatsapp', 'instagram', 'website'] as const;
+export const INTEGRATION_PROVIDERS = ['vapi', 'netgsm', 'twilio', 'meta_cloud', 'evolution', 'custom_http'] as const;
+export const INTEGRATION_STATUSES = ['inactive', 'active', 'error'] as const;
+
+export type IntegrationChannel = (typeof INTEGRATION_CHANNELS)[number];
+export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
+export type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
+
+export type IntegrationSummary = {
+  id: string;
+  channel: string;
+  provider: string;
+  displayName: string | null;
+  status: string;
+  isActive: boolean;
+  publicWebhookKey: string;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type IntegrationDetail = IntegrationSummary & {
+  configJson: Record<string, unknown> | null;
+  hasCredentials: boolean;
+  lastConnectedAt: string | null;
+  lastTestedAt: string | null;
+  webhookUrl: string;
+};
+
+export function listIntegrations(restaurantId: string, token: string): Promise<{ data: IntegrationSummary[] }> {
+  return backendRequest<{ data: IntegrationSummary[] }>(`/restaurants/${restaurantId}/integrations`, { token });
+}
+
+export function getIntegrationDetail(
+  restaurantId: string,
+  token: string,
+  integrationId: string
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(`/restaurants/${restaurantId}/integrations/${integrationId}`, { token });
+}
+
+export type CreateIntegrationPayload = {
+  channel: IntegrationChannel;
+  provider: IntegrationProvider;
+  displayName?: string | null;
+  status?: IntegrationStatus;
+  configJson?: Record<string, unknown> | null;
+  credentials?: Record<string, string>;
+};
+
+export function createIntegration(
+  restaurantId: string,
+  token: string,
+  payload: CreateIntegrationPayload
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(`/restaurants/${restaurantId}/integrations`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateIntegrationPayload = {
+  channel?: IntegrationChannel;
+  provider?: IntegrationProvider;
+  displayName?: string | null;
+  status?: IntegrationStatus;
+  configJson?: Record<string, unknown> | null;
+  credentials?: Record<string, string>;
+};
+
+export function updateIntegration(
+  restaurantId: string,
+  token: string,
+  integrationId: string,
+  payload: UpdateIntegrationPayload
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(`/restaurants/${restaurantId}/integrations/${integrationId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function rotateIntegrationWebhookKey(
+  restaurantId: string,
+  token: string,
+  integrationId: string
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(
+    `/restaurants/${restaurantId}/integrations/${integrationId}/rotate-webhook-key`,
+    { method: 'POST', token }
+  );
+}
+
+export function enableIntegration(
+  restaurantId: string,
+  token: string,
+  integrationId: string
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(`/restaurants/${restaurantId}/integrations/${integrationId}/enable`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function disableIntegration(
+  restaurantId: string,
+  token: string,
+  integrationId: string
+): Promise<IntegrationDetail> {
+  return backendRequest<IntegrationDetail>(`/restaurants/${restaurantId}/integrations/${integrationId}/disable`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export type IntegrationTestResult = {
+  success: boolean;
+  implemented: boolean;
+  message: string;
+};
+
+export function testIntegration(
+  restaurantId: string,
+  token: string,
+  integrationId: string
+): Promise<IntegrationTestResult> {
+  return backendRequest<IntegrationTestResult>(`/restaurants/${restaurantId}/integrations/${integrationId}/test`, {
+    method: 'POST',
+    token,
+  });
+}

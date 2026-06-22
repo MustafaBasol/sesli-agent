@@ -14,6 +14,7 @@ import { reservationRequestsRouter } from "./routes/reservationRequests";
 import { reservationsRouter } from "./routes/reservations";
 import { restaurantsRouter } from "./routes/restaurants";
 import { tablesRouter } from "./routes/tables";
+import { teamRouter } from "./routes/team";
 import { vapiWebhookRouter } from "./routes/webhooks/vapi";
 import { logger } from "./utils/logger";
 
@@ -42,6 +43,7 @@ export function createApp(): express.Express {
   app.use("/api/restaurants", conversationsRouter);
   app.use("/api/restaurants", integrationsRouter);
   app.use("/api/restaurants", dashboardRouter);
+  app.use("/api/restaurants", teamRouter);
   app.use("/api/webhooks/vapi", vapiWebhookRouter);
 
   app.use(notFoundHandler);

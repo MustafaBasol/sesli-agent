@@ -885,6 +885,122 @@ export function updateReservation(
   });
 }
 
+// --- Restaurant tables (Phase 16 backend API + beta UI) ---
+// RestaurantTable only stores isActive as a boolean server-side; the API
+// surface exposes it as a status string for consistency with other
+// list/detail endpoints. These types deliberately omit any internal/debug
+// fields — see AGENTS.md Phase 16.
+
+export const TABLE_STATUSES = ['active', 'inactive'] as const;
+
+export type RestaurantTableStatus = (typeof TABLE_STATUSES)[number];
+
+export type RestaurantTableListItem = {
+  id: string;
+  restaurantId: string;
+  tableNumber: string;
+  capacity: number;
+  location: string | null;
+  status: RestaurantTableStatus;
+  upcomingReservationCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RestaurantTableListParams = {
+  status?: RestaurantTableStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type RestaurantTableListResponse = {
+  data: RestaurantTableListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listTables(
+  restaurantId: string,
+  token: string,
+  params: RestaurantTableListParams = {}
+): Promise<RestaurantTableListResponse> {
+  return backendRequest<RestaurantTableListResponse>(`/restaurants/${restaurantId}/tables`, {
+    token,
+    query: {
+      status: params.status,
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type RestaurantTableUpcomingReservation = {
+  id: string;
+  customerName: string | null;
+  reservationDate: string;
+  reservationTime: string;
+  partySize: number;
+  status: string;
+};
+
+export type RestaurantTableDetail = Omit<RestaurantTableListItem, 'upcomingReservationCount'> & {
+  upcomingReservationCount: number;
+  upcomingReservations: RestaurantTableUpcomingReservation[];
+};
+
+export function getTableDetail(
+  restaurantId: string,
+  token: string,
+  tableId: string
+): Promise<RestaurantTableDetail> {
+  return backendRequest<RestaurantTableDetail>(`/restaurants/${restaurantId}/tables/${tableId}`, { token });
+}
+
+export type CreateTablePayload = {
+  tableNumber: string;
+  capacity: number;
+  location?: string | null;
+  status?: RestaurantTableStatus;
+};
+
+export function createTable(
+  restaurantId: string,
+  token: string,
+  payload: CreateTablePayload
+): Promise<RestaurantTableListItem> {
+  return backendRequest<RestaurantTableListItem>(`/restaurants/${restaurantId}/tables`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateTablePayload = {
+  tableNumber?: string;
+  capacity?: number;
+  location?: string | null;
+  status?: RestaurantTableStatus;
+};
+
+export function updateTable(
+  restaurantId: string,
+  token: string,
+  tableId: string,
+  payload: UpdateTablePayload
+): Promise<RestaurantTableListItem> {
+  return backendRequest<RestaurantTableListItem>(`/restaurants/${restaurantId}/tables/${tableId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
 export function testIntegration(
   restaurantId: string,
   token: string,

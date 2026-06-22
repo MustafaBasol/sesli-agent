@@ -304,6 +304,26 @@ async function main() {
     });
     assert.equal(crossTablePatchRes.status, 400, "assigning a table from another restaurant must be rejected");
 
+    // 14b. PATCH accepts a table id belonging to the same restaurant.
+    const sameTablePatchRes = await fetch(`${baseUrl}/${restaurant.id}/reservations/${createdReservation!.id}`, {
+      method: "PATCH",
+      headers: { ...authed(ownerToken), "Content-Type": "application/json" },
+      body: JSON.stringify({ assignedTableId: table.id }),
+    });
+    assert.equal(sameTablePatchRes.status, 200, "assigning a table from the same restaurant must succeed");
+    const sameTablePatched = await prisma.reservation.findUnique({ where: { id: createdReservation!.id } });
+    assert.equal(sameTablePatched?.assignedTableId, table.id);
+
+    // 14c. PATCH can clear a table assignment with assignedTableId: null.
+    const clearTablePatchRes = await fetch(`${baseUrl}/${restaurant.id}/reservations/${createdReservation!.id}`, {
+      method: "PATCH",
+      headers: { ...authed(ownerToken), "Content-Type": "application/json" },
+      body: JSON.stringify({ assignedTableId: null }),
+    });
+    assert.equal(clearTablePatchRes.status, 200, "clearing a table assignment must succeed");
+    const clearedTablePatched = await prisma.reservation.findUnique({ where: { id: createdReservation!.id } });
+    assert.equal(clearedTablePatched?.assignedTableId, null);
+
     // 15. Cross-tenant list: STAFF assigned only to `restaurant` must not reach otherRestaurant's data.
     const crossTenantRes = await fetch(`${baseUrl}/${otherRestaurant.id}/reservations`, { headers: authed(staffToken) });
     assert.equal(crossTenantRes.status, 403, "a user with no access to otherRestaurant must get 403, not a data leak");

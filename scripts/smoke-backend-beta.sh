@@ -105,11 +105,30 @@ check_endpoint "availability-blackouts" "$restaurant_path/availability/blackouts
 future_date=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
 check_endpoint "availability-slots" "$restaurant_path/availability/slots?date=$future_date&partySize=2" "$TMP_DIR/availability-slots.json"
 
+# --- Vapi check-availability webhook (Phase 27) ---
+# Public, publicWebhookKey-authenticated route, not a JWT-protected one —
+# uses the seeded dev integration connection's key by default. Read-only:
+# never creates a ReservationRequest/Reservation. Does not require
+# available:true since the target restaurant may have no opening hours or
+# tables configured; only success + 200 are checked here.
+vapi_key="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+vapi_check_availability_file="$TMP_DIR/vapi-check-availability.json"
+vapi_code=$(curl -s -o "$vapi_check_availability_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/check-availability" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$future_date\",\"partySize\":2}")
+if [ "$vapi_code" = "200" ] && grep -q '"success"' "$vapi_check_availability_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/check-availability -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/check-availability -> $vapi_code"
+fi
+
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials
   credentialsEncrypted webhookVerifyTokenHash accessToken apiKey
   providerSecret clientSecret tokenValue rawPayload stateJson
+  availableTableIds tableIds
 )
 
 grep_args=()

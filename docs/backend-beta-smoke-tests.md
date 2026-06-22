@@ -58,6 +58,7 @@ disposable test/beta database (these mutate that database):
 
 ```bash
 npm run test:vapi-webhook-integration
+npm run test:vapi-check-availability
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -161,6 +162,24 @@ allowlisted body, even when the restaurant has no opening hours configured or re
 blocked — check the response's `blockedReason`/`availableSlots` fields, not the HTTP status, to
 judge whether slots came back.
 
+```bash
+# Phase 27 — backend Vapi check-availability webhook adapter. Public,
+# key-authenticated route (publicWebhookKey, not a JWT). Read-only: never
+# creates a ReservationRequest/Reservation. Uses the seeded dev connection's
+# key by default; override with SMOKE_VAPI_PUBLIC_WEBHOOK_KEY if needed.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+FUTURE_DATE=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
+curl -s -o /tmp/vapi-check-availability-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/check-availability" \
+  -H "Content-Type: application/json" \
+  -d "{\"date\":\"$FUTURE_DATE\",\"partySize\":2}"
+```
+
+Expect `200` and a `success` field in the JSON body. Do not assert
+`available:true` — the restaurant under test may have no opening hours or
+tables configured, in which case `success:true, available:false` with a
+`blocked_reason` is the correct, non-failing response.
+
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the
 account does not have access to `$RESTAURANT_ID` (tenant isolation working
@@ -189,6 +208,8 @@ grep -ril \
   -e 'tokenValue' \
   -e 'rawPayload' \
   -e 'stateJson' \
+  -e 'availableTableIds' \
+  -e 'tableIds' \
   /tmp/*-response.json && echo "FAIL: sensitive field found above" \
   || echo "PASS: no sensitive fields found"
 ```

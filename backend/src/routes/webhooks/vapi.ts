@@ -14,8 +14,14 @@ import {
 } from "../../utils/vapi/normalizers";
 import { parseVapiPayload } from "../../utils/vapi/parser";
 import { sendVapiToolErrorResponse, sendVapiToolResponse } from "../../utils/vapi/toolResponse";
+import {
+  buildMissingArgsResponse,
+  extractCheckAvailabilityArgs,
+  mapAvailabilityResultToVapiResponse,
+} from "../../utils/vapi/checkAvailabilityAdapter";
 import { prisma } from "../../prisma/client";
 import { createVapiReservationRequest, resolveVapiIntegrationConnection } from "../../services/vapiReservationService";
+import { calculateAvailabilitySlots } from "../../services/availabilitySlotService";
 
 export const vapiWebhookRouter = express.Router();
 
@@ -152,6 +158,92 @@ vapiWebhookRouter.post(
         });
 
       sendVapiToolErrorResponse(res, rawBody, "Internal error while creating reservation request");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/check-availability
+//
+// Read-only adapter over the Phase 25 calculateAvailabilitySlots() service.
+// Never creates a ReservationRequest/Reservation — see AGENTS.md Phase 27
+// constraints. The old Next.js/Supabase check-availability route is
+// untouched and keeps serving the production Vapi assistant.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/check-availability",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection) {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const currentYear = new Date().getFullYear();
+    const callId: string | null = body.call_id || null;
+
+    const { localDate, partySize, preferredTime } = extractCheckAvailabilityArgs(allSources, currentYear);
+
+    const missingFields: string[] = [];
+    if (!localDate) missingFields.push("date");
+    if (!partySize) missingFields.push("party_size");
+
+    if (missingFields.length > 0) {
+      sendVapiToolResponse(res, rawBody, buildMissingArgsResponse(missingFields));
+      return;
+    }
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "check_availability",
+        externalCallId: callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    try {
+      const result = await calculateAvailabilitySlots({
+        restaurantId,
+        localDate: localDate as string,
+        partySize: partySize as number,
+        preferredTime: preferredTime ?? undefined,
+      });
+
+      const response = mapAvailabilityResultToVapiResponse(result, preferredTime);
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: {
+          status: "success",
+          responsePayload: { available: response.available, blockedReason: result.blockedReason ?? null },
+        },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId }, "vapi check-availability failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: {
+            status: "failure",
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+          },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while checking availability");
     }
   })
 );

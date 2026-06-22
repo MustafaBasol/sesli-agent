@@ -152,22 +152,27 @@ or backfill strategy). That phase is out of scope here.
   `get-customer-profile`, `create-customer-profile`, `get-item-details`,
   `get-menu-info`, `get-opening-hours`, `log-call-summary`, `webhook`).
 - The backend exposes parallel routes under
-  `/api/webhooks/vapi/:publicWebhookKey/*`. Only
-  `create-reservation-request` is implemented today; `modify-reservation-request`,
-  `cancel-reservation-request`, and `handoff-to-staff` exist as routes but
-  return "not implemented" (`backend/src/routes/webhooks/vapi.ts`). The
-  backend route set is **not feature-complete** relative to the Next.js
-  routes and must not be treated as a drop-in replacement yet.
-- `check-availability` parity specifically also needs the `RestaurantSettings`/
-  `BlackoutDate` models added in Phase 24 (`/api/restaurants/:restaurantId/availability/*`,
+  `/api/webhooks/vapi/:publicWebhookKey/*`. `create-reservation-request` and
+  (as of Phase 27) `check-availability` are implemented today;
+  `modify-reservation-request`, `cancel-reservation-request`, and
+  `handoff-to-staff` exist as routes but return "not implemented"
+  (`backend/src/routes/webhooks/vapi.ts`). The backend route set is **not
+  feature-complete** relative to the Next.js routes and must not be treated
+  as a drop-in replacement yet.
+- `check-availability` parity needs the `RestaurantSettings`/`BlackoutDate`
+  models added in Phase 24 (`/api/restaurants/:restaurantId/availability/*`,
   `getRestaurantAvailabilityConfig` read helper in
   `backend/src/services/restaurantAvailabilityService.ts`) plus the slot
   calculation service added in Phase 25
   (`backend/src/services/availabilitySlotService.ts`,
-  `GET /api/restaurants/:restaurantId/availability/slots`). The service and
-  endpoint exist now and are covered by `npm run test:availability-slots`,
-  but are **not wired into any Vapi route** — a backend `check-availability`
-  handler that calls this service is still future work.
+  `GET /api/restaurants/:restaurantId/availability/slots`). Phase 27 added
+  `POST /api/webhooks/vapi/:publicWebhookKey/check-availability`
+  (`backend/src/utils/vapi/checkAvailabilityAdapter.ts` maps the slot
+  service's result into a Vapi-compatible response) — the backend endpoint
+  is ready for **controlled test calls only**. The live Vapi dashboard URL
+  is **not** switched to it; see `docs/backend-vapi-webhook-parity-assessment.md`
+  Section 10 for what was/wasn't carried over from the old route's response
+  shape (notably: no `best_table_id`/`needs_approval` fields).
 - The backend webhook authenticates the tenant via an unguessable
   `publicWebhookKey` path segment (`IntegrationConnection.publicWebhookKey`)
   plus a dedicated rate limiter, not via Vapi payload signature
@@ -178,6 +183,28 @@ or backfill strategy). That phase is out of scope here.
   representative Vapi payloads (recorded from real calls or Vapi's test
   console) and diff the resulting Supabase vs backend database writes for
   parity. This comparison work is not part of this phase.
+
+### Vapi dashboard cutover not performed (Phase 27)
+
+- The existing Vapi dashboard URL remains pointed at the old Next.js
+  `src/app/api/vapi/*` routes — this was not changed and is not in scope for
+  Phase 27.
+- The new `POST /api/webhooks/vapi/:publicWebhookKey/check-availability`
+  backend endpoint is ready for controlled test calls only (manual `curl`/
+  smoke-script calls, or a test Vapi assistant pointed at a non-production
+  key) — it has not received live production Vapi traffic.
+- Before switching the live Vapi dashboard's `check_availability` tool URL
+  to this endpoint:
+  1. Capture a real Vapi payload sample for `check_availability` from the
+     live assistant config or call logs.
+  2. Compare the old Next.js route's response for that payload against this
+     backend route's response, field-by-field (see
+     `docs/backend-vapi-webhook-parity-assessment.md` Section 4/10 for known
+     intentional differences — no `best_table_id`/`needs_approval`).
+  3. Run a controlled test assistant call against a staging Vapi assistant
+     pointed at the new URL before touching the production assistant config.
+  4. Decide and document the rollback URL (the old Next.js route) before
+     flipping the dashboard setting, so a revert is a single config change.
 - The Vapi dashboard URL itself is never touched in this phase, and must
   only be changed as a separate, explicitly reversible step once parity is
   proven.

@@ -177,6 +177,52 @@ model Reservation {
 }
 
 // ---------------------------------------------------------------------------
+// Availability models
+// ---------------------------------------------------------------------------
+
+// One settings row per restaurant. No relation field to Restaurant — same
+// plain-restaurantId convention as Customer/RestaurantTable/etc. above
+// (only RestaurantUser carries an enforced FK in this schema).
+model RestaurantSettings {
+  id                                 String   @id @default(uuid())
+  restaurantId                       String   @unique
+  reservationsEnabled                Boolean  @default(true)
+  openingHoursJson                   Json?
+  slotIntervalMinutes                Int      @default(30)
+  defaultReservationDurationMinutes  Int      @default(90)
+  minAdvanceMinutes                  Int      @default(60)
+  bookingWindowDays                  Int      @default(30)
+  minPartySize                       Int      @default(1)
+  maxPartySize                       Int      @default(12)
+  maxReservationsPerSlot             Int?
+  notes                              String?
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime @updatedAt
+
+  @@map("restaurant_settings")
+}
+
+// Restaurant-specific closure/blocked windows. localDate/startsAtLocal/
+// endsAtLocal are plain strings (not DateTime) so a restaurant's business
+// date/time is preserved exactly as entered, with no silent timezone
+// conversion through Postgres/JS Date handling.
+model BlackoutDate {
+  id             String   @id @default(uuid())
+  restaurantId   String
+  localDate      String
+  startsAtLocal  String?
+  endsAtLocal    String?
+  isFullDay      Boolean  @default(true)
+  reason         String?
+  status         String   @default("active") // active, inactive
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([restaurantId, localDate])
+  @@map("blackout_dates")
+}
+
+// ---------------------------------------------------------------------------
 // Conversation and message models
 // ---------------------------------------------------------------------------
 

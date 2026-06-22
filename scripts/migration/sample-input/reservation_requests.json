@@ -1,0 +1,31 @@
+[
+  {
+    "id": "fake-req-1",
+    "customer_name": "Test Customer One",
+    "phone_number": "+33600000001",
+    "party_size": 2,
+    "reservation_date": "2025-05-01",
+    "reservation_time": "20:00",
+    "status": "confirmed",
+    "raw_payload": { "fake": "payload", "call_id": "fake-call-1" }
+  },
+  {
+    "id": "fake-req-2",
+    "customer_name": null,
+    "phone_number": "+33600000002",
+    "party_size": 4,
+    "reservation_date": "not-a-date",
+    "reservation_time": "25:99",
+    "status": "seen",
+    "raw_payload": null
+  },
+  {
+    "id": "fake-req-3",
+    "customer_name": "Test Customer Three",
+    "phone_number": "+33600000003",
+    "party_size": 3,
+    "reservation_date": null,
+    "reservation_time": null,
+    "status": "new"
+  }
+]

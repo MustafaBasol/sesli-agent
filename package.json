@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "smoke:backend-beta": "bash scripts/smoke-backend-beta.sh"
+    "smoke:backend-beta": "bash scripts/smoke-backend-beta.sh",
+    "migration:dry-run": "tsx scripts/migration/supabase-to-backend-dry-run.ts",
+    "migration:test": "tsx scripts/migration/supabase-to-backend-dry-run.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -24,6 +26,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }

@@ -15,6 +15,10 @@ backend/dist
 # testing
 /coverage
 
+# migration dry-run output (may contain data-derived counts; never commit)
+/scripts/migration/output/
+/.migration-output/
+
 # next.js
 /.next/
 /out/

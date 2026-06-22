@@ -1,0 +1,5 @@
+[
+  { "id": "fake-cust-1", "full_name": "Test Customer One", "phone_number": "+33 6 00 00 00 01", "email": "test1@example.invalid" },
+  { "id": "fake-cust-2", "full_name": "Test Customer Two", "phone_number": "+33600000001", "email": null },
+  { "id": "fake-cust-3", "full_name": null, "phone_number": null, "email": null }
+]

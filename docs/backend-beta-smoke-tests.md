@@ -63,6 +63,8 @@ npm run test:customers-integration
 npm run test:conversations-integration
 npm run test:integrations-integration
 npm run test:dashboard-integration
+npm run test:restaurant-availability
+npm run test:availability-slots
 ```
 
 ## C) Backend restart commands
@@ -141,11 +143,23 @@ curl -s -o /tmp/availability-settings-response.json -w "%{http_code}\n" \
 curl -s -o /tmp/availability-blackouts-response.json -w "%{http_code}\n" \
   "$API/api/restaurants/$RESTAURANT_ID/availability/blackouts" \
   -H "Authorization: Bearer $TOKEN"
+
+# Phase 25 — use a future date so minAdvanceMinutes/bookingWindowDays never
+# fail the check regardless of restaurant settings.
+FUTURE_DATE=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
+curl -s -o /tmp/availability-slots-response.json -w "%{http_code}\n" \
+  "$API/api/restaurants/$RESTAURANT_ID/availability/slots?date=$FUTURE_DATE&partySize=2" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 The availability settings endpoint creates a default `RestaurantSettings` row on first read if
 none exists yet (idempotent) — this is a read-triggered upsert with default values, not a
 destructive write, and is safe to run repeatedly.
+
+The availability slots endpoint (Phase 25) is read-only and always returns `200` with a safe
+allowlisted body, even when the restaurant has no opening hours configured or reservations are
+blocked — check the response's `blockedReason`/`availableSlots` fields, not the HTTP status, to
+judge whether slots came back.
 
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the

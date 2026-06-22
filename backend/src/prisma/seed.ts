@@ -34,6 +34,20 @@ const AUTOMATION_TRIGGERS = [
 const DEFAULT_CHANNEL = "sms";
 const DEFAULT_LANGUAGE = "fr";
 
+// Dev/test-only default schedule (Phase 25) so the availability slot
+// calculation service has something to compute against locally. NOT the
+// real Golden Meat opening hours — production hours must be configured
+// manually via the availability settings API/UI.
+const DEFAULT_AVAILABILITY_OPENING_HOURS = {
+  monday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  tuesday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  wednesday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  thursday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  friday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  saturday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+  sunday: [{ start: "12:00", end: "14:00" }, { start: "18:00", end: "22:00" }],
+};
+
 const DEFAULT_TABLES: Array<{ tableNumber: string; capacity: number; location?: string }> = [
   { tableNumber: "1", capacity: 2, location: "window" },
   { tableNumber: "2", capacity: 2, location: "window" },
@@ -174,7 +188,7 @@ async function main() {
   await prisma.restaurantSettings.upsert({
     where: { restaurantId: restaurant.id },
     update: {},
-    create: { restaurantId: restaurant.id },
+    create: { restaurantId: restaurant.id, openingHoursJson: DEFAULT_AVAILABILITY_OPENING_HOURS },
   });
 
   // Dev-only test connection so the Phase 4 Vapi webhook endpoint is reachable

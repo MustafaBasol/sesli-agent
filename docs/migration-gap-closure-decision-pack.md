@@ -191,6 +191,17 @@ Supabase data has been read or migrated). `restaurant_rules` (`max_party_size`,
 Vapi routes are **not** wired to these new models in this phase — `getRestaurantAvailabilityConfig`
 exists as a pure read helper for future use only.
 
+**Status update (Phase 25): availability slot calculation implemented.** Backend now has a slot
+calculation service (`backend/src/services/availabilitySlotService.ts` +
+`availabilitySlotHelpers.ts`) that computes available reservation slots from
+`RestaurantSettings`, active `BlackoutDate` rows, `RestaurantTable` rows, and existing
+`Reservation` rows, exposed read-only at
+`GET /api/restaurants/:restaurantId/availability/slots`. This closes the "actual
+availability-logic" gap described below for slot computation specifically — it is the missing
+piece `check-availability` parity needed. Still **not wired into any Vapi route**; a backend
+`check-availability` handler that calls this service is future work (see
+`docs/backend-production-cutover-plan.md` Section E).
+
 **Problem statement**: Old Supabase has `restaurant_settings` (opening hours per weekday,
 `last_reservation_offset_minutes`), `blackout_dates`, and `restaurant_rules`
 (`max_party_size`, `manual_approval_threshold`, `auto_confirm`, `reservation_interval_minutes`).

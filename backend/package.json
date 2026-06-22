@@ -16,8 +16,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx src/prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query && npm run test:rate-limit",
+    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query && npm run test:rate-limit && npm run test:availability-slot-helpers",
     "test:restaurant-access": "tsx src/tests/restaurantAccess.test.ts",
+    "test:availability-slot-helpers": "tsx src/tests/availabilitySlotHelpers.test.ts",
     "test:rate-limit": "tsx src/tests/rateLimit.test.ts",
     "test:auth-utils": "tsx src/tests/authUtils.test.ts",
     "test:vapi-normalizers": "tsx src/tests/vapiNormalizers.test.ts",
@@ -32,7 +33,8 @@
     "test:conversations-integration": "tsx src/tests/conversations.integration.test.ts",
     "test:integrations-integration": "tsx src/tests/integrations.integration.test.ts",
     "test:dashboard-integration": "tsx src/tests/dashboard.integration.test.ts",
-    "test:restaurant-availability": "tsx src/tests/restaurantAvailability.integration.test.ts"
+    "test:restaurant-availability": "tsx src/tests/restaurantAvailability.integration.test.ts",
+    "test:availability-slots": "tsx src/tests/availabilitySlots.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

@@ -7,10 +7,12 @@ import {
   createBlackoutDate,
   deactivateBlackoutDate,
   getAvailabilitySettings,
+  getAvailabilitySlots,
   listBlackoutDates,
   updateAvailabilitySettings,
   updateBlackoutDate,
   type AvailabilitySettings,
+  type AvailabilitySlotsResult,
   type BackendLoginResponse,
   type BlackoutDateItem,
   type BlackoutDateStatus,
@@ -92,6 +94,13 @@ export default function AvailabilityClient() {
 
   const [blackoutActionStatus, setBlackoutActionStatus] = useState<Status>('idle');
   const [blackoutActionError, setBlackoutActionError] = useState('');
+
+  const [slotDate, setSlotDate] = useState('');
+  const [slotPartySize, setSlotPartySize] = useState('2');
+  const [slotPreferredTime, setSlotPreferredTime] = useState('');
+  const [slotCheckStatus, setSlotCheckStatus] = useState<Status>('idle');
+  const [slotCheckError, setSlotCheckError] = useState('');
+  const [slotResult, setSlotResult] = useState<AvailabilitySlotsResult | null>(null);
 
   useEffect(() => {
     const token = backendAuth.getToken();
@@ -289,6 +298,24 @@ export default function AvailabilityClient() {
     }
   };
 
+  const handleCheckAvailability = async () => {
+    if (!session || !restaurantId || !slotDate) return;
+    setSlotCheckStatus('loading');
+    setSlotCheckError('');
+    try {
+      const result = await getAvailabilitySlots(restaurantId, session.token, {
+        date: slotDate,
+        partySize: Number(slotPartySize),
+        preferredTime: slotPreferredTime || undefined,
+      });
+      setSlotResult(result);
+      setSlotCheckStatus('idle');
+    } catch (err) {
+      setSlotCheckError(err instanceof BackendApiError ? err.message : 'Failed to check availability');
+      setSlotCheckStatus('error');
+    }
+  };
+
   if (!bootstrapped) return null;
 
   return (
@@ -396,6 +423,19 @@ export default function AvailabilityClient() {
               onReactivate={handleReactivateBlackout}
               actionStatus={blackoutActionStatus}
               actionError={blackoutActionError}
+            />
+
+            <SlotPreviewSection
+              date={slotDate}
+              onDateChange={setSlotDate}
+              partySize={slotPartySize}
+              onPartySizeChange={setSlotPartySize}
+              preferredTime={slotPreferredTime}
+              onPreferredTimeChange={setSlotPreferredTime}
+              onCheck={handleCheckAvailability}
+              status={slotCheckStatus}
+              error={slotCheckError}
+              result={slotResult}
             />
           </div>
         )}
@@ -691,6 +731,129 @@ function BlackoutSection({
             {list.data.map((item) => (
               <BlackoutRow key={item.id} item={item} readOnly={readOnly} onDeactivate={onDeactivate} onReactivate={onReactivate} />
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SlotPreviewSection({
+  date,
+  onDateChange,
+  partySize,
+  onPartySizeChange,
+  preferredTime,
+  onPreferredTimeChange,
+  onCheck,
+  status,
+  error,
+  result,
+}: {
+  date: string;
+  onDateChange: (value: string) => void;
+  partySize: string;
+  onPartySizeChange: (value: string) => void;
+  preferredTime: string;
+  onPreferredTimeChange: (value: string) => void;
+  onCheck: () => void;
+  status: Status;
+  error: string;
+  result: AvailabilitySlotsResult | null;
+}) {
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-header-title">Slot preview</h3>
+      </div>
+      <div className="p-5 space-y-4">
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
+          Read-only check against the Phase 25 availability slot calculation service. Does not create or modify any
+          reservation.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+              Date (YYYY-MM-DD)
+            </label>
+            <input
+              type="text"
+              placeholder="2026-07-01"
+              value={date}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+              Party size
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={partySize}
+              onChange={(e) => onPartySizeChange(e.target.value)}
+              className="block w-24 rounded-lg px-3 py-2 text-sm outline-none mt-1"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+              Preferred time (optional)
+            </label>
+            <input
+              type="text"
+              placeholder="19:00"
+              value={preferredTime}
+              onChange={(e) => onPreferredTimeChange(e.target.value)}
+              className="block w-28 rounded-lg px-3 py-2 text-sm outline-none mt-1"
+              style={inputStyle}
+            />
+          </div>
+          <button
+            onClick={onCheck}
+            disabled={status === 'loading' || !date || !partySize}
+            className="text-xs font-semibold px-3 py-2 rounded-lg"
+            style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
+          >
+            {status === 'loading' ? 'Checking…' : 'Check availability'}
+          </button>
+        </div>
+
+        {status === 'error' && (
+          <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{error}</p>
+        )}
+
+        {result && (
+          <div className="space-y-3">
+            {result.blockedReason && (
+              <p className="text-sm font-semibold" style={{ color: '#b45309' }}>
+                Blocked: {result.blockedReason}
+              </p>
+            )}
+            {result.warnings.length > 0 && (
+              <ul className="text-xs" style={{ color: 'var(--p-text-5)' }}>
+                {result.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            )}
+            {result.availableSlots.length === 0 && !result.blockedReason ? (
+              <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No slots generated for this date.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {result.availableSlots.map((slot) => (
+                  <span
+                    key={slot.time}
+                    className={`badge ${slot.available ? 'badge-green' : 'badge-gray'}`}
+                    title={slot.reason ?? ''}
+                  >
+                    {slot.time} {slot.available ? `· cap ${slot.capacity}` : `· ${slot.reason}`}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

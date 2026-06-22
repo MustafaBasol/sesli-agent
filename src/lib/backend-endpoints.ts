@@ -763,6 +763,128 @@ export type IntegrationTestResult = {
   message: string;
 };
 
+// --- Reservations (Phase 15 backend API + beta UI) ---
+// Reservation rows only ever come from the dedicated backend's Reservation
+// model (created when a reservation request is confirmed, or entered
+// manually) — never from rawPayload/stateJson. These types deliberately omit
+// those fields; the beta UI never requests or renders them (see AGENTS.md
+// Phase 15).
+
+export const RESERVATION_STATUSES = ['pending', 'confirmed', 'cancelled', 'no_show', 'completed'] as const;
+
+export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
+
+export type ReservationListItem = {
+  id: string;
+  restaurantId: string;
+  reservationRequestId: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  phoneNumber: string | null;
+  sourceChannel: string;
+  reservationDate: string;
+  reservationTime: string;
+  partySize: number;
+  status: ReservationStatus;
+  assignedTableId: string | null;
+  tableName: string | null;
+  internalNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReservationListParams = {
+  status?: ReservationStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  customerId?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ReservationListResponse = {
+  data: ReservationListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listReservations(
+  restaurantId: string,
+  token: string,
+  params: ReservationListParams = {}
+): Promise<ReservationListResponse> {
+  return backendRequest<ReservationListResponse>(`/restaurants/${restaurantId}/reservations`, {
+    token,
+    query: {
+      status: params.status,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      search: params.search,
+      customerId: params.customerId,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type ReservationTableSummary = {
+  id: string;
+  tableNumber: string;
+  capacity: number;
+  location: string | null;
+};
+
+export type ReservationRequestSummary = {
+  id: string;
+  status: ReservationRequestStatus;
+  channel: string;
+  provider: string | null;
+  specialRequest: string | null;
+  createdAt: string;
+};
+
+export type ReservationDetail = Omit<ReservationListItem, 'customerName' | 'phoneNumber' | 'tableName'> & {
+  customer: ReservationRequestCustomerSummary | null;
+  table: ReservationTableSummary | null;
+  reservationRequest: ReservationRequestSummary | null;
+  conversation: ReservationRequestConversationSummary | null;
+};
+
+export function getReservationDetail(
+  restaurantId: string,
+  token: string,
+  reservationId: string
+): Promise<ReservationDetail> {
+  return backendRequest<ReservationDetail>(`/restaurants/${restaurantId}/reservations/${reservationId}`, { token });
+}
+
+export type UpdateReservationPayload = {
+  status?: ReservationStatus;
+  reservationDate?: string;
+  reservationTime?: string;
+  partySize?: number;
+  assignedTableId?: string | null;
+  internalNote?: string | null;
+};
+
+export function updateReservation(
+  restaurantId: string,
+  token: string,
+  reservationId: string,
+  payload: UpdateReservationPayload
+): Promise<ReservationDetail> {
+  return backendRequest<ReservationDetail>(`/restaurants/${restaurantId}/reservations/${reservationId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
 export function testIntegration(
   restaurantId: string,
   token: string,

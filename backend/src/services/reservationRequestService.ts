@@ -155,6 +155,44 @@ export async function updateReservationRequest(
   return omitRawPayload(updated);
 }
 
+/**
+ * Confirms a reservation request and creates the corresponding Reservation
+ * row in the same transaction — confirming must never leave the request
+ * marked "confirmed" without an actual Reservation record existing (or vice
+ * versa). Caller must already have checked the status transition is valid
+ * and that date/time/partySize are present (Reservation's columns are
+ * non-nullable, unlike ReservationRequest's).
+ */
+export async function confirmReservationRequestWithReservation(
+  restaurantId: string,
+  request: {
+    id: string;
+    customerId: string | null;
+    channel: string;
+    reservationDate: Date;
+    reservationTime: string;
+    partySize: number;
+  }
+) {
+  const [updated] = await prisma.$transaction([
+    prisma.reservationRequest.update({ where: { id: request.id }, data: { status: "confirmed" } }),
+    prisma.reservation.create({
+      data: {
+        restaurantId,
+        reservationRequestId: request.id,
+        customerId: request.customerId,
+        sourceChannel: request.channel,
+        reservationDate: request.reservationDate,
+        reservationTime: request.reservationTime,
+        partySize: request.partySize,
+        status: "confirmed",
+      },
+    }),
+  ]);
+
+  return omitRawPayload(updated);
+}
+
 export async function setReservationRequestStatus(
   requestId: string,
   status: ReservationRequestStatus,

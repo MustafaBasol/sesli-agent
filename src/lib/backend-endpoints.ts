@@ -133,3 +133,216 @@ export type DashboardCounts = {
 export function getDashboardCounts(restaurantId: string, token: string): Promise<DashboardCounts> {
   return backendRequest<DashboardCounts>(`/restaurants/${restaurantId}/dashboard/counts`, { token });
 }
+
+// --- Reservation requests (Phase 5 backend API, Phase 11 beta UI) ---
+// rawPayload is intentionally absent from every type below: the detail
+// endpoint only returns it for OWNER/MANAGER with includeRawPayload=true,
+// and this beta UI never requests or renders it (see AGENTS.md Phase 11).
+
+export const RESERVATION_REQUEST_STATUSES = [
+  'new',
+  'pending_info',
+  'confirmed',
+  'rejected',
+  'cancelled',
+  'done',
+] as const;
+
+export type ReservationRequestStatus = (typeof RESERVATION_REQUEST_STATUSES)[number];
+
+export type ReservationRequestBase = {
+  id: string;
+  restaurantId: string;
+  customerId: string | null;
+  conversationId: string | null;
+  channel: string;
+  provider: string | null;
+  sourceExternalId: string | null;
+  requestType: string;
+  customerName: string | null;
+  phoneNumber: string | null;
+  normalizedPhone: string | null;
+  partySize: number | null;
+  reservationDate: string | null;
+  reservationTime: string | null;
+  language: string | null;
+  specialRequest: string | null;
+  status: ReservationRequestStatus;
+  internalNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReservationRequestCustomerSummary = {
+  id: string;
+  fullName: string | null;
+  phoneNumber: string | null;
+  totalReservations: number;
+};
+
+export type ReservationRequestConversationSummary = {
+  id: string;
+  channel: string;
+  provider: string | null;
+  status: string;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+};
+
+export type ReservationRequestListItem = ReservationRequestBase & {
+  customer: ReservationRequestCustomerSummary | null;
+  conversation: ReservationRequestConversationSummary | null;
+};
+
+export type ReservationRequestListParams = {
+  status?: ReservationRequestStatus;
+  channel?: string;
+  provider?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ReservationRequestListResponse = {
+  data: ReservationRequestListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listReservationRequests(
+  restaurantId: string,
+  token: string,
+  params: ReservationRequestListParams = {}
+): Promise<ReservationRequestListResponse> {
+  return backendRequest<ReservationRequestListResponse>(`/restaurants/${restaurantId}/reservation-requests`, {
+    token,
+    query: {
+      status: params.status,
+      channel: params.channel,
+      provider: params.provider,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type ReservationRequestCustomerDetail = {
+  id: string;
+  restaurantId: string;
+  phoneNumber: string | null;
+  normalizedPhone: string | null;
+  fullName: string | null;
+  email: string | null;
+  instagramHandle: string | null;
+  whatsappId: string | null;
+  totalReservations: number;
+  lastVisitAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReservationRequestConversationDetail = {
+  id: string;
+  restaurantId: string;
+  customerId: string | null;
+  channel: string;
+  provider: string | null;
+  externalThreadId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerHandle: string | null;
+  status: string;
+  assignedToUserId: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReservationRequestMessage = {
+  id: string;
+  restaurantId: string;
+  conversationId: string;
+  customerId: string | null;
+  direction: string;
+  channel: string;
+  provider: string | null;
+  senderType: string;
+  senderUserId: string | null;
+  externalMessageId: string | null;
+  messageText: string | null;
+  status: string | null;
+  createdAt: string;
+};
+
+export type ReservationRequestDetail = ReservationRequestBase & {
+  customer: ReservationRequestCustomerDetail | null;
+  conversation: ReservationRequestConversationDetail | null;
+  messages: ReservationRequestMessage[];
+};
+
+export function getReservationRequestDetail(
+  restaurantId: string,
+  token: string,
+  requestId: string
+): Promise<ReservationRequestDetail> {
+  return backendRequest<ReservationRequestDetail>(
+    `/restaurants/${restaurantId}/reservation-requests/${requestId}`,
+    { token }
+  );
+}
+
+export type UpdateReservationRequestPayload = {
+  status?: ReservationRequestStatus;
+  internalNote?: string | null;
+  partySize?: number;
+  reservationDate?: string;
+  reservationTime?: string;
+  specialRequest?: string | null;
+};
+
+export function updateReservationRequest(
+  restaurantId: string,
+  token: string,
+  requestId: string,
+  payload: UpdateReservationRequestPayload
+): Promise<ReservationRequestBase> {
+  return backendRequest<ReservationRequestBase>(`/restaurants/${restaurantId}/reservation-requests/${requestId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function confirmReservationRequest(
+  restaurantId: string,
+  token: string,
+  requestId: string
+): Promise<ReservationRequestBase> {
+  return backendRequest<ReservationRequestBase>(
+    `/restaurants/${restaurantId}/reservation-requests/${requestId}/confirm`,
+    { method: 'POST', token }
+  );
+}
+
+export function rejectReservationRequest(
+  restaurantId: string,
+  token: string,
+  requestId: string,
+  reason?: string
+): Promise<ReservationRequestBase> {
+  return backendRequest<ReservationRequestBase>(
+    `/restaurants/${restaurantId}/reservation-requests/${requestId}/reject`,
+    { method: 'POST', token, body: reason ? { reason } : {} }
+  );
+}

@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminNav from './BackendAdminNav';
 import {
   getDashboardCounts,
   getDashboardRecent,
@@ -118,11 +121,7 @@ export default function BackendAdminBetaClient() {
               Preview dashboard powered by the new backend API. Separate from the production Supabase admin.
             </p>
           </div>
-          {session && (
-            <button onClick={handleLogout} className="btn-primary shrink-0">
-              Sign out
-            </button>
-          )}
+          {session && <BackendAdminNav onLogout={handleLogout} />}
         </header>
 
         {!session ? (
@@ -157,7 +156,7 @@ export default function BackendAdminBetaClient() {
   );
 }
 
-function LoginCard({
+export function LoginCard({
   email,
   password,
   onEmailChange,
@@ -210,7 +209,7 @@ function LoginCard({
   );
 }
 
-function RestaurantPicker({
+export function RestaurantPicker({
   session,
   onSelect,
 }: {
@@ -281,6 +280,9 @@ function DashboardView({
   recent: DashboardRecent | null;
   counts: DashboardCounts | null;
 }) {
+  const params = useParams();
+  const lang = typeof params.lang === 'string' ? params.lang : 'en';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -366,6 +368,7 @@ function DashboardView({
                 </>
               )}
               badge={(item) => item.status}
+              href={(item) => `/${lang}/backend-admin/reservation-requests?requestId=${item.id}`}
             />
             <RecentListCard
               title="Recent customers"
@@ -415,11 +418,13 @@ function RecentListCard<T extends { id: string }>({
   items,
   renderItem,
   badge,
+  href,
 }: {
   title: string;
   items: T[];
   renderItem: (item: T) => React.ReactNode;
   badge?: (item: T) => string;
+  href?: (item: T) => string;
 }) {
   return (
     <div className="card">
@@ -428,12 +433,23 @@ function RecentListCard<T extends { id: string }>({
       </div>
       <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
         {items.length > 0 ? (
-          items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
-              <div className="min-w-0">{renderItem(item)}</div>
-              {badge && <span className="badge badge-gray shrink-0">{badge(item)}</span>}
-            </div>
-          ))
+          items.map((item) => {
+            const row = (
+              <div className="min-w-0 flex items-center justify-between gap-3 w-full">
+                <div className="min-w-0">{renderItem(item)}</div>
+                {badge && <span className="badge badge-gray shrink-0">{badge(item)}</span>}
+              </div>
+            );
+            return href ? (
+              <Link key={item.id} href={href(item)} className="flex items-center px-5 py-3.5">
+                {row}
+              </Link>
+            ) : (
+              <div key={item.id} className="flex items-center px-5 py-3.5">
+                {row}
+              </div>
+            );
+          })
         ) : (
           <div className="flex flex-col items-center justify-center py-10 gap-2">
             <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No data yet</p>

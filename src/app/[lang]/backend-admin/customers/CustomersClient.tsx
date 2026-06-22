@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import {
@@ -599,22 +600,35 @@ function DetailPanel({
         )}
 
         {detail.conversations.length > 0 && (
-          <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
-            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Recent conversations
-            </p>
-            <div className="space-y-1.5">
-              {detail.conversations.slice(0, 5).map((conv) => (
-                <div key={conv.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="truncate" style={{ color: 'var(--p-text-3)' }}>
-                    {conv.lastMessagePreview || conv.channel}
-                  </span>
-                  <span className="badge badge-gray shrink-0">{conv.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <RecentConversations conversations={detail.conversations} />
         )}
+      </div>
+    </div>
+  );
+}
+
+function RecentConversations({ conversations }: { conversations: CustomerDetail['conversations'] }) {
+  const params = useParams();
+  const lang = typeof params.lang === 'string' ? params.lang : 'en';
+
+  return (
+    <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+        Recent conversations
+      </p>
+      <div className="space-y-1.5">
+        {conversations.slice(0, 5).map((conv) => (
+          <Link
+            key={conv.id}
+            href={`/${lang}/backend-admin/conversations?conversationId=${conv.id}`}
+            className="flex items-center justify-between gap-2 text-xs"
+          >
+            <span className="truncate" style={{ color: 'var(--p-accent-text)' }}>
+              {conv.lastMessagePreview || conv.channel}
+            </span>
+            <span className="badge badge-gray shrink-0">{conv.status}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

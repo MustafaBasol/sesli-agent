@@ -1011,3 +1011,124 @@ export function testIntegration(
     token,
   });
 }
+
+export const TEAM_ROLES = ['OWNER', 'MANAGER', 'STAFF'] as const;
+export type TeamRole = (typeof TEAM_ROLES)[number];
+
+export const TEAM_MEMBER_STATUSES = ['active', 'inactive'] as const;
+export type TeamMemberStatus = (typeof TEAM_MEMBER_STATUSES)[number];
+
+export type TeamMemberListItem = {
+  userId: string;
+  email: string;
+  name: string | null;
+  userStatus: string;
+  organizationRole: string | null;
+  restaurantRole: TeamRole;
+  membershipStatus: TeamMemberStatus;
+  accessSource: 'restaurant';
+  joinedAt: string;
+  updatedAt: string;
+};
+
+export type TeamMemberListResponse = {
+  data: TeamMemberListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export type TeamMemberListParams = {
+  role?: TeamRole;
+  status?: TeamMemberStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export function listTeamMembers(
+  restaurantId: string,
+  token: string,
+  params: TeamMemberListParams = {}
+): Promise<TeamMemberListResponse> {
+  return backendRequest<TeamMemberListResponse>(`/restaurants/${restaurantId}/team`, {
+    token,
+    query: {
+      role: params.role,
+      status: params.status,
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type TeamMemberDetail = {
+  userId: string;
+  email: string;
+  name: string | null;
+  userStatus: string;
+  organizationRole: string | null;
+  restaurantId: string;
+  restaurantRole: TeamRole;
+  membershipStatus: TeamMemberStatus;
+  joinedAt: string;
+  updatedAt: string;
+};
+
+export function getTeamMemberDetail(
+  restaurantId: string,
+  token: string,
+  userId: string
+): Promise<TeamMemberDetail> {
+  return backendRequest<TeamMemberDetail>(`/restaurants/${restaurantId}/team/${userId}`, { token });
+}
+
+export type AddTeamMemberPayload = {
+  email: string;
+  restaurantRole: TeamRole;
+};
+
+export function addTeamMember(
+  restaurantId: string,
+  token: string,
+  payload: AddTeamMemberPayload
+): Promise<TeamMemberListItem> {
+  return backendRequest<TeamMemberListItem>(`/restaurants/${restaurantId}/team`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateTeamMemberPayload = {
+  restaurantRole?: TeamRole;
+  membershipStatus?: TeamMemberStatus;
+};
+
+export function updateTeamMember(
+  restaurantId: string,
+  token: string,
+  userId: string,
+  payload: UpdateTeamMemberPayload
+): Promise<TeamMemberListItem> {
+  return backendRequest<TeamMemberListItem>(`/restaurants/${restaurantId}/team/${userId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function removeTeamMember(
+  restaurantId: string,
+  token: string,
+  userId: string
+): Promise<TeamMemberListItem> {
+  return backendRequest<TeamMemberListItem>(`/restaurants/${restaurantId}/team/${userId}`, {
+    method: 'DELETE',
+    token,
+  });
+}

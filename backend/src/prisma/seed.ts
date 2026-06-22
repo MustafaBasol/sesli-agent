@@ -1,8 +1,25 @@
 import { prisma } from "./client";
 import { hashPassword } from "../utils/password";
 
+// Seeding production is an explicit, opt-in action: it creates a demo
+// organization/owner account, which must never happen silently against a
+// real database. Set ALLOW_PROD_SEED=true only for an intentional first-run
+// bootstrap of a production environment.
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+  console.error(
+    "Refusing to run prisma:seed with NODE_ENV=production. Set ALLOW_PROD_SEED=true to override " +
+      "for an intentional first-run bootstrap."
+  );
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV === "production" && !process.env.SEED_OWNER_PASSWORD) {
+  console.error("SEED_OWNER_PASSWORD must be set explicitly when seeding with NODE_ENV=production.");
+  process.exit(1);
+}
+
 // Dev-only default so a fresh seed is immediately loginable; production
-// seeds should set SEED_OWNER_PASSWORD explicitly.
+// always sets SEED_OWNER_PASSWORD explicitly (enforced above).
 const SEED_OWNER_PASSWORD = process.env.SEED_OWNER_PASSWORD ?? "ChangeMe123!";
 
 // Trigger keys match docs/04_INTEGRATIONS_GUIDE.md "Automation triggers".

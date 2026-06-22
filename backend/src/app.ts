@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import { corsAllowedOrigins } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestId } from "./middleware/requestId";
 import { authRouter } from "./routes/auth";
@@ -23,7 +24,10 @@ export function createApp(): express.Express {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
+  // Empty allow-list (dev/test only — production requires CORS_ALLOWED_ORIGINS,
+  // see src/config/env.ts) means "reflect any origin" so local frontend dev
+  // needs no configuration. A non-empty list restricts to exactly those origins.
+  app.use(cors(corsAllowedOrigins.length > 0 ? { origin: corsAllowedOrigins } : {}));
   app.use(express.json());
   app.use(requestId);
   app.use(

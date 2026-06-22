@@ -1,5 +1,6 @@
 import express, { type Response } from "express";
 import { prisma } from "../prisma/client";
+import { authRateLimiter } from "../middleware/rateLimit";
 import { getAccessibleRestaurantIds } from "../services/restaurantAccess";
 import { asyncHandler } from "../utils/asyncHandler";
 import { signAuthToken } from "../utils/jwt";
@@ -12,7 +13,7 @@ function badRequest(res: Response, message: string): void {
   res.status(400).json({ error: { message } });
 }
 
-authRouter.post("/login", asyncHandler(async (req, res) => {
+authRouter.post("/login", authRateLimiter, asyncHandler(async (req, res) => {
   const { email, password } = req.body ?? {};
 
   if (typeof email !== "string" || !email.includes("@") || typeof password !== "string" || !password) {

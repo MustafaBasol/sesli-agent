@@ -17,7 +17,7 @@ remove the Supabase admin, do not switch the Vapi webhook URL here).
   Nothing in this plan changes that URL.
 - A new backend beta admin lives under `/[lang]/backend-admin/*` (dashboard,
   reservation-requests, reservations, tables, customers, conversations,
-  integrations, team, settings). Gated by
+  integrations, team, settings, availability). Gated by
   `NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA`; returns 404 when the flag is off.
 - A new backend API (Node/Express + Prisma + PostgreSQL, `backend/`) serves:
   - `/api/health`
@@ -31,6 +31,9 @@ remove the Supabase admin, do not switch the Vapi webhook URL here).
   - `/api/restaurants/:restaurantId/integrations*`
   - `/api/restaurants/:restaurantId/team*`
   - `/api/restaurants/:restaurantId/settings`
+  - `/api/restaurants/:restaurantId/availability/settings`,
+    `/api/restaurants/:restaurantId/availability/blackouts*` (Phase 24 — not
+    wired into any Vapi route yet, see Section C)
   - `/api/webhooks/vapi/:publicWebhookKey/create-reservation-request`
     (other webhook actions exist as routes but are `notImplemented` — see
     `backend/src/routes/webhooks/vapi.ts`)
@@ -153,6 +156,12 @@ or backfill strategy). That phase is out of scope here.
   return "not implemented" (`backend/src/routes/webhooks/vapi.ts`). The
   backend route set is **not feature-complete** relative to the Next.js
   routes and must not be treated as a drop-in replacement yet.
+- `check-availability` parity specifically also needs the `RestaurantSettings`/
+  `BlackoutDate` models added in Phase 24 (`/api/restaurants/:restaurantId/availability/*`,
+  `getRestaurantAvailabilityConfig` read helper in
+  `backend/src/services/restaurantAvailabilityService.ts`). These models and the
+  helper exist now but are **not wired into any Vapi route** — actual slot
+  calculation and a backend `check-availability` handler are still future work.
 - The backend webhook authenticates the tenant via an unguessable
   `publicWebhookKey` path segment (`IntegrationConnection.publicWebhookKey`)
   plus a dedicated rate limiter, not via Vapi payload signature

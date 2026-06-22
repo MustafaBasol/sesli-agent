@@ -1188,3 +1188,155 @@ export function updateRestaurantSettings(
     body: payload,
   });
 }
+
+// --- Restaurant availability settings + blackout dates (Phase 24 backend API + beta UI) ---
+
+export type AvailabilitySettings = {
+  id: string;
+  restaurantId: string;
+  reservationsEnabled: boolean;
+  openingHoursJson: unknown;
+  slotIntervalMinutes: number;
+  defaultReservationDurationMinutes: number;
+  minAdvanceMinutes: number;
+  bookingWindowDays: number;
+  minPartySize: number;
+  maxPartySize: number;
+  maxReservationsPerSlot: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function getAvailabilitySettings(restaurantId: string, token: string): Promise<AvailabilitySettings> {
+  return backendRequest<AvailabilitySettings>(`/restaurants/${restaurantId}/availability/settings`, { token });
+}
+
+export type UpdateAvailabilitySettingsPayload = {
+  reservationsEnabled?: boolean;
+  openingHoursJson?: unknown;
+  slotIntervalMinutes?: number;
+  defaultReservationDurationMinutes?: number;
+  minAdvanceMinutes?: number;
+  bookingWindowDays?: number;
+  minPartySize?: number;
+  maxPartySize?: number;
+  maxReservationsPerSlot?: number | null;
+  notes?: string | null;
+};
+
+export function updateAvailabilitySettings(
+  restaurantId: string,
+  token: string,
+  payload: UpdateAvailabilitySettingsPayload
+): Promise<AvailabilitySettings> {
+  return backendRequest<AvailabilitySettings>(`/restaurants/${restaurantId}/availability/settings`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export type BlackoutDateStatus = 'active' | 'inactive';
+
+export type BlackoutDateItem = {
+  id: string;
+  restaurantId: string;
+  localDate: string;
+  startsAtLocal: string | null;
+  endsAtLocal: string | null;
+  isFullDay: boolean;
+  reason: string | null;
+  status: BlackoutDateStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListBlackoutDatesParams = {
+  status?: BlackoutDateStatus;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ListBlackoutDatesResponse = {
+  data: BlackoutDateItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listBlackoutDates(
+  restaurantId: string,
+  token: string,
+  params: ListBlackoutDatesParams = {}
+): Promise<ListBlackoutDatesResponse> {
+  return backendRequest<ListBlackoutDatesResponse>(`/restaurants/${restaurantId}/availability/blackouts`, {
+    token,
+    query: {
+      status: params.status,
+      fromDate: params.fromDate,
+      toDate: params.toDate,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type CreateBlackoutDatePayload = {
+  localDate: string;
+  isFullDay?: boolean;
+  startsAtLocal?: string | null;
+  endsAtLocal?: string | null;
+  reason?: string | null;
+  status?: BlackoutDateStatus;
+};
+
+export function createBlackoutDate(
+  restaurantId: string,
+  token: string,
+  payload: CreateBlackoutDatePayload
+): Promise<BlackoutDateItem> {
+  return backendRequest<BlackoutDateItem>(`/restaurants/${restaurantId}/availability/blackouts`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateBlackoutDatePayload = {
+  localDate?: string;
+  isFullDay?: boolean;
+  startsAtLocal?: string | null;
+  endsAtLocal?: string | null;
+  reason?: string | null;
+  status?: BlackoutDateStatus;
+};
+
+export function updateBlackoutDate(
+  restaurantId: string,
+  token: string,
+  blackoutId: string,
+  payload: UpdateBlackoutDatePayload
+): Promise<BlackoutDateItem> {
+  return backendRequest<BlackoutDateItem>(`/restaurants/${restaurantId}/availability/blackouts/${blackoutId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function deactivateBlackoutDate(
+  restaurantId: string,
+  token: string,
+  blackoutId: string
+): Promise<BlackoutDateItem> {
+  return backendRequest<BlackoutDateItem>(`/restaurants/${restaurantId}/availability/blackouts/${blackoutId}`, {
+    method: 'DELETE',
+    token,
+  });
+}

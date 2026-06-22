@@ -18,6 +18,7 @@ export default function BackendAdminNav({ onLogout }: { onLogout: () => void }) 
     { href: `/${lang}/backend-admin/integrations`, label: 'Integrations' },
     { href: `/${lang}/backend-admin/team`, label: 'Team' },
     { href: `/${lang}/backend-admin/settings`, label: 'Settings' },
+    { href: `/${lang}/backend-admin/availability`, label: 'Availability' },
   ];
 
   return (

@@ -178,6 +178,19 @@ decision requires backend-managed menu data; it is decoupled from reservation mi
 
 ## 4. Restaurant settings / blackout dates / rules
 
+**Status update (Phase 24): RestaurantSettings and BlackoutDate implemented.** Backend now has
+`RestaurantSettings` (1:1 with `Restaurant`, `restaurantId` unique) and `BlackoutDate`
+(`restaurantId` + `localDate`, indexed) Prisma models, beta API routes under
+`/api/restaurants/:restaurantId/availability/*`, and a beta admin UI page at
+`/[lang]/backend-admin/availability`. This closes the "no destination model" gap described below
+for opening hours and blackout dates specifically. `RestaurantSettings.openingHoursJson` is a
+freeform JSON field (not the per-weekday row model implied below) — sufficient for now, but a
+write migration from `restaurant_settings`/`blackout_dates` is still not implemented (no live
+Supabase data has been read or migrated). `restaurant_rules` (`max_party_size`,
+`auto_confirm`, etc.) remains deferred, unchanged from the original recommendation below. Backend
+Vapi routes are **not** wired to these new models in this phase — `getRestaurantAvailabilityConfig`
+exists as a pure read helper for future use only.
+
 **Problem statement**: Old Supabase has `restaurant_settings` (opening hours per weekday,
 `last_reservation_offset_minutes`), `blackout_dates`, and `restaurant_rules`
 (`max_party_size`, `manual_approval_threshold`, `auto_confirm`, `reservation_interval_minutes`).

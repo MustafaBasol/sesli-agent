@@ -40,6 +40,10 @@ require_env SMOKE_OWNER_PASSWORD
 require_env SMOKE_RESTAURANT_ID
 
 api="${API_BASE_URL%/}"
+# Accept either http://host:4000 or http://host:4000/api — paths below always
+# add their own /api prefix, so a trailing /api in the input must be dropped
+# to avoid a duplicate /api/api/... mistake.
+api="${api%/api}"
 
 # --- health ---
 health_code=$(curl -s -o /dev/null -w "%{http_code}" "$api/api/health" || echo "000")
@@ -93,6 +97,8 @@ check_endpoint "conversations" "$restaurant_path/conversations" "$TMP_DIR/conver
 check_endpoint "integrations" "$restaurant_path/integrations" "$TMP_DIR/integrations.json"
 check_endpoint "team" "$restaurant_path/team" "$TMP_DIR/team.json"
 check_endpoint "settings" "$restaurant_path/settings" "$TMP_DIR/settings.json"
+check_endpoint "availability-settings" "$restaurant_path/availability/settings" "$TMP_DIR/availability-settings.json"
+check_endpoint "availability-blackouts" "$restaurant_path/availability/blackouts" "$TMP_DIR/availability-blackouts.json"
 
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(

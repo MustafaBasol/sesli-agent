@@ -133,7 +133,19 @@ curl -s -o /tmp/team-response.json -w "%{http_code}\n" \
 curl -s -o /tmp/settings-response.json -w "%{http_code}\n" \
   "$API/api/restaurants/$RESTAURANT_ID/settings" \
   -H "Authorization: Bearer $TOKEN"
+
+curl -s -o /tmp/availability-settings-response.json -w "%{http_code}\n" \
+  "$API/api/restaurants/$RESTAURANT_ID/availability/settings" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -o /tmp/availability-blackouts-response.json -w "%{http_code}\n" \
+  "$API/api/restaurants/$RESTAURANT_ID/availability/blackouts" \
+  -H "Authorization: Bearer $TOKEN"
 ```
+
+The availability settings endpoint creates a default `RestaurantSettings` row on first read if
+none exists yet (idempotent) — this is a read-triggered upsert with default values, not a
+destructive write, and is safe to run repeatedly.
 
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the
@@ -239,6 +251,7 @@ for route in \
   "/en/backend-admin/integrations" \
   "/en/backend-admin/team" \
   "/en/backend-admin/settings" \
+  "/en/backend-admin/availability" \
   "/en/admin/dashboard"
 do
   code=$(curl -s -o /dev/null -w "%{http_code}" "$APP$route")

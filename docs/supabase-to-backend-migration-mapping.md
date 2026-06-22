@@ -61,9 +61,11 @@ Source: `backend/src/prisma/schema.prisma`.
 | `IntegrationEvent` | `restaurantId` (nullable) | none | — | `id` | no old equivalent — could host `staff_handoffs`/`reservation_changes`/`reservation_cancellations` history if chosen |
 
 Confirmed from `backend/src/services/restaurantSettingsService.ts` (Phase 18 comment): `Restaurant`
-has **no** `openingHours`, `city`, `country`, `currency`, or reservation-default columns. This is an
-explicit, already-documented gap — do not invent destination fields for `restaurant_settings`,
-`blackout_dates`, `restaurant_rules`, `menu_items`, or `menu_categories` data.
+has **no** `openingHours`, `city`, `country`, `currency`, or reservation-default columns — those
+remain out of scope for `Restaurant` itself. As of Phase 24, dedicated `RestaurantSettings` and
+`BlackoutDate` models now exist as the destination for `restaurant_settings`/`blackout_dates` (see
+§3.H), closing that specific gap. `restaurant_rules`, `menu_items`, and `menu_categories` remain
+without a destination model — do not invent one for those.
 
 Confirmed from `backend/src/services/vapiReservationService.ts`: the live backend Vapi reservation
 flow already implements the `Customer` upsert → `Conversation`/`Message` (if `callId` present) →
@@ -172,7 +174,9 @@ read-only legacy archive (see §4.C).
 | Old source | New destination | Status |
 |---|---|---|
 | `menu_items`, `menu_categories` | none | **Not migratable yet.** No `MenuItem`/`MenuCategory` Prisma model exists. Do not invent one. |
-| `restaurant_settings` (opening hours), `blackout_dates`, `restaurant_rules` | none | **Not migratable yet.** Confirmed by `restaurantSettingsService.ts` comment: `Restaurant` has no opening-hours/reservation-defaults columns. |
+| `restaurant_settings` (opening hours, reservation defaults) | `RestaurantSettings` (Phase 24) | **Targetable, not yet migrated.** `RestaurantSettings` (1:1 `restaurantId`) now exists with `slotIntervalMinutes`, `defaultReservationDurationMinutes`, `minAdvanceMinutes`, `bookingWindowDays`, `minPartySize`/`maxPartySize`, `maxReservationsPerSlot`, and a freeform `openingHoursJson`. No write migration has been implemented and no live Supabase data has been read — old per-weekday opening-hours rows would need transformation into the `openingHoursJson` shape, which is not yet defined. |
+| `blackout_dates` | `BlackoutDate` (Phase 24) | **Targetable, not yet migrated.** `BlackoutDate` (`restaurantId` + `localDate` string, indexed) now exists with `isFullDay`/`startsAtLocal`/`endsAtLocal`/`reason`/`status`. No write migration has been implemented; `localDate` is a plain `YYYY-MM-DD` string (no timezone conversion), so old `DATE` values can map directly once the timezone-confirmation blocker in §4.E is resolved. |
+| `restaurant_rules` | none | **Still not migratable.** No Prisma model; deferred per `docs/migration-gap-closure-decision-pack.md` §4 (auto-confirm/approval-threshold logic doesn't exist in the backend yet). |
 | `orders` | none | **Not migratable yet**, and usage is itself unconfirmed (UNKNOWN whether any live admin page actively writes/reads `orders` beyond the migration that created it). |
 
 These three areas are explicitly deferred to a future phase per the task's own instruction ("If no
@@ -193,8 +197,10 @@ plaintext secrets into docs" rule.
 ### A) Directly migratable (low risk)
 - `tool_logs` → `ToolLog` (field-for-field rename, optional `restaurantId` backfill).
 - `tables` → `RestaurantTable` (field-for-field, but see table-number conflict in §3.D).
-- `menu_categories`/`menu_items`/`restaurant_settings`/`blackout_dates`/`restaurant_rules` are
-  **not** in this category — they have no destination (see §4.C).
+- `menu_categories`/`menu_items`/`restaurant_rules` are **not** in this category — they have no
+  destination (see §4.C).
+- `restaurant_settings`/`blackout_dates` now have a destination model (Phase 24, see §3.H) but are
+  migratable-with-transformation, not direct rename — see category B/C below.
 
 ### B) Migratable with transformation
 - Phone normalization (`customers.phone_number`, `reservation_requests.phone_number`, etc. → `normalizedPhone`).
@@ -202,10 +208,13 @@ plaintext secrets into docs" rule.
 - Status mapping (`reservation_requests.status` `seen`→ no direct target).
 - `calls`/`tool_logs` raw payload carried through as `Json` (same shape, JSONB→Prisma `Json`).
 - Customer matching/dedup by phone before assigning `normalizedPhone` unique key.
+- `restaurant_settings` per-weekday opening-hours rows → `RestaurantSettings.openingHoursJson`
+  (shape not yet defined); `blackout_dates.date` → `BlackoutDate.localDate` (direct, pending the
+  timezone confirmation in §4.E).
 
 ### C) Not migratable yet (no backend destination)
 - `menu_items`, `menu_categories` — no Prisma model.
-- `restaurant_settings`, `blackout_dates`, `restaurant_rules` — no `Restaurant` fields for these.
+- `restaurant_rules` — no Prisma model.
 - `orders` — no Prisma model, and usage itself is unconfirmed.
 - Call audio/recordings — not stored in Supabase schema at all (no column for a recording URL was
   found), so this is moot, not a blocker.

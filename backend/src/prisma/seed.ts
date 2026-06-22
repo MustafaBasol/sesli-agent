@@ -169,6 +169,14 @@ async function main() {
     });
   }
 
+  // Default availability settings row (Phase 24) — idempotent upsert so a
+  // re-run never duplicates or resets values an admin already edited via API.
+  await prisma.restaurantSettings.upsert({
+    where: { restaurantId: restaurant.id },
+    update: {},
+    create: { restaurantId: restaurant.id },
+  });
+
   // Dev-only test connection so the Phase 4 Vapi webhook endpoint is reachable
   // locally/on the VPS without real Vapi credentials. No secret is stored —
   // see docs/06_SECURITY_AND_TENANCY_RULES.md (credentials must not be

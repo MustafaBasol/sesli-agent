@@ -18,6 +18,7 @@
  *  - Cross-tenant list/detail access fails (403/404) without leaking data.
  *  - PATCH updates allowed fields and recomputes normalizedPhone from phoneNumber.
  *  - PATCH rejects unknown/forbidden fields (e.g. restaurantId, normalizedPhone) with 400.
+ *  - List/detail/update responses never expose rawPayload, stateJson, or other internal fields.
  */
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -93,10 +94,20 @@ async function main() {
       status: "open",
       lastMessageAt: new Date("2027-01-01T10:00:00.000Z"),
       lastMessagePreview: "Reservation request: 4 guests",
+      stateJson: { secretToken: "vapi-internal-session-state-do-not-leak" },
     },
   });
   await prisma.reservationRequest.create({
-    data: { restaurantId: restaurant.id, customerId: ada.id, conversationId: conversation.id, channel: "voice", customerName: "Ada Lovelace", partySize: 4, status: "new" },
+    data: {
+      restaurantId: restaurant.id,
+      customerId: ada.id,
+      conversationId: conversation.id,
+      channel: "voice",
+      customerName: "Ada Lovelace",
+      partySize: 4,
+      status: "new",
+      rawPayload: { secretToken: "vapi-internal-tool-call-payload-do-not-leak" },
+    },
   });
 
   const app = createApp();
@@ -118,7 +129,11 @@ async function main() {
     // 3. OWNER can list customers for their own restaurant, with counts.
     const listRes = await fetch(`${baseUrl}/${restaurant.id}/customers`, { headers: authed(ownerToken) });
     assert.equal(listRes.status, 200);
-    const listBody = (await listRes.json()) as {
+    const listResText = await listRes.text();
+    assert.ok(!listResText.includes("rawPayload"), "customer list response must never include rawPayload");
+    assert.ok(!listResText.includes("stateJson"), "customer list response must never include stateJson");
+    assert.ok(!listResText.includes("secretToken"), "customer list response must never leak secret/internal field values");
+    const listBody = JSON.parse(listResText) as {
       data: Array<{ id: string; reservationRequestCount: number; conversationCount: number; lastContactAt: string | null }>;
       pagination: { total: number };
     };
@@ -160,7 +175,11 @@ async function main() {
     // 8. STAFF can access detail, with recent reservation requests and conversations.
     const detailRes = await fetch(`${baseUrl}/${restaurant.id}/customers/${ada.id}`, { headers: authed(staffToken) });
     assert.equal(detailRes.status, 200);
-    const detailBody = (await detailRes.json()) as {
+    const detailResText = await detailRes.text();
+    assert.ok(!detailResText.includes("rawPayload"), "customer detail response must never include rawPayload");
+    assert.ok(!detailResText.includes("stateJson"), "customer detail response must never include stateJson");
+    assert.ok(!detailResText.includes("secretToken"), "customer detail response must never leak secret/internal field values");
+    const detailBody = JSON.parse(detailResText) as {
       reservationRequests: unknown[];
       conversations: Array<{ id: string }>;
     };
@@ -168,13 +187,16 @@ async function main() {
     assert.equal(detailBody.conversations.length, 1);
     assert.equal(detailBody.conversations[0].id, conversation.id);
 
-    // 9. PATCH updates allowed fields and recomputes normalizedPhone.
+    // 9. PATCH updates allowed fields, recomputes normalizedPhone, and never echoes forbidden/internal fields.
     const patchRes = await fetch(`${baseUrl}/${restaurant.id}/customers/${bob.id}`, {
       method: "PATCH",
       headers: { ...authed(staffToken), "Content-Type": "application/json" },
       body: JSON.stringify({ phoneNumber: "+33699999999", notes: "Prefers window seat" }),
     });
     assert.equal(patchRes.status, 200);
+    const patchResText = await patchRes.text();
+    assert.ok(!patchResText.includes("rawPayload"), "customer update response must never include rawPayload");
+    assert.ok(!patchResText.includes("stateJson"), "customer update response must never include stateJson");
     const patched = await prisma.customer.findUnique({ where: { id: bob.id } });
     assert.equal(patched?.phoneNumber, "+33699999999");
     assert.equal(patched?.normalizedPhone, "33699999999", "normalizedPhone must be recomputed from phoneNumber, not accepted directly");

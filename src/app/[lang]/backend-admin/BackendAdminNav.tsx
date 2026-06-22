@@ -11,6 +11,7 @@ export default function BackendAdminNav({ onLogout }: { onLogout: () => void }) 
   const links = [
     { href: `/${lang}/backend-admin`, label: 'Dashboard' },
     { href: `/${lang}/backend-admin/reservation-requests`, label: 'Reservation Requests' },
+    { href: `/${lang}/backend-admin/customers`, label: 'Customers' },
   ];
 
   return (

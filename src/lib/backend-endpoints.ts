@@ -346,3 +346,137 @@ export function rejectReservationRequest(
     { method: 'POST', token, body: reason ? { reason } : {} }
   );
 }
+
+// --- Customers (Phase 6 backend API, Phase 12 beta UI) ---
+// The backend's customer detail endpoint embeds raw reservation-request and
+// conversation rows, which include internal fields (rawPayload, stateJson)
+// not meant for this beta UI. The summary types below deliberately omit
+// those fields — see AGENTS.md Phase 12.
+
+export type CustomerRecord = {
+  id: string;
+  restaurantId: string;
+  phoneNumber: string | null;
+  normalizedPhone: string | null;
+  fullName: string | null;
+  email: string | null;
+  instagramHandle: string | null;
+  whatsappId: string | null;
+  totalReservations: number;
+  lastVisitAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerListItem = {
+  id: string;
+  fullName: string | null;
+  phoneNumber: string | null;
+  normalizedPhone: string | null;
+  email: string | null;
+  totalReservations: number;
+  lastVisitAt: string | null;
+  createdAt: string;
+  reservationRequestCount: number;
+  conversationCount: number;
+  lastContactAt: string | null;
+};
+
+export type CustomerListParams = {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type CustomerListResponse = {
+  data: CustomerListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listCustomers(
+  restaurantId: string,
+  token: string,
+  params: CustomerListParams = {}
+): Promise<CustomerListResponse> {
+  return backendRequest<CustomerListResponse>(`/restaurants/${restaurantId}/customers`, {
+    token,
+    query: {
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type CustomerReservationRequestSummary = {
+  id: string;
+  status: ReservationRequestStatus;
+  channel: string;
+  provider: string | null;
+  requestType: string;
+  customerName: string | null;
+  phoneNumber: string | null;
+  partySize: number | null;
+  reservationDate: string | null;
+  reservationTime: string | null;
+  language: string | null;
+  specialRequest: string | null;
+  internalNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerConversationSummary = {
+  id: string;
+  channel: string;
+  provider: string | null;
+  externalThreadId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerHandle: string | null;
+  status: string;
+  assignedToUserId: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerDetail = CustomerRecord & {
+  reservationRequests: CustomerReservationRequestSummary[];
+  conversations: CustomerConversationSummary[];
+};
+
+export function getCustomerDetail(
+  restaurantId: string,
+  token: string,
+  customerId: string
+): Promise<CustomerDetail> {
+  return backendRequest<CustomerDetail>(`/restaurants/${restaurantId}/customers/${customerId}`, { token });
+}
+
+export type UpdateCustomerPayload = {
+  fullName?: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  notes?: string | null;
+};
+
+export function updateCustomer(
+  restaurantId: string,
+  token: string,
+  customerId: string,
+  payload: UpdateCustomerPayload
+): Promise<CustomerRecord> {
+  return backendRequest<CustomerRecord>(`/restaurants/${restaurantId}/customers/${customerId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}

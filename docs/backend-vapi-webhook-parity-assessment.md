@@ -602,3 +602,68 @@ than per-route).
   and related services were only read.
 - Only new file created: this document,
   `docs/backend-vapi-webhook-parity-assessment.md`.
+
+## 10. Phase 27 implementation status (update)
+
+`check-availability` backend status is now **implemented (adapter added)** —
+the route, parity matrix, and recommendation entries above describing it as
+**Missing**/**Not ready** are historical context from the Phase 26 assessment
+and no longer reflect the current state.
+
+What was built:
+
+- `POST /api/webhooks/vapi/:publicWebhookKey/check-availability` in
+  `backend/src/routes/webhooks/vapi.ts`, inserted before the
+  `modify-reservation-request`/`cancel-reservation-request`/`handoff-to-staff`
+  stubs. Same tenant-resolution (`resolveVapiIntegrationConnection`), rate
+  limiting (`webhookRateLimiter` at router level), and `ToolLog`
+  create/success/failure pattern as `create-reservation-request`.
+- `backend/src/utils/vapi/checkAvailabilityAdapter.ts` — pure functions
+  (`extractCheckAvailabilityArgs`, `buildMissingArgsResponse`,
+  `mapAvailabilityResultToVapiResponse`) that translate inbound Vapi
+  payloads into a `calculateAvailabilitySlots()` query and translate the
+  resulting `AvailabilitySlotResult` into the Vapi response shape. No
+  database access — fully unit-testable.
+- The route is **read-only**: it never creates a `ReservationRequest` or
+  `Reservation`.
+
+Response contract deviates intentionally from Section 2.2/4's speculated
+`best_table_id`/`needs_approval`/`suggest_alternatives` shape (which was
+inferred from the old Next.js route's code, not confirmed against live Vapi
+traffic):
+
+- `best_table_id` is **not** returned. Per this phase's explicit
+  instructions, internal table IDs should not be exposed unless there is a
+  clear reason — `available_slots`/`suggested_times` (plain `HH:mm` strings)
+  serve the same "is X available / what else is open" purpose without
+  leaking `RestaurantTable.id`.
+- `needs_approval` is **not** returned — open question (1) from Section 8 is
+  resolved as "not applicable yet": `RestaurantSettings` still has no
+  `manual_approval_threshold`-style field, and this phase does not add one
+  (no schema change was made, per phase constraints). Revisit if/when that
+  field is added.
+- `IntegrationConnection.status` enforcement (open question (2) from
+  Section 8) was **not** added in this phase, matching
+  `create-reservation-request`'s existing behavior — an `inactive`/`error`
+  connection still resolves. This remains an open backlog item shared by
+  both routes (Section 7), not something Phase 27 was asked to fix.
+
+New response shape actually implemented (see
+`VapiCheckAvailabilityResponse` in `checkAvailabilityAdapter.ts`):
+`success`, `available`, `message`, `reason`(missing-fields only),
+`missing_fields`, `date`, `time`, `partySize`, `available_slots`,
+`suggested_times`, `blocked_reason`.
+
+Tests added:
+
+- `backend/src/tests/vapiCheckAvailabilityAdapter.test.ts` — pure
+  argument-extraction and result-mapping checks, wired into `npm test`
+  (`test:vapi-check-availability-adapter`).
+- `backend/src/tests/vapiCheckAvailability.integration.test.ts` — DB-backed,
+  **not** wired into `npm test` (same convention as
+  `vapiWebhook.integration.test.ts`). Run via
+  `npm run test:vapi-check-availability`.
+
+No Vapi dashboard URL was changed and no production data was touched while
+implementing or documenting Phase 27 — see
+`docs/backend-production-cutover-plan.md` for the unchanged cutover status.

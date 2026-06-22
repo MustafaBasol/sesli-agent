@@ -667,3 +667,59 @@ Tests added:
 No Vapi dashboard URL was changed and no production data was touched while
 implementing or documenting Phase 27 — see
 `docs/backend-production-cutover-plan.md` for the unchanged cutover status.
+
+## 11. Phase 28 implementation status (update)
+
+`create-reservation-request` is now marked **hardened** — Section 5/6's
+**Ready**/**A** rating for it still holds, and this phase closes the
+specific gaps Section 7 listed as backlog items for it:
+
+- `IntegrationConnection.status !== "active"` is now rejected the same as an
+  unknown key (previously only "not found" was checked — see Section 3.1's
+  caveat, now resolved for this route only; `check-availability` still has
+  the same open gap, intentionally not touched in this phase to keep scope
+  to `create-reservation-request`).
+- Payload alias coverage extended: camelCase aliases (`fullName`,
+  `phoneNumber`, `callerNumber`, `customerPhone`, `reservationDate`,
+  `reservationTime`, `numberOfGuests`, `specialRequests`), an optional
+  `email` field (stored on `Customer.email`, never required), and a
+  `callId` fallback chain (`call_id` → `conversation_id`/`conversationId` →
+  Vapi `toolCallId`) for payload shapes that don't carry `message.call.id`.
+- A conservative availability hard-block pre-check was added (reusing the
+  Phase 25/27 `calculateAvailabilitySlots()` service) — blocks creation only
+  for `restaurant_inactive`, `reservations_disabled`, `blackout_full_day`,
+  `party_size_out_of_range`, `outside_booking_window`. Never blocks on
+  `opening_hours_not_configured` and fails open (logs + proceeds) if the
+  check itself throws.
+- A best-effort idempotency guard was added: a repeated `callId` returns the
+  existing `ReservationRequest`'s id instead of creating a duplicate. No
+  schema change was made — there is still no unique constraint on
+  `(restaurantId, sourceExternalId)`, so this is documented as a read-then-act
+  check, not an atomic guarantee (see
+  `backend/src/services/vapiReservationService.ts`'s
+  `findExistingReservationRequestByCallId` docstring).
+- The success response now additively includes `success: true`,
+  `reservation_request_id`, `customer_id`, `next_step` alongside the
+  existing byte-compatible `status`/`text`/`customer_message_*` fields — see
+  `docs/vapi-create-reservation-request-contract.md` for the full contract
+  and the explicit reasoning for this deviation from the old route.
+
+New file: `backend/src/utils/vapi/createReservationRequestAdapter.ts` (pure,
+no Prisma) — extraction, missing-fields, and response-builder helpers, same
+pattern as `checkAvailabilityAdapter.ts`. Covered by
+`backend/src/tests/vapiCreateReservationRequestAdapter.test.ts` (wired into
+`npm test` as `test:vapi-create-reservation-request-adapter`).
+
+New DB-backed test:
+`backend/src/tests/vapiCreateReservationRequest.integration.test.ts` (not
+wired into `npm test`, run via `npm run test:vapi-create-reservation-request`)
+— covers camelCase/nested/JSON-string payloads, invalid date/time/party-size
+handling, idempotent retries, inactive-connection rejection, no-confirmed-
+-Reservation-created, and a sensitive-field grep over the response and
+`ToolLog.responsePayload`.
+
+Still not in scope for this phase (unchanged from Section 7/10):
+`modify-reservation-request`, `cancel-reservation-request`,
+`handoff-to-staff` remain stubs; `check-availability`'s connection-status
+gap remains open; no Menu/MenuItem model exists; no live Vapi payload
+sample was captured. The Vapi dashboard URL was not changed.

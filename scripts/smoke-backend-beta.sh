@@ -136,7 +136,28 @@ for p in "${sensitive_patterns[@]}"; do
   grep_args+=(-e "$p")
 done
 
-leaked_files=$(grep -ril "${grep_args[@]}" "$TMP_DIR"/*.json 2>/dev/null || true)
+# --- Vapi create-reservation-request webhook (Phase 28) ---
+# WRITES a ReservationRequest/Customer/ToolLog row, so this is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is skipped by default. Only enable against
+# a disposable test/beta database — never production. Uses clearly fake data
+# tagged SMOKE_TEST_DO_NOT_USE so any leaked row is obviously identifiable.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  vapi_create_file="$TMP_DIR/vapi-create-reservation-request.json"
+  future_booking_date=$(date -u -d "+8 days" +%F 2>/dev/null || date -u -v+8d +%F)
+  vapi_create_code=$(curl -s -o "$vapi_create_file" -w "%{http_code}" \
+    -X POST "$api/api/webhooks/vapi/$vapi_key/create-reservation-request" \
+    -H "Content-Type: application/json" \
+    -d "{\"customer_name\":\"Smoke Test Guest\",\"phone_number\":\"+33000000000\",\"reservation_date\":\"$future_booking_date\",\"reservation_time\":\"20:00\",\"party_size\":2,\"special_request\":\"SMOKE_TEST_DO_NOT_USE\"}")
+  if [ "$vapi_create_code" = "200" ] && grep -q '"success":true' "$vapi_create_file"; then
+    log_pass "POST /api/webhooks/vapi/$vapi_key/create-reservation-request -> 200 (success:true)"
+  else
+    log_fail "POST /api/webhooks/vapi/$vapi_key/create-reservation-request -> $vapi_create_code"
+  fi
+else
+  echo "SKIPPED: POST /api/webhooks/vapi/.../create-reservation-request (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
+fi
+
+# --- sensitive field leak check across all captured responses ---
 if [ -n "$leaked_files" ]; then
   log_fail "sensitive field pattern found in: $leaked_files"
 else

@@ -27,6 +27,7 @@ export interface CreateVapiReservationInput {
   customerName: string;
   phoneNumber: string;
   normalizedPhone: string;
+  email: string | null;
   partySize: number;
   reservationDate: string; // YYYY-MM-DD
   reservationTime: string; // HH:MM
@@ -40,6 +41,37 @@ export interface CreateVapiReservationResult {
   reservationRequestId: string;
   customerId: string;
   conversationId: string | null;
+}
+
+/**
+ * Best-effort retry/duplicate guard for Vapi tool-call retries — looks up an
+ * existing ReservationRequest created from the same call. There is no unique
+ * constraint on (restaurantId, sourceExternalId) — callId is optional and
+ * not guaranteed unique by Vapi — so this is a read-then-act check, not a
+ * database-enforced guarantee; a genuinely concurrent retry could still race
+ * past it. Schema changes to close that gap are out of scope for this phase
+ * (see AGENTS.md Phase 28 item 7) — documented as a known limitation.
+ */
+export async function findExistingReservationRequestByCallId(
+  restaurantId: string,
+  callId: string
+): Promise<CreateVapiReservationResult | null> {
+  const existing = await prisma.reservationRequest.findFirst({
+    where: {
+      restaurantId,
+      sourceExternalId: callId,
+      channel: "voice",
+      provider: "vapi",
+      requestType: "create",
+    },
+    select: { id: true, customerId: true, conversationId: true },
+  });
+  if (!existing || !existing.customerId) return null;
+  return {
+    reservationRequestId: existing.id,
+    customerId: existing.customerId,
+    conversationId: existing.conversationId,
+  };
 }
 
 function reservationSummary(partySize: number, reservationDate: string, reservationTime: string): string {
@@ -60,6 +92,7 @@ export async function createVapiReservationRequest(
     customerName,
     phoneNumber,
     normalizedPhone,
+    email,
     partySize,
     reservationDate,
     reservationTime,
@@ -76,6 +109,7 @@ export async function createVapiReservationRequest(
     update: {
       fullName: customerName,
       phoneNumber,
+      ...(email ? { email } : {}),
       lastVisitAt: new Date(),
       totalReservations: { increment: 1 },
     },
@@ -84,6 +118,7 @@ export async function createVapiReservationRequest(
       phoneNumber,
       normalizedPhone,
       fullName: customerName,
+      email,
       lastVisitAt: new Date(),
       totalReservations: 1,
     },

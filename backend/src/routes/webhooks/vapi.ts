@@ -3,15 +3,6 @@ import { webhookRateLimiter } from "../../middleware/rateLimit";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { logger } from "../../utils/logger";
 import { getVapiResponse } from "../../utils/vapi/messages";
-import {
-  buildMissingFieldsResponse,
-  getValueFromAliases,
-  normalizeDate,
-  normalizePartySize,
-  normalizePhone,
-  normalizeTime,
-  toDigitsOnlyPhone,
-} from "../../utils/vapi/normalizers";
 import { parseVapiPayload } from "../../utils/vapi/parser";
 import { sendVapiToolErrorResponse, sendVapiToolResponse } from "../../utils/vapi/toolResponse";
 import {
@@ -19,8 +10,19 @@ import {
   extractCheckAvailabilityArgs,
   mapAvailabilityResultToVapiResponse,
 } from "../../utils/vapi/checkAvailabilityAdapter";
+import {
+  buildAvailabilityBlockedResponse,
+  buildCreateMissingFieldsResponse,
+  CREATE_BLOCKING_AVAILABILITY_REASONS,
+  computeMissingFields,
+  extractCreateReservationRequestArgs,
+} from "../../utils/vapi/createReservationRequestAdapter";
 import { prisma } from "../../prisma/client";
-import { createVapiReservationRequest, resolveVapiIntegrationConnection } from "../../services/vapiReservationService";
+import {
+  createVapiReservationRequest,
+  findExistingReservationRequestByCallId,
+  resolveVapiIntegrationConnection,
+} from "../../services/vapiReservationService";
 import { calculateAvailabilitySlots } from "../../services/availabilitySlotService";
 
 export const vapiWebhookRouter = express.Router();
@@ -46,12 +48,15 @@ vapiWebhookRouter.post(
     const { publicWebhookKey } = req.params;
 
     const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
-    if (!connection) {
-      // An unknown/inactive key is a caller authentication problem, not a server
-      // failure: it must never surface as a 500 (which pino-http logs as
-      // "request errored" and which would page on-call for a non-incident).
-      // If Vapi sent a toolCallId, buildVapiErrorPayload still wraps this as a
-      // 200 tool-result-with-error, matching the existing Vapi-compatible shape.
+    // An unknown/inactive key is a caller authentication problem, not a server
+    // failure: it must never surface as a 500 (which pino-http logs as
+    // "request errored" and which would page on-call for a non-incident).
+    // If Vapi sent a toolCallId, buildVapiErrorPayload still wraps this as a
+    // 200 tool-result-with-error, matching the existing Vapi-compatible shape.
+    // Phase 28: a resolved-but-inactive/error connection is treated the same
+    // as "not found" — closing the gap flagged in
+    // docs/backend-vapi-webhook-parity-assessment.md Section 7.
+    if (!connection || connection.status !== "active") {
       sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
       return;
     }
@@ -61,49 +66,65 @@ vapiWebhookRouter.post(
     const allSources = [body, rawBody];
     const currentYear = new Date().getFullYear();
 
-    const customerName: string =
-      getValueFromAliases(allSources, ["customer_name", "full_name", "name", "customerName"]) || "";
-    const rawPhone =
-      getValueFromAliases(allSources, ["phone_number", "phone", "caller_phone", "customer_phone"]) ||
-      rawBody?.customer?.number ||
-      rawBody?.message?.customer?.number ||
-      rawBody?.message?.call?.customer?.number ||
-      rawBody?.call?.customer?.number ||
-      null;
-    const phoneNumber = normalizePhone(rawPhone);
+    const args = extractCreateReservationRequestArgs(allSources, rawBody, currentYear);
+    const { customerName, phoneNumber, normalizedPhone, email, reservationDate, reservationTime, partySize, language, specialRequest, callId } = args;
 
-    const reservationDate = normalizeDate(
-      getValueFromAliases(allSources, ["reservation_date", "date", "requested_date"]),
-      currentYear
-    );
-    const reservationTime = normalizeTime(
-      getValueFromAliases(allSources, ["reservation_time", "time", "requested_time"])
-    );
-    const partySize = normalizePartySize(
-      getValueFromAliases(allSources, [
-        "party_size",
-        "partySize",
-        "guests",
-        "guest_count",
-        "number_of_people",
-        "people",
-      ])
-    );
-    const language: string = getValueFromAliases(allSources, ["language", "lang"]) || "tr";
-    const specialRequest: string | null =
-      getValueFromAliases(allSources, ["special_request", "notes", "request", "special_notes"]) || null;
-    const callId: string | null = body.call_id || null;
-
-    const missingFields: string[] = [];
-    if (!customerName) missingFields.push("customer_name");
-    if (!phoneNumber) missingFields.push("phone_number");
-    if (!reservationDate) missingFields.push("reservation_date");
-    if (!reservationTime) missingFields.push("reservation_time");
-    if (!partySize) missingFields.push("party_size");
-
+    const missingFields = computeMissingFields(args);
     if (missingFields.length > 0) {
-      sendVapiToolResponse(res, rawBody, buildMissingFieldsResponse(missingFields));
+      sendVapiToolResponse(res, rawBody, buildCreateMissingFieldsResponse(missingFields));
       return;
+    }
+
+    // Phase 28 idempotency guard — see findExistingReservationRequestByCallId's
+    // docstring for the documented race-window limitation (no unique
+    // constraint on sourceExternalId; best-effort only).
+    if (callId) {
+      const existing = await findExistingReservationRequestByCallId(restaurantId, callId);
+      if (existing) {
+        await prisma.toolLog.create({
+          data: {
+            restaurantId,
+            channel: "voice",
+            provider: "vapi",
+            toolName: "create_reservation_request",
+            externalCallId: callId,
+            requestPayload: rawBody,
+            status: "success",
+            responsePayload: { duplicateRetry: true, reservationRequestId: existing.reservationRequestId },
+          },
+        });
+        sendVapiToolResponse(res, rawBody, {
+          ...getVapiResponse("reservation_received", language),
+          success: true,
+          reservation_request_id: existing.reservationRequestId,
+          customer_id: existing.customerId,
+          next_step: "awaiting_restaurant_confirmation",
+        });
+        return;
+      }
+    }
+
+    // Phase 28 availability hard-block check — conservative by design, see
+    // CREATE_BLOCKING_AVAILABILITY_REASONS for exactly which reasons block
+    // creation. Never throws the request into the generic error path: a
+    // failure here is logged and creation proceeds rather than becoming
+    // brittle on an additive safety check.
+    try {
+      const availability = await calculateAvailabilitySlots({
+        restaurantId,
+        localDate: reservationDate as string,
+        partySize: partySize as number,
+        preferredTime: reservationTime as string,
+      });
+      if (availability.blockedReason && CREATE_BLOCKING_AVAILABILITY_REASONS.has(availability.blockedReason)) {
+        sendVapiToolResponse(res, rawBody, buildAvailabilityBlockedResponse(availability.blockedReason));
+        return;
+      }
+    } catch (error) {
+      logger.warn(
+        { err: error, restaurantId, callId },
+        "vapi create-reservation-request availability pre-check failed; proceeding without blocking"
+      );
     }
 
     const toolLog = await prisma.toolLog.create({
@@ -123,7 +144,8 @@ vapiWebhookRouter.post(
         restaurantId,
         customerName,
         phoneNumber: phoneNumber as string,
-        normalizedPhone: toDigitsOnlyPhone(phoneNumber as string),
+        normalizedPhone: normalizedPhone as string,
+        email,
         partySize: partySize as number,
         reservationDate: reservationDate as string,
         reservationTime: reservationTime as string,
@@ -137,11 +159,20 @@ vapiWebhookRouter.post(
         where: { id: toolLog.id },
         data: {
           status: "success",
-          responsePayload: { reservationRequestId: result.reservationRequestId },
+          responsePayload: {
+            reservationRequestId: result.reservationRequestId,
+            normalizedArgs: { partySize, reservationDate, reservationTime, language },
+          },
         },
       });
 
-      sendVapiToolResponse(res, rawBody, getVapiResponse("reservation_received", language));
+      sendVapiToolResponse(res, rawBody, {
+        ...getVapiResponse("reservation_received", language),
+        success: true,
+        reservation_request_id: result.reservationRequestId,
+        customer_id: result.customerId,
+        next_step: "awaiting_restaurant_confirmation",
+      });
     } catch (error) {
       logger.error({ err: error, restaurantId, callId }, "vapi create-reservation-request failed");
 

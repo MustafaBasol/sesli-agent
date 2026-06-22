@@ -1,42 +1,32 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import {
-  getReservationDetail,
-  listReservations,
+  createTable,
+  getTableDetail,
   listTables,
-  updateReservation,
-  RESERVATION_STATUSES,
+  updateTable,
+  TABLE_STATUSES,
   type BackendLoginResponse,
-  type ReservationDetail,
-  type ReservationListItem,
-  type ReservationListResponse,
-  type ReservationStatus,
+  type RestaurantTableDetail,
   type RestaurantTableListItem,
+  type RestaurantTableListResponse,
+  type RestaurantTableStatus,
 } from '@/lib/backend-endpoints';
 import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
 import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
-const STATUS_BADGE: Record<ReservationStatus, string> = {
-  pending: 'badge-amber',
-  confirmed: 'badge-green',
-  cancelled: 'badge-red',
-  no_show: 'badge-gray',
-  completed: 'badge-purple',
-};
-
 function StatusBadge({ status }: { status: string }) {
-  const cls = STATUS_BADGE[status as ReservationStatus] ?? 'badge-gray';
-  return <span className={`badge ${cls}`}>{status.replace('_', ' ')}</span>;
+  const cls = status === 'active' ? 'badge-green' : 'badge-gray';
+  return <span className={`badge ${cls}`}>{status}</span>;
 }
 
-export default function ReservationsClient() {
+export default function TablesClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -51,31 +41,33 @@ export default function ReservationsClient() {
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
 
   const [listStatus, setListStatus] = useState<Status>('idle');
   const [listError, setListError] = useState('');
-  const [listResult, setListResult] = useState<ReservationListResponse | null>(null);
+  const [listResult, setListResult] = useState<RestaurantTableListResponse | null>(null);
 
-  const selectedReservationId = searchParams.get('reservationId') ?? '';
+  const selectedTableId = searchParams.get('tableId') ?? '';
   const [detailStatus, setDetailStatus] = useState<Status>('idle');
   const [detailError, setDetailError] = useState('');
-  const [detail, setDetail] = useState<ReservationDetail | null>(null);
+  const [detail, setDetail] = useState<RestaurantTableDetail | null>(null);
 
   const [actionStatus, setActionStatus] = useState<Status>('idle');
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
 
-  const [editStatus, setEditStatus] = useState<ReservationStatus>('confirmed');
-  const [editDate, setEditDate] = useState('');
-  const [editTime, setEditTime] = useState('');
-  const [editPartySize, setEditPartySize] = useState('');
-  const [editNote, setEditNote] = useState('');
-  const [editAssignedTableId, setEditAssignedTableId] = useState('');
+  const [editTableNumber, setEditTableNumber] = useState('');
+  const [editCapacity, setEditCapacity] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editStatus, setEditStatus] = useState<RestaurantTableStatus>('active');
 
-  const [tables, setTables] = useState<RestaurantTableListItem[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createTableNumber, setCreateTableNumber] = useState('');
+  const [createCapacity, setCreateCapacity] = useState('');
+  const [createLocation, setCreateLocation] = useState('');
+  const [createStatus, setCreateStatus] = useState<RestaurantTableStatus>('active');
+  const [createActionStatus, setCreateActionStatus] = useState<Status>('idle');
+  const [createActionError, setCreateActionError] = useState('');
 
   useEffect(() => {
     const token = backendAuth.getToken();
@@ -93,11 +85,9 @@ export default function ReservationsClient() {
     if (!session || !restaurantId) return;
     setListStatus('loading');
     setListError('');
-    listReservations(restaurantId, session.token, {
-      status: (statusFilter as ReservationStatus) || undefined,
+    listTables(restaurantId, session.token, {
+      status: (statusFilter as RestaurantTableStatus) || undefined,
       search: searchInput || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
       page,
       pageSize: 20,
     })
@@ -106,50 +96,37 @@ export default function ReservationsClient() {
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load reservations');
+        setListError(err instanceof BackendApiError ? err.message : 'Failed to load tables');
         setListStatus('error');
       });
-  }, [session, restaurantId, statusFilter, searchInput, dateFrom, dateTo, page]);
+  }, [session, restaurantId, statusFilter, searchInput, page]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadList();
   }, [loadList]);
 
-  const loadTables = useCallback(() => {
-    if (!session || !restaurantId) return;
-    listTables(restaurantId, session.token, { pageSize: 100 })
-      .then((result) => setTables(result.data))
-      .catch(() => setTables([]));
-  }, [session, restaurantId]);
-
-  useEffect(() => {
-    loadTables();
-  }, [loadTables]);
-
   const loadDetail = useCallback(() => {
-    if (!session || !restaurantId || !selectedReservationId) {
+    if (!session || !restaurantId || !selectedTableId) {
       setDetail(null);
       return;
     }
     setDetailStatus('loading');
     setDetailError('');
-    getReservationDetail(restaurantId, session.token, selectedReservationId)
+    getTableDetail(restaurantId, session.token, selectedTableId)
       .then((result) => {
         setDetail(result);
+        setEditTableNumber(result.tableNumber);
+        setEditCapacity(String(result.capacity));
+        setEditLocation(result.location ?? '');
         setEditStatus(result.status);
-        setEditDate(result.reservationDate.slice(0, 10));
-        setEditTime(result.reservationTime);
-        setEditPartySize(String(result.partySize));
-        setEditNote(result.internalNote ?? '');
-        setEditAssignedTableId(result.assignedTableId ?? '');
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load reservation');
+        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load table');
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedReservationId]);
+  }, [session, restaurantId, selectedTableId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -187,13 +164,13 @@ export default function ReservationsClient() {
 
   const openDetail = (id: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set('reservationId', id);
+    params.set('tableId', id);
     router.push(`?${params.toString()}`);
   };
 
   const closeDetail = () => {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete('reservationId');
+    params.delete('tableId');
     const query = params.toString();
     router.push(query ? `?${query}` : '?');
   };
@@ -209,20 +186,43 @@ export default function ReservationsClient() {
     setActionError('');
     setActionMessage('');
     try {
-      await updateReservation(restaurantId, session.token, detail.id, {
+      await updateTable(restaurantId, session.token, detail.id, {
+        tableNumber: editTableNumber || undefined,
+        capacity: editCapacity ? Number(editCapacity) : undefined,
+        location: editLocation || null,
         status: editStatus,
-        reservationDate: editDate || undefined,
-        reservationTime: editTime || undefined,
-        partySize: editPartySize ? Number(editPartySize) : undefined,
-        internalNote: editNote || null,
-        assignedTableId: editAssignedTableId || null,
       });
       setActionStatus('idle');
-      setActionMessage('Reservation updated.');
+      setActionMessage('Table updated.');
       refreshAll();
     } catch (err) {
       setActionError(err instanceof BackendApiError ? err.message : 'Update failed');
       setActionStatus('error');
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!session || !restaurantId) return;
+    setCreateActionStatus('loading');
+    setCreateActionError('');
+    try {
+      const created = await createTable(restaurantId, session.token, {
+        tableNumber: createTableNumber,
+        capacity: Number(createCapacity),
+        location: createLocation || null,
+        status: createStatus,
+      });
+      setCreateActionStatus('idle');
+      setShowCreateForm(false);
+      setCreateTableNumber('');
+      setCreateCapacity('');
+      setCreateLocation('');
+      setCreateStatus('active');
+      loadList();
+      openDetail(created.id);
+    } catch (err) {
+      setCreateActionError(err instanceof BackendApiError ? err.message : 'Create failed');
+      setCreateActionStatus('error');
     }
   };
 
@@ -234,9 +234,9 @@ export default function ReservationsClient() {
         <header className="flex items-center justify-between gap-4">
           <div>
             <p className="page-label">Beta</p>
-            <h2 className="page-title">Reservations (Beta)</h2>
+            <h2 className="page-title">Tables (Beta)</h2>
             <p className="page-subtitle">
-              Confirmed reservations from the new backend API. Separate from the production Supabase admin.
+              Restaurant tables from the new backend API. Separate from the production Supabase admin.
             </p>
           </div>
           {session && <BackendAdminNav onLogout={handleLogout} />}
@@ -265,27 +265,40 @@ export default function ReservationsClient() {
                 }}
                 searchInput={searchInput}
                 onSearchInputChange={setSearchInput}
-                dateFrom={dateFrom}
-                onDateFromChange={setDateFrom}
-                dateTo={dateTo}
-                onDateToChange={setDateTo}
                 onApply={() => {
                   setPage(1);
                   loadList();
                 }}
                 onRefresh={loadList}
+                onAddTable={() => setShowCreateForm((v) => !v)}
               />
+              {showCreateForm && (
+                <CreateForm
+                  tableNumber={createTableNumber}
+                  onTableNumberChange={setCreateTableNumber}
+                  capacity={createCapacity}
+                  onCapacityChange={setCreateCapacity}
+                  location={createLocation}
+                  onLocationChange={setCreateLocation}
+                  status={createStatus}
+                  onStatusChange={setCreateStatus}
+                  onSave={handleCreate}
+                  onCancel={() => setShowCreateForm(false)}
+                  actionStatus={createActionStatus}
+                  actionError={createActionError}
+                />
+              )}
               <ListPanel
                 status={listStatus}
                 error={listError}
                 result={listResult}
-                selectedReservationId={selectedReservationId}
+                selectedTableId={selectedTableId}
                 onSelect={openDetail}
                 onPageChange={setPage}
               />
             </div>
             <div className="lg:col-span-2">
-              {selectedReservationId ? (
+              {selectedTableId ? (
                 <DetailPanel
                   status={detailStatus}
                   error={detailError}
@@ -294,25 +307,20 @@ export default function ReservationsClient() {
                   actionStatus={actionStatus}
                   actionError={actionError}
                   actionMessage={actionMessage}
+                  editTableNumber={editTableNumber}
+                  onEditTableNumberChange={setEditTableNumber}
+                  editCapacity={editCapacity}
+                  onEditCapacityChange={setEditCapacity}
+                  editLocation={editLocation}
+                  onEditLocationChange={setEditLocation}
                   editStatus={editStatus}
                   onEditStatusChange={setEditStatus}
-                  editDate={editDate}
-                  onEditDateChange={setEditDate}
-                  editTime={editTime}
-                  onEditTimeChange={setEditTime}
-                  editPartySize={editPartySize}
-                  onEditPartySizeChange={setEditPartySize}
-                  editNote={editNote}
-                  onEditNoteChange={setEditNote}
-                  tables={tables}
-                  editAssignedTableId={editAssignedTableId}
-                  onEditAssignedTableIdChange={setEditAssignedTableId}
                   onSaveEdits={handleSaveEdits}
                 />
               ) : (
                 <div className="card p-8 text-center">
                   <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select a reservation to view details.
+                    Select a table to view details.
                   </p>
                 </div>
               )}
@@ -329,23 +337,17 @@ function Filters({
   onStatusFilterChange,
   searchInput,
   onSearchInputChange,
-  dateFrom,
-  onDateFromChange,
-  dateTo,
-  onDateToChange,
   onApply,
   onRefresh,
+  onAddTable,
 }: {
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
   searchInput: string;
   onSearchInputChange: (value: string) => void;
-  dateFrom: string;
-  onDateFromChange: (value: string) => void;
-  dateTo: string;
-  onDateToChange: (value: string) => void;
   onApply: () => void;
   onRefresh: () => void;
+  onAddTable: () => void;
 }) {
   const inputStyle = {
     background: 'var(--p-subtle)',
@@ -366,9 +368,9 @@ function Filters({
           style={inputStyle}
         >
           <option value="">All</option>
-          {RESERVATION_STATUSES.map((s) => (
+          {TABLE_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s.replace('_', ' ')}
+              {s}
             </option>
           ))}
         </select>
@@ -379,35 +381,11 @@ function Filters({
         </label>
         <input
           type="text"
-          placeholder="Customer name or phone"
+          placeholder="Table number or location"
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
           className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
-          style={inputStyle}
-        />
-      </div>
-      <div>
-        <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          From
-        </label>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => onDateFromChange(e.target.value)}
-          className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
-          style={inputStyle}
-        />
-      </div>
-      <div>
-        <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          To
-        </label>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => onDateToChange(e.target.value)}
-          className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         />
       </div>
@@ -421,6 +399,124 @@ function Filters({
       >
         Refresh
       </button>
+      <button
+        onClick={onAddTable}
+        className="text-xs font-semibold px-3 py-2 rounded-lg ml-auto"
+        style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
+      >
+        Add Table
+      </button>
+    </div>
+  );
+}
+
+function CreateForm({
+  tableNumber,
+  onTableNumberChange,
+  capacity,
+  onCapacityChange,
+  location,
+  onLocationChange,
+  status,
+  onStatusChange,
+  onSave,
+  onCancel,
+  actionStatus,
+  actionError,
+}: {
+  tableNumber: string;
+  onTableNumberChange: (value: string) => void;
+  capacity: string;
+  onCapacityChange: (value: string) => void;
+  location: string;
+  onLocationChange: (value: string) => void;
+  status: RestaurantTableStatus;
+  onStatusChange: (value: RestaurantTableStatus) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  actionStatus: Status;
+  actionError: string;
+}) {
+  const inputStyle = {
+    background: 'var(--p-subtle)',
+    border: '1px solid var(--p-border)',
+    color: 'var(--p-text-1)',
+  };
+
+  return (
+    <div className="card p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+        New table
+      </p>
+      {actionStatus === 'error' && (
+        <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{actionError}</p>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table number</label>
+          <input
+            type="text"
+            value={tableNumber}
+            onChange={(e) => onTableNumberChange(e.target.value)}
+            className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Capacity</label>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={capacity}
+            onChange={(e) => onCapacityChange(e.target.value)}
+            className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Location</label>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => onLocationChange(e.target.value)}
+            className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+          <select
+            value={status}
+            onChange={(e) => onStatusChange(e.target.value as RestaurantTableStatus)}
+            className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
+            style={inputStyle}
+          >
+            {TABLE_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onSave}
+          disabled={actionStatus === 'loading' || !tableNumber || !capacity}
+          className="text-xs font-semibold px-3 py-2 rounded-lg"
+          style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
+        >
+          Save table
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-xs font-semibold px-3 py-2 rounded-lg"
+          style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
@@ -429,14 +525,14 @@ function ListPanel({
   status,
   error,
   result,
-  selectedReservationId,
+  selectedTableId,
   onSelect,
   onPageChange,
 }: {
   status: Status;
   error: string;
-  result: ReservationListResponse | null;
-  selectedReservationId: string;
+  result: RestaurantTableListResponse | null;
+  selectedTableId: string;
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
@@ -455,7 +551,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load reservations
+          Failed to load tables
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -465,7 +561,7 @@ function ListPanel({
   if (!result || result.data.length === 0) {
     return (
       <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No reservations found.</p>
+        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No tables found.</p>
       </div>
     );
   }
@@ -474,7 +570,7 @@ function ListPanel({
     <div className="card">
       <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
         {result.data.map((item) => (
-          <ListRow key={item.id} item={item} isSelected={item.id === selectedReservationId} onSelect={onSelect} />
+          <ListRow key={item.id} item={item} isSelected={item.id === selectedTableId} onSelect={onSelect} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
@@ -509,12 +605,10 @@ function ListRow({
   isSelected,
   onSelect,
 }: {
-  item: ReservationListItem;
+  item: RestaurantTableListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
-  const customerLabel = item.customerName || item.phoneNumber || 'Guest';
-
   return (
     <button
       onClick={() => onSelect(item.id)}
@@ -522,17 +616,16 @@ function ListRow({
       style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
     >
       <div className="min-w-0">
-        <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{customerLabel}</p>
+        <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
+          Table {item.tableNumber}
+        </p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
-          {item.reservationDate.slice(0, 10)} · {item.reservationTime} · {item.partySize} pax · {item.sourceChannel}
-          {item.tableName ? ` · Table ${item.tableName}` : ''}
+          {item.capacity} pax{item.location ? ` · ${item.location}` : ''}
+          {item.upcomingReservationCount > 0 ? ` · ${item.upcomingReservationCount} upcoming` : ''}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <StatusBadge status={item.status} />
-        <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
-          {new Date(item.createdAt).toLocaleString()}
-        </span>
       </div>
     </button>
   );
@@ -546,41 +639,31 @@ function DetailPanel({
   actionStatus,
   actionError,
   actionMessage,
+  editTableNumber,
+  onEditTableNumberChange,
+  editCapacity,
+  onEditCapacityChange,
+  editLocation,
+  onEditLocationChange,
   editStatus,
   onEditStatusChange,
-  editDate,
-  onEditDateChange,
-  editTime,
-  onEditTimeChange,
-  editPartySize,
-  onEditPartySizeChange,
-  editNote,
-  onEditNoteChange,
-  tables,
-  editAssignedTableId,
-  onEditAssignedTableIdChange,
   onSaveEdits,
 }: {
   status: Status;
   error: string;
-  detail: ReservationDetail | null;
+  detail: RestaurantTableDetail | null;
   onClose: () => void;
   actionStatus: Status;
   actionError: string;
   actionMessage: string;
-  editStatus: ReservationStatus;
-  onEditStatusChange: (value: ReservationStatus) => void;
-  editDate: string;
-  onEditDateChange: (value: string) => void;
-  editTime: string;
-  onEditTimeChange: (value: string) => void;
-  editPartySize: string;
-  onEditPartySizeChange: (value: string) => void;
-  editNote: string;
-  onEditNoteChange: (value: string) => void;
-  tables: RestaurantTableListItem[];
-  editAssignedTableId: string;
-  onEditAssignedTableIdChange: (value: string) => void;
+  editTableNumber: string;
+  onEditTableNumberChange: (value: string) => void;
+  editCapacity: string;
+  onEditCapacityChange: (value: string) => void;
+  editLocation: string;
+  onEditLocationChange: (value: string) => void;
+  editStatus: RestaurantTableStatus;
+  onEditStatusChange: (value: RestaurantTableStatus) => void;
   onSaveEdits: () => void;
 }) {
   const inputStyle = {
@@ -604,7 +687,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load reservation
+          Failed to load table
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -618,7 +701,7 @@ function DetailPanel({
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Reservation</h3>
+          <h3 className="card-header-title">Table {detail.tableNumber}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -638,104 +721,82 @@ function DetailPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <CustomerField customerId={detail.customerId} value={detail.customer?.fullName || '—'} />
-          <Field label="Phone" value={detail.customer?.phoneNumber || '—'} />
-          <Field label="Source" value={detail.sourceChannel} />
-          <Field label="Table" value={detail.table ? `${detail.table.tableNumber} (${detail.table.capacity} pax)` : '—'} />
+          <Field label="Capacity" value={`${detail.capacity} pax`} />
+          <Field label="Location" value={detail.location || '—'} />
           <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
           <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
-        {detail.reservationRequest && (
-          <ReservationRequestSummaryLink
-            requestId={detail.reservationRequest.id}
-            status={detail.reservationRequest.status}
-            specialRequest={detail.reservationRequest.specialRequest}
-          />
-        )}
-
-        {detail.conversation && (
-          <ConversationSummaryLink conversationId={detail.conversation.id} status={detail.conversation.status} />
-        )}
+        <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+            Upcoming reservations ({detail.upcomingReservationCount})
+          </p>
+          {detail.upcomingReservations.length === 0 ? (
+            <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>No upcoming reservations.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {detail.upcomingReservations.map((r) => (
+                <div key={r.id} className="text-xs flex items-center justify-between gap-2" style={{ color: 'var(--p-text-3)' }}>
+                  <span className="truncate">{r.customerName || 'Guest'} · {r.partySize} pax</span>
+                  <span className="shrink-0">{r.reservationDate.slice(0, 10)} {r.reservationTime}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Edit safe fields
+            Edit table
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
-              <select
-                value={editStatus}
-                onChange={(e) => onEditStatusChange(e.target.value as ReservationStatus)}
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table number</label>
+              <input
+                type="text"
+                value={editTableNumber}
+                onChange={(e) => onEditTableNumberChange(e.target.value)}
                 className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                 style={inputStyle}
-              >
-                {RESERVATION_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Party size</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Capacity</label>
               <input
                 type="number"
                 min={1}
                 max={100}
-                value={editPartySize}
-                onChange={(e) => onEditPartySizeChange(e.target.value)}
+                value={editCapacity}
+                onChange={(e) => onEditCapacityChange(e.target.value)}
                 className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                 style={inputStyle}
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Date</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Location</label>
               <input
-                type="date"
-                value={editDate}
-                onChange={(e) => onEditDateChange(e.target.value)}
+                type="text"
+                value={editLocation}
+                onChange={(e) => onEditLocationChange(e.target.value)}
                 className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                 style={inputStyle}
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Time</label>
-              <input
-                type="time"
-                value={editTime}
-                onChange={(e) => onEditTimeChange(e.target.value)}
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+              <select
+                value={editStatus}
+                onChange={(e) => onEditStatusChange(e.target.value as RestaurantTableStatus)}
                 className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                 style={inputStyle}
-              />
+              >
+                {TABLE_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             </div>
-          </div>
-          <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Internal note</label>
-            <textarea
-              value={editNote}
-              onChange={(e) => onEditNoteChange(e.target.value)}
-              rows={2}
-              className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table</label>
-            <select
-              value={editAssignedTableId}
-              onChange={(e) => onEditAssignedTableIdChange(e.target.value)}
-              className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
-              style={inputStyle}
-            >
-              <option value="">Unassigned</option>
-              {tables.map((t) => (
-                <option key={t.id} value={t.id}>
-                  Table {t.tableNumber} ({t.capacity} pax{t.location ? `, ${t.location}` : ''})
-                </option>
-              ))}
-            </select>
           </div>
           <button
             onClick={onSaveEdits}
@@ -757,70 +818,5 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>{label}</p>
       <p className="text-sm font-medium truncate" style={{ color: 'var(--p-text-1)' }}>{value}</p>
     </div>
-  );
-}
-
-function CustomerField({ customerId, value }: { customerId: string | null; value: string }) {
-  const params = useParams();
-  const lang = typeof params.lang === 'string' ? params.lang : 'en';
-
-  return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>Customer</p>
-      {customerId ? (
-        <Link
-          href={`/${lang}/backend-admin/customers?customerId=${customerId}`}
-          className="text-sm font-medium truncate block"
-          style={{ color: 'var(--p-accent-text)' }}
-        >
-          {value}
-        </Link>
-      ) : (
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--p-text-1)' }}>{value}</p>
-      )}
-    </div>
-  );
-}
-
-function ReservationRequestSummaryLink({
-  requestId,
-  status,
-  specialRequest,
-}: {
-  requestId: string;
-  status: string;
-  specialRequest: string | null;
-}) {
-  const params = useParams();
-  const lang = typeof params.lang === 'string' ? params.lang : 'en';
-
-  return (
-    <div className="space-y-1">
-      <Link
-        href={`/${lang}/backend-admin/reservation-requests?requestId=${requestId}`}
-        className="text-xs block"
-        style={{ color: 'var(--p-accent-text)' }}
-      >
-        Originating request: {status.replace('_', ' ')}
-      </Link>
-      {specialRequest && (
-        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>Special request: {specialRequest}</p>
-      )}
-    </div>
-  );
-}
-
-function ConversationSummaryLink({ conversationId, status }: { conversationId: string; status: string }) {
-  const params = useParams();
-  const lang = typeof params.lang === 'string' ? params.lang : 'en';
-
-  return (
-    <Link
-      href={`/${lang}/backend-admin/conversations?conversationId=${conversationId}`}
-      className="text-xs block"
-      style={{ color: 'var(--p-accent-text)' }}
-    >
-      Conversation: {status}
-    </Link>
   );
 }

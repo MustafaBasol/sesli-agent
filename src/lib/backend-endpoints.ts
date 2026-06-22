@@ -1340,3 +1340,47 @@ export function deactivateBlackoutDate(
     token,
   });
 }
+
+// --- Availability slot preview (Phase 25 backend API, beta UI only) ---
+
+export type AvailabilitySlotEntry = {
+  time: string;
+  available: boolean;
+  availableTableIds: string[];
+  capacity: number;
+  reason?: string;
+};
+
+export type AvailabilitySlotsResult = {
+  restaurantId: string;
+  localDate: string;
+  partySize: number;
+  timezone: string;
+  durationMinutes: number;
+  slotIntervalMinutes: number;
+  availableSlots: AvailabilitySlotEntry[];
+  warnings: string[];
+  blockedReason?: string;
+  preferredTime?: { time: string; available: boolean };
+};
+
+export type GetAvailabilitySlotsParams = {
+  date: string;
+  partySize: number;
+  preferredTime?: string;
+};
+
+export function getAvailabilitySlots(
+  restaurantId: string,
+  token: string,
+  params: GetAvailabilitySlotsParams
+): Promise<AvailabilitySlotsResult> {
+  return backendRequest<AvailabilitySlotsResult>(`/restaurants/${restaurantId}/availability/slots`, {
+    token,
+    query: {
+      date: params.date,
+      partySize: params.partySize,
+      preferredTime: params.preferredTime,
+    },
+  });
+}

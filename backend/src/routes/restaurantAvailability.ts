@@ -8,6 +8,7 @@ import {
   updateAvailabilitySettingsSchema,
   updateBlackoutDateSchema,
 } from "../schemas/restaurantAvailability";
+import { availabilitySlotsQuerySchema } from "../schemas/availabilitySlots";
 import {
   createBlackoutDate,
   deactivateBlackoutDate,
@@ -18,6 +19,7 @@ import {
   updateAvailabilitySettings,
   updateBlackoutDate,
 } from "../services/restaurantAvailabilityService";
+import { calculateAvailabilitySlots } from "../services/availabilitySlotService";
 import { asyncHandler } from "../utils/asyncHandler";
 
 export const restaurantAvailabilityRouter = express.Router();
@@ -115,6 +117,28 @@ restaurantAvailabilityRouter.patch(
 
     const updated = await updateBlackoutDate(req.restaurantId!, req.params.blackoutId, parsed.data);
     res.json(updated);
+  })
+);
+
+// Phase 25 — read-only slot preview, not wired into any production Vapi
+// route. Reuses the same READ_ROLES gate applied to the whole /availability
+// subtree above.
+restaurantAvailabilityRouter.get(
+  "/:restaurantId/availability/slots",
+  asyncHandler<RestaurantScopedRequest>(async (req, res: Response) => {
+    const parsed = availabilitySlotsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: { message: "Invalid query parameters", details: parsed.error.flatten() } });
+      return;
+    }
+
+    const result = await calculateAvailabilitySlots({
+      restaurantId: req.restaurantId!,
+      localDate: parsed.data.date,
+      partySize: parsed.data.partySize,
+      preferredTime: parsed.data.preferredTime,
+    });
+    res.json(result);
   })
 );
 

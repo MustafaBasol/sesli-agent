@@ -100,6 +100,11 @@ check_endpoint "settings" "$restaurant_path/settings" "$TMP_DIR/settings.json"
 check_endpoint "availability-settings" "$restaurant_path/availability/settings" "$TMP_DIR/availability-settings.json"
 check_endpoint "availability-blackouts" "$restaurant_path/availability/blackouts" "$TMP_DIR/availability-blackouts.json"
 
+# Future date avoids minAdvanceMinutes/bookingWindowDays failures regardless
+# of restaurant settings. GNU date (-d) and BSD/macOS date (-v) both handled.
+future_date=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
+check_endpoint "availability-slots" "$restaurant_path/availability/slots?date=$future_date&partySize=2" "$TMP_DIR/availability-slots.json"
+
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials

@@ -32,8 +32,10 @@ remove the Supabase admin, do not switch the Vapi webhook URL here).
   - `/api/restaurants/:restaurantId/team*`
   - `/api/restaurants/:restaurantId/settings`
   - `/api/restaurants/:restaurantId/availability/settings`,
-    `/api/restaurants/:restaurantId/availability/blackouts*` (Phase 24 — not
-    wired into any Vapi route yet, see Section C)
+    `/api/restaurants/:restaurantId/availability/blackouts*` (Phase 24),
+    `/api/restaurants/:restaurantId/availability/slots` (Phase 25 — slot
+    calculation service; none of these are wired into any Vapi route yet,
+    see Section C)
   - `/api/webhooks/vapi/:publicWebhookKey/create-reservation-request`
     (other webhook actions exist as routes but are `notImplemented` — see
     `backend/src/routes/webhooks/vapi.ts`)
@@ -159,9 +161,13 @@ or backfill strategy). That phase is out of scope here.
 - `check-availability` parity specifically also needs the `RestaurantSettings`/
   `BlackoutDate` models added in Phase 24 (`/api/restaurants/:restaurantId/availability/*`,
   `getRestaurantAvailabilityConfig` read helper in
-  `backend/src/services/restaurantAvailabilityService.ts`). These models and the
-  helper exist now but are **not wired into any Vapi route** — actual slot
-  calculation and a backend `check-availability` handler are still future work.
+  `backend/src/services/restaurantAvailabilityService.ts`) plus the slot
+  calculation service added in Phase 25
+  (`backend/src/services/availabilitySlotService.ts`,
+  `GET /api/restaurants/:restaurantId/availability/slots`). The service and
+  endpoint exist now and are covered by `npm run test:availability-slots`,
+  but are **not wired into any Vapi route** — a backend `check-availability`
+  handler that calls this service is still future work.
 - The backend webhook authenticates the tenant via an unguessable
   `publicWebhookKey` path segment (`IntegrationConnection.publicWebhookKey`)
   plus a dedicated rate limiter, not via Vapi payload signature

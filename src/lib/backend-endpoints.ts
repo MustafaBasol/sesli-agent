@@ -480,3 +480,155 @@ export function updateCustomer(
     body: payload,
   });
 }
+
+// --- Conversations & messages (Phase 6 backend API, Phase 13 beta UI) ---
+// This beta UI never sends includeRawPayload and never renders rawPayload or
+// stateJson — the types below deliberately omit them. See AGENTS.md Phase 13.
+
+export const CONVERSATION_STATUSES = ['open', 'pending', 'closed', 'archived'] as const;
+
+export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
+export type ConversationListItem = {
+  id: string;
+  channel: string;
+  provider: string | null;
+  externalThreadId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerHandle: string | null;
+  status: string;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer: CustomerLite | null;
+  messageCount: number;
+  reservationRequestCount: number;
+};
+
+export type ConversationListParams = {
+  channel?: string;
+  provider?: string;
+  customerId?: string;
+  status?: ConversationStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ConversationListResponse = {
+  data: ConversationListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listConversations(
+  restaurantId: string,
+  token: string,
+  params: ConversationListParams = {}
+): Promise<ConversationListResponse> {
+  return backendRequest<ConversationListResponse>(`/restaurants/${restaurantId}/conversations`, {
+    token,
+    query: {
+      channel: params.channel,
+      provider: params.provider,
+      customerId: params.customerId,
+      status: params.status,
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export type ConversationMessage = {
+  id: string;
+  restaurantId: string;
+  conversationId: string;
+  customerId: string | null;
+  direction: string;
+  channel: string;
+  provider: string | null;
+  senderType: string;
+  senderUserId: string | null;
+  externalMessageId: string | null;
+  messageText: string | null;
+  status: string | null;
+  createdAt: string;
+};
+
+export type ConversationMessagesPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  order: 'asc' | 'desc';
+};
+
+export type ConversationDetail = {
+  id: string;
+  restaurantId: string;
+  customerId: string | null;
+  channel: string;
+  provider: string | null;
+  externalThreadId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  customerHandle: string | null;
+  status: string;
+  assignedToUserId: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer: ReservationRequestCustomerDetail | null;
+  messages: ConversationMessage[];
+  messagesPagination: ConversationMessagesPagination;
+};
+
+export function getConversationDetail(
+  restaurantId: string,
+  token: string,
+  conversationId: string
+): Promise<ConversationDetail> {
+  return backendRequest<ConversationDetail>(`/restaurants/${restaurantId}/conversations/${conversationId}`, {
+    token,
+  });
+}
+
+export type MessageListParams = {
+  page?: number;
+  pageSize?: number;
+  order?: 'asc' | 'desc';
+};
+
+export type MessageListResponse = {
+  data: ConversationMessage[];
+  pagination: ConversationMessagesPagination;
+};
+
+// Deliberately has no includeRawPayload parameter — this beta UI never
+// requests raw provider payloads (see AGENTS.md Phase 13).
+export function listConversationMessages(
+  restaurantId: string,
+  token: string,
+  conversationId: string,
+  params: MessageListParams = {}
+): Promise<MessageListResponse> {
+  return backendRequest<MessageListResponse>(
+    `/restaurants/${restaurantId}/conversations/${conversationId}/messages`,
+    {
+      token,
+      query: {
+        page: params.page,
+        pageSize: params.pageSize,
+        order: params.order,
+      },
+    }
+  );
+}

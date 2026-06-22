@@ -654,10 +654,11 @@ function DetailPanel({
         </div>
 
         {detail.conversation && (
-          <div className="text-xs" style={{ color: 'var(--p-text-4)' }}>
-            Conversation: {detail.conversation.status} · {detail.messages.length} message
-            {detail.messages.length === 1 ? '' : 's'}
-          </div>
+          <ConversationSummary
+            conversationId={detail.conversation.id}
+            status={detail.conversation.status}
+            messageCount={detail.messages.length}
+          />
         )}
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
@@ -754,6 +755,29 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>{label}</p>
       <p className="text-sm font-medium truncate" style={{ color: 'var(--p-text-1)' }}>{value}</p>
     </div>
+  );
+}
+
+function ConversationSummary({
+  conversationId,
+  status,
+  messageCount,
+}: {
+  conversationId: string;
+  status: string;
+  messageCount: number;
+}) {
+  const params = useParams();
+  const lang = typeof params.lang === 'string' ? params.lang : 'en';
+
+  return (
+    <Link
+      href={`/${lang}/backend-admin/conversations?conversationId=${conversationId}`}
+      className="text-xs block"
+      style={{ color: 'var(--p-accent-text)' }}
+    >
+      Conversation: {status} · {messageCount} message{messageCount === 1 ? '' : 's'}
+    </Link>
   );
 }
 

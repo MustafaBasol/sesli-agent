@@ -99,5 +99,26 @@ export async function getConversationDetail(restaurantId: string, conversationId
     ),
   ]);
 
-  return { ...conversation, customer, messages: messages.data, messagesPagination: messages.pagination };
+  // Explicit allowlist instead of spreading `conversation` — it also carries
+  // stateJson, which is internal provider state and must never reach the API.
+  return {
+    id: conversation.id,
+    restaurantId: conversation.restaurantId,
+    customerId: conversation.customerId,
+    channel: conversation.channel,
+    provider: conversation.provider,
+    externalThreadId: conversation.externalThreadId,
+    customerName: conversation.customerName,
+    customerPhone: conversation.customerPhone,
+    customerHandle: conversation.customerHandle,
+    status: conversation.status,
+    assignedToUserId: conversation.assignedToUserId,
+    lastMessageAt: conversation.lastMessageAt,
+    lastMessagePreview: conversation.lastMessagePreview,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    customer,
+    messages: messages.data,
+    messagesPagination: messages.pagination,
+  };
 }

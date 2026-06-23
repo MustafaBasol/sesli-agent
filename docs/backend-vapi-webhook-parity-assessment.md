@@ -1163,3 +1163,48 @@ scope for Phase 34, target Phase 35. The old Next.js/Supabase
 `reservation_cancellations`) and the legacy dispatcher's hard-delete
 `cancel_reservation_request` case are both untouched and continue to serve
 the production Vapi assistant; the Vapi dashboard has not been switched.
+
+## 18. Phase 35 implementation status (update)
+
+`POST /api/webhooks/vapi/:publicWebhookKey/modify-reservation-request` is
+now implemented and hardened in `backend/src/routes/webhooks/vapi.ts`,
+replacing its `notImplemented` (501) stub. It follows the Phase 32 decision
+pack (Section 3A): a voice-initiated modification never directly mutates a
+confirmed `Reservation` or an already-decided `ReservationRequest`'s
+date/time/party/status. The intent is always logged as a bounded
+`IntegrationEvent` (`eventType: "reservation_modification_requested"`), and
+where an unambiguous *pending* target exists — an explicit
+`reservationRequestId` that is still `new`/`pending_info`, an explicit
+`reservationId` referencing a confirmed `Reservation`, or an exact
+phone+currentDate+currentTime match against pending requests — a second,
+separately-tracked `ReservationRequest` row with `requestType: "change"` is
+additionally created for restaurant-team review, linked to the original
+record only via a bounded `internalNote` (no FK exists between
+`ReservationRequest` rows in this schema; none was added). The original
+record's own date/time/party/status fields are never written to. Hard-delete
+is never performed.
+
+New pure helper: `backend/src/utils/vapi/modifyReservationRequestAdapter.ts`
+(payload normalization/aliasing for identity fields, currentDate/currentTime,
+and newDate/newTime/newPartySize/newNotes/reason; a two-part missing-field
+policy requiring both an identifying field and a requested-change field;
+invalid-date/time-format detection that is distinct from "not provided";
+response builders; bounded safe-payload builder — same shape as Phase 34's
+`cancelReservationRequestAdapter.ts`). New service helper added to
+`backend/src/services/vapiReservationService.ts`:
+`createVapiReservationChangeRequest` (tenant-scoped insert-only, reuses the
+existing `requestType: "change"` schema value, no migration).
+
+The voice response never claims a reservation was changed — wording is
+"your modification request has been recorded for the restaurant team to
+review" (or the Turkish/French equivalents) in every outcome, including the
+cases where a change `ReservationRequest` was created.
+
+This closes out the Phase 32 decision pack's modify/cancel/handoff trio —
+all three are now implemented. Remaining blockers for full Vapi parity:
+menu routes (still out of scope) and the legacy dispatcher cutover (still a
+separate architectural decision, not bundled with this phase). The old
+Next.js/Supabase `modify-reservation-request` route (audit-only insert into
+`reservation_changes`) and the legacy dispatcher's direct-UPDATE
+`modify_reservation_request` case are both untouched and continue to serve
+the production Vapi assistant; the Vapi dashboard has not been switched.

@@ -63,9 +63,23 @@ import {
   type CancelActionTaken,
   type CancelMatchStatus,
 } from "../../utils/vapi/cancelReservationRequestAdapter";
+import {
+  buildInvalidDateTimeResponse,
+  buildModificationRecordedResponse,
+  buildModifyMissingFieldsResponse,
+  buildSafeModifyReservationRequestPayload,
+  computeModifyReservationRequestMissingFields,
+  extractModifyReservationRequestArgs,
+  hasInvalidDateTimeFormat,
+  truncateText as truncateModifyNotes,
+  MAX_NEW_NOTES_LENGTH,
+  type ModifyActionTaken,
+  type ModifyMatchStatus,
+} from "../../utils/vapi/modifyReservationRequestAdapter";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/client";
 import {
+  createVapiReservationChangeRequest,
   createVapiReservationRequest,
   findExistingReservationRequestByCallId,
   findUnambiguousPendingMatch,
@@ -1117,11 +1131,253 @@ vapiWebhookRouter.post(
   })
 );
 
-// Scaffolded for a later phase — Phase 4 only implements create-reservation-request.
-function notImplemented(req: Request, res: Response): void {
-  res.status(501).json({ error: "Not implemented yet" });
+function buildChangeRequestInternalNote(
+  options: { originalRequestId?: string; originalReservationId?: string; reason: string | null },
+  maxLength: number
+): string {
+  const parts: string[] = ["Voice modification request (Phase 35 — pending restaurant-team review)."];
+  if (options.originalRequestId) parts.push(`Original reservation request: ${options.originalRequestId}.`);
+  if (options.originalReservationId) parts.push(`Original confirmed reservation: ${options.originalReservationId}.`);
+  if (options.reason) parts.push(`Reason: ${options.reason}`);
+  return truncateModifyNotes(parts.join(" "), maxLength);
 }
 
-vapiWebhookRouter.post("/:publicWebhookKey/modify-reservation-request", notImplemented);
+// POST /api/webhooks/vapi/:publicWebhookKey/modify-reservation-request
+//
+// Phase 35 decision (docs/vapi-modify-cancel-handoff-decision-pack.md Section
+// 3A): a voice-initiated modification never directly mutates a confirmed
+// Reservation or an already-decided ReservationRequest's date/time/party/
+// status. The intent is always logged as an auditable IntegrationEvent and,
+// where an unambiguous pending target exists, additionally recorded as a new
+// ReservationRequest with requestType "change" for restaurant-team review —
+// never overwriting the original record. Hard-delete is never performed. The
+// old Next.js/Supabase route and the legacy dispatcher's direct-update
+// behavior are both untouched and keep serving the production Vapi assistant
+// during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/modify-reservation-request",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const currentYear = new Date().getFullYear();
+    const args = extractModifyReservationRequestArgs(allSources, rawBody, currentYear);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "modify_reservation_request",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    const missingFields = computeModifyReservationRequestMissingFields(args);
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildModifyMissingFieldsResponse(missingFields, args.language));
+      return;
+    }
+
+    if (hasInvalidDateTimeFormat(args)) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: "Invalid date/time format" },
+      });
+      sendVapiToolResponse(res, rawBody, buildInvalidDateTimeResponse(args.language));
+      return;
+    }
+
+    try {
+      let matchStatus: ModifyMatchStatus;
+      let actionTaken: ModifyActionTaken;
+      let changeRequestId: string | null = null;
+      let originalRequestId: string | null = null;
+
+      if (args.reservationRequestId) {
+        // A. Explicit reservationRequestId — scoped lookup, never trust an id
+        // from another tenant (findVapiReservationRequestById returns null
+        // for both "not found" and "other tenant").
+        const found = await findVapiReservationRequestById(restaurantId, args.reservationRequestId);
+        if (!found) {
+          matchStatus = "unmatched";
+          actionTaken = "intent_logged";
+        } else if (isCancellablePendingStatus(found.status)) {
+          const changeRequest = await createVapiReservationChangeRequest({
+            restaurantId,
+            customerId: found.customerId,
+            conversationId: found.conversationId,
+            customerName: args.customerName ?? found.customerName,
+            phoneNumber: args.phone ?? found.phoneNumber,
+            normalizedPhone: args.normalizedPhone ?? found.normalizedPhone,
+            partySize: args.newPartySize ?? found.partySize,
+            reservationDate: args.newDate,
+            reservationTime: args.newTime ?? found.reservationTime,
+            language: args.language ?? found.language,
+            specialRequest: args.newNotes ? truncateModifyNotes(args.newNotes, MAX_NEW_NOTES_LENGTH) : null,
+            callId: args.callId,
+            internalNote: buildChangeRequestInternalNote(
+              { originalRequestId: found.id, reason: args.reason },
+              MAX_NEW_NOTES_LENGTH
+            ),
+            rawPayload: rawBody,
+          });
+          matchStatus = "exact";
+          actionTaken = "change_request_created";
+          changeRequestId = changeRequest.id;
+          originalRequestId = found.id;
+        } else {
+          // Already confirmed/rejected/cancelled/done — never force a
+          // mutation or a derivative record; log the intent for staff review.
+          matchStatus = "confirmed_reservation_review_required";
+          actionTaken = "review_required";
+        }
+      } else if (args.reservationId) {
+        // B. Explicit reservationId — a confirmed Reservation is never
+        // directly updated by voice in this phase, regardless of whether it
+        // is found.
+        const foundReservation = await findVapiReservationById(restaurantId, args.reservationId);
+        if (foundReservation) {
+          const changeRequest = await createVapiReservationChangeRequest({
+            restaurantId,
+            customerId: foundReservation.customerId,
+            conversationId: null,
+            customerName: args.customerName,
+            phoneNumber: args.phone,
+            normalizedPhone: args.normalizedPhone,
+            partySize: args.newPartySize ?? foundReservation.partySize,
+            reservationDate: args.newDate,
+            reservationTime: args.newTime ?? foundReservation.reservationTime,
+            language: args.language,
+            specialRequest: args.newNotes ? truncateModifyNotes(args.newNotes, MAX_NEW_NOTES_LENGTH) : null,
+            callId: args.callId,
+            internalNote: buildChangeRequestInternalNote(
+              { originalReservationId: foundReservation.id, reason: args.reason },
+              MAX_NEW_NOTES_LENGTH
+            ),
+            rawPayload: rawBody,
+          });
+          matchStatus = "confirmed_reservation_review_required";
+          actionTaken = "change_request_created";
+          changeRequestId = changeRequest.id;
+        } else {
+          matchStatus = "unmatched";
+          actionTaken = "intent_logged";
+        }
+      } else if (args.normalizedPhone && args.currentDate && args.currentTime) {
+        // C. No explicit id — try an unambiguous phone+currentDate+currentTime
+        // match against pending requests only. Zero or multiple candidates
+        // must never mutate anything.
+        const matchResult = await findUnambiguousPendingMatch(
+          restaurantId,
+          args.normalizedPhone,
+          args.currentDate,
+          args.currentTime
+        );
+        if (matchResult.status === "exact") {
+          const found = await findVapiReservationRequestById(restaurantId, matchResult.request.id);
+          const changeRequest = await createVapiReservationChangeRequest({
+            restaurantId,
+            customerId: found?.customerId ?? null,
+            conversationId: found?.conversationId ?? null,
+            customerName: args.customerName ?? found?.customerName ?? null,
+            phoneNumber: args.phone ?? found?.phoneNumber ?? null,
+            normalizedPhone: args.normalizedPhone,
+            partySize: args.newPartySize ?? found?.partySize ?? null,
+            reservationDate: args.newDate,
+            reservationTime: args.newTime ?? found?.reservationTime ?? null,
+            language: args.language ?? found?.language ?? null,
+            specialRequest: args.newNotes ? truncateModifyNotes(args.newNotes, MAX_NEW_NOTES_LENGTH) : null,
+            callId: args.callId,
+            internalNote: buildChangeRequestInternalNote(
+              { originalRequestId: matchResult.request.id, reason: args.reason },
+              MAX_NEW_NOTES_LENGTH
+            ),
+            rawPayload: rawBody,
+          });
+          matchStatus = "exact";
+          actionTaken = "change_request_created";
+          changeRequestId = changeRequest.id;
+          originalRequestId = matchResult.request.id;
+        } else if (matchResult.status === "ambiguous") {
+          matchStatus = "ambiguous";
+          actionTaken = "intent_logged";
+        } else {
+          matchStatus = "unmatched";
+          actionTaken = "intent_logged";
+        }
+      } else {
+        // D. General fallback — not enough identifying detail to even
+        // attempt a match (e.g. only a customerName or reason was given).
+        matchStatus = "unmatched";
+        actionTaken = "intent_logged";
+      }
+
+      const safePayload = buildSafeModifyReservationRequestPayload(args, matchStatus, actionTaken);
+
+      const event = await prisma.integrationEvent.create({
+        data: {
+          restaurantId,
+          integrationId: connection.id,
+          channel: "voice",
+          provider: "vapi",
+          eventType: "reservation_modification_requested",
+          status: "received",
+          payload: safePayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      const response = buildModificationRecordedResponse(args.language, {
+        eventId: event.id,
+        matchStatus,
+        ...(changeRequestId ? { changeRequestId } : {}),
+        ...(originalRequestId ? { originalRequestId } : {}),
+      });
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: {
+          status: "success",
+          responsePayload: {
+            eventId: event.id,
+            matchStatus,
+            actionTaken,
+            changeRequestId,
+          },
+        },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi modify-reservation-request failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while processing modification request");
+    }
+  })
+);
 
 export default vapiWebhookRouter;

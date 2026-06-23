@@ -232,14 +232,16 @@ This ranking matches the order suggested in the Phase 32 prompt and is confirmed
 - Pure adapter test added: `backend/src/tests/vapiCancelReservationRequestAdapter.test.ts`, wired into `npm test` via `npm run test:vapi-cancel-reservation-request-adapter`.
 - Gated by the existing `SMOKE_RUN_WRITE_CHECKS` convention — added to `scripts/smoke-backend-beta.sh`, using a fake/non-existing `reservationRequestId` so the smoke command only ever exercises the audit-intent-logging path.
 
-### modify-reservation-request (target: Phase 35)
+### modify-reservation-request (target: Phase 35) — IMPLEMENTED in Phase 35
 
-- No direct mutation of any confirmed `Reservation` or existing `ReservationRequest` — explicitly verified by a test asserting the matched row(s), if any, are unchanged after the call.
-- Clear matching rule, identical narrowness to cancel's (phone + original date/time if given), used only to populate a non-binding hint, never to drive an automatic update.
-- New `ReservationRequest` row created with `requestType: "change"`, auditable original-vs-new values preserved in `rawPayload`.
-- Safe response for the voice assistant (generic acknowledgment, no leaked match ambiguity details).
-- DB-backed integration test covering: successful audit-row creation with a unique match hint, successful audit-row creation with no match hint (zero/multiple candidates), unknown key, cross-tenant isolation.
-- Smoke write-check gated, same as the other two.
+- No direct mutation of any confirmed `Reservation` or existing `ReservationRequest` — verified by integration tests asserting the matched row(s), if any, are unchanged after the call (status, date/time/party all untouched).
+- Matching rule, as implemented: an explicit `reservationRequestId` (preferred, tenant-scoped lookup) or an exact normalizedPhone + currentDate + currentTime match against pending requests only — no fuzzy/partial matching. A confirmed `Reservation` can also be referenced directly via `reservationId`, in which case it is always logged for review (and, where the schema supports it, paired with a new change request) rather than matched/updated by phone+date+time.
+- A second, separately-tracked `ReservationRequest` row is created with `requestType: "change"` only when an unambiguous pending target was found (matched pending request, confirmed Reservation by id). Unmatched, ambiguous, or confirmed/terminal `ReservationRequest` matches log an `IntegrationEvent` only — no change request is fabricated without a target to link it to. The new row carries the *requested* new values (so staff see what's being asked for) and references the original record only via a bounded `internalNote` — there is no FK between `ReservationRequest` rows in this schema, and none was added.
+- Validation policy implemented as a two-part check: at least one identifying field AND at least one requested-change field must be present, otherwise `success:false` with `missing_fields`. A provided-but-unparseable date/time is detected separately from "not provided" and also returns a safe `success:false`, HTTP 200 — never silently treated as absent.
+- Safe response for the voice assistant: generic "recorded for the restaurant team to review" acknowledgment in every outcome; never claims a reservation was changed.
+- DB-backed integration test added: `backend/src/tests/vapiModifyReservationRequest.integration.test.ts`, covering missing-identity/missing-change/both-missing validation, pending-request change-request creation (by id and by phone+date+time match), non-existing id, confirmed-request audit fallback, confirmed-Reservation change-request creation, ambiguous-match audit fallback, unknown/inactive webhook key, cross-tenant isolation, alias normalization, nested tool-call envelope, invalid date/time format, reason/newNotes truncation, and the sensitive-field leak check. Not wired into `npm test` (needs `DATABASE_URL`), run via `npm run test:vapi-modify-reservation-request`.
+- Pure adapter test added: `backend/src/tests/vapiModifyReservationRequestAdapter.test.ts`, wired into `npm test` via `npm run test:vapi-modify-reservation-request-adapter`.
+- Gated by the existing `SMOKE_RUN_WRITE_CHECKS` convention — added to `scripts/smoke-backend-beta.sh`, using a fake/non-existing `reservationRequestId` so the smoke command only ever exercises the audit-intent-logging path.
 
 ## 6. Documentation created/updated
 

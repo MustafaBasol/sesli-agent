@@ -267,3 +267,56 @@ export async function findVapiReservationById(restaurantId: string, reservationI
 export function isCancellablePendingStatus(status: string): boolean {
   return CANCELLABLE_PENDING_STATUSES.includes(status);
 }
+
+export interface CreateVapiChangeReservationRequestInput {
+  restaurantId: string;
+  customerId: string | null;
+  conversationId: string | null;
+  customerName: string | null;
+  phoneNumber: string | null;
+  normalizedPhone: string | null;
+  partySize: number | null;
+  reservationDate: string | null; // YYYY-MM-DD
+  reservationTime: string | null;
+  language: string | null;
+  specialRequest: string | null;
+  callId: string | null;
+  internalNote: string | null;
+  rawPayload: unknown;
+}
+
+/**
+ * Phase 35 — creates a new, separately-tracked ReservationRequest with
+ * requestType "change" to record a voice-initiated modification intent for
+ * restaurant-team review. This never updates the original
+ * ReservationRequest/Reservation in place — it is a parallel, auditable
+ * record, linked only via internalNote (no FK exists between
+ * ReservationRequest rows in this schema).
+ */
+export async function createVapiReservationChangeRequest(
+  input: CreateVapiChangeReservationRequestInput
+): Promise<{ id: string }> {
+  const created = await prisma.reservationRequest.create({
+    data: {
+      restaurantId: input.restaurantId,
+      customerId: input.customerId,
+      conversationId: input.conversationId,
+      channel: "voice",
+      provider: "vapi",
+      sourceExternalId: input.callId,
+      requestType: "change",
+      customerName: input.customerName,
+      phoneNumber: input.phoneNumber,
+      normalizedPhone: input.normalizedPhone,
+      partySize: input.partySize ?? undefined,
+      reservationDate: input.reservationDate ? new Date(input.reservationDate) : undefined,
+      reservationTime: input.reservationTime,
+      language: input.language,
+      specialRequest: input.specialRequest,
+      internalNote: input.internalNote,
+      rawPayload: input.rawPayload as Prisma.InputJsonValue,
+      status: "new",
+    },
+  });
+  return { id: created.id };
+}

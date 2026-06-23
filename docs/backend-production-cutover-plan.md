@@ -276,6 +276,34 @@ or backfill strategy). That phase is out of scope here.
   additionally requires the same real-payload parity comparison described
   earlier in this section. `modify` remains blocked on implementation.
 
+### Remaining blocker: modify now built but never directly modifies a confirmed reservation (Phase 35 update)
+
+- A backend `modify-reservation-request` adapter now exists
+  (`POST /api/webhooks/vapi/:publicWebhookKey/modify-reservation-request` in
+  `backend/src/routes/webhooks/vapi.ts`), implementing the Phase 32 decision
+  (Section 3A): it never directly mutates a confirmed `Reservation` or an
+  existing `ReservationRequest`'s date/time/party/status. Every outcome logs
+  a bounded `IntegrationEvent`
+  (`eventType: "reservation_modification_requested"`), and where an
+  unambiguous pending target exists it additionally creates a second,
+  separately-tracked `ReservationRequest` row with `requestType: "change"`
+  for restaurant-team review. See
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 18 for the full
+  contract.
+- **Confirmed reservations are never directly modified by voice in this
+  phase.** The response wording is always "your modification request has
+  been recorded for the restaurant team to review" — it never claims the
+  reservation was actually changed.
+- This closes out the Phase 32 decision pack's modify/cancel/handoff trio —
+  all three (`handoff-to-staff`, `cancel-reservation-request`,
+  `modify-reservation-request`) now have backend implementations.
+- **The Vapi dashboard cutover remains not performed for any of the three
+  tools.** Each now has backend code, but cutover additionally requires the
+  same real-payload parity comparison described earlier in this section.
+  Remaining blockers for full Vapi backend parity beyond this trio: menu
+  routes (still out of scope) and the legacy dispatcher cutover (a separate
+  architectural decision, not bundled with this phase).
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

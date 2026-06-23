@@ -63,6 +63,7 @@ npm run test:vapi-create-reservation-request
 npm run test:vapi-customer-profile
 npm run test:vapi-date-opening-hours
 npm run test:vapi-call-summary
+npm run test:vapi-modify-reservation-request
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -343,6 +344,35 @@ Expect `200` and `success:true` in the response body, with either
 real `ReservationRequest`/`Reservation` row is ever touched by this smoke
 command). Include `/tmp/vapi-cancel-reservation-request-response.json` in
 the section F sensitive-field grep below.
+
+```bash
+# Phase 35 — backend Vapi modify-reservation-request webhook adapter. This
+# WRITES an IntegrationEvent + ToolLog row (and may additionally create a new
+# pending "change" ReservationRequest if it matches), so it is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is NOT run by default. Only run this
+# against a disposable test/beta database, never production. Uses a clearly
+# fake/non-existing reservationRequestId so this always exercises the
+# audit-intent-logging path only — it never modifies a real reservation or
+# pending request.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  SMOKE_MODIFY_CALL_ID="smoke-modify-$(date +%s)"
+  SMOKE_MODIFY_REQUEST_ID="smoke-non-existing-request-$(date +%s)"
+  FUTURE_DATE=$(date -u -d "+7 days" +%F 2>/dev/null || date -u -v+7d +%F)
+  curl -s -o /tmp/vapi-modify-reservation-request-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/modify-reservation-request" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$SMOKE_MODIFY_CALL_ID\",\"reservationRequestId\":\"$SMOKE_MODIFY_REQUEST_ID\",\"newDate\":\"$FUTURE_DATE\",\"newTime\":\"20:00\",\"newPartySize\":3,\"reason\":\"SMOKE_TEST_DO_NOT_USE modification request\",\"customerName\":\"Smoke Modify Customer\",\"phone\":\"+33000000005\",\"language\":\"en\"}"
+fi
+```
+
+Expect `200` and `success:true` in the response body, with either
+`modification_logged:true`, `requires_review:true`, or
+`change_request_created:true` (the fake `reservationRequestId` guarantees
+the "not found, intent logged" path — no real `ReservationRequest`/
+`Reservation` row is ever touched by this smoke command). Include
+`/tmp/vapi-modify-reservation-request-response.json` in the section F
+sensitive-field grep below.
 
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the

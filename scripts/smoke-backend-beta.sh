@@ -158,6 +158,7 @@ else
 fi
 
 # --- sensitive field leak check across all captured responses ---
+leaked_files="$(grep -ril "${grep_args[@]}" "$TMP_DIR"/*.json 2>/dev/null || true)"
 if [ -n "$leaked_files" ]; then
   log_fail "sensitive field pattern found in: $leaked_files"
 else

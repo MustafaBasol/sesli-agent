@@ -62,6 +62,7 @@ npm run test:vapi-check-availability
 npm run test:vapi-create-reservation-request
 npm run test:vapi-customer-profile
 npm run test:vapi-date-opening-hours
+npm run test:vapi-call-summary
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -275,6 +276,26 @@ either way. Include `/tmp/vapi-get-current-date-response.json` and
 `/tmp/vapi-get-opening-hours-response.json` in the section F sensitive-field
 grep below.
 
+```bash
+# Phase 31 — backend Vapi log-call-summary webhook adapter. This WRITES an
+# IntegrationEvent + ToolLog row, so it is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is NOT run by default. Only run this
+# against a disposable test/beta database, never production.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  SMOKE_CALL_ID="smoke-call-summary-$(date +%s)"
+  curl -s -o /tmp/vapi-log-call-summary-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/log-call-summary" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$SMOKE_CALL_ID\",\"summary\":\"SMOKE_TEST_DO_NOT_USE call summary logging check\",\"phone\":\"+33000000002\",\"language\":\"en\",\"durationSeconds\":30}"
+fi
+```
+
+Expect `200` and `success:true` in the response body, and a new
+`IntegrationEvent` row created in the test database (never run this against
+a production database). Include `/tmp/vapi-log-call-summary-response.json`
+in the section F sensitive-field grep below.
+
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the
 account does not have access to `$RESTAURANT_ID` (tenant isolation working
@@ -305,6 +326,8 @@ grep -ril \
   -e 'stateJson' \
   -e 'availableTableIds' \
   -e 'tableIds' \
+  -e 'transcript' \
+  -e 'fullTranscript' \
   /tmp/*-response.json && echo "FAIL: sensitive field found above" \
   || echo "PASS: no sensitive fields found"
 ```

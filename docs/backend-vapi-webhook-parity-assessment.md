@@ -948,3 +948,112 @@ Still not in scope for this phase: `modify-reservation-request`,
 `check-availability`'s connection-status gap remains open; no Menu/MenuItem
 model exists; `log-call-summary`/the legacy `webhook` dispatcher remain
 unimplemented on the backend.
+
+## 14. Phase 31 implementation status (update)
+
+`log-call-summary` backend status moves from **Missing**/**E** (Section
+5/6 — "needs a data/model-mapping decision before implementation") to
+**implemented (hardened, conservative)**. This closes the "Should
+implement" backlog item from Section 7.
+
+What was built:
+
+- `POST /api/webhooks/vapi/:publicWebhookKey/log-call-summary` in
+  `backend/src/routes/webhooks/vapi.ts`, inserted before the
+  `modify-reservation-request`/`cancel-reservation-request`/`handoff-to-staff`
+  stubs. Same tenant-resolution (`resolveVapiIntegrationConnection`),
+  `IntegrationConnection.status === "active"` enforcement, rate limiting
+  (`webhookRateLimiter` at router level), and `ToolLog` create/success/failure
+  pattern as the other Phase 28-30 routes.
+- `backend/src/utils/vapi/callSummaryAdapter.ts` — pure functions
+  (`extractCallSummaryArgs`, `computeCallSummaryMissingFields`,
+  `truncateSummary`, `buildSafeCallSummaryPayload`, response builders), same
+  pattern as `checkAvailabilityAdapter.ts` / `customerProfileAdapter.ts` /
+  `dateOpeningHoursAdapter.ts`. No Prisma access — fully unit-testable.
+
+Model-mapping decision (Section 7's open item): the route stores a single
+`IntegrationEvent` row (`channel: "voice"`, `provider: "vapi"`, `eventType:
+"call_summary"`), not a `Message` on a `Conversation`. This is a deliberate
+deviation from the Section 5 recommendation ("Message on the call's
+Conversation") — a `log-call-summary` tool call frequently arrives without
+enough information to safely resolve or create a `Conversation` row (no
+`Customer`/thread linkage is guaranteed), and Phase 31's constraints
+explicitly forbid creating a `Customer`/`ReservationRequest`/`Reservation`
+from this route. `IntegrationEvent` was already the model AGENTS.md Phase 22
+identified as the right home for historical/audit-style call data, and it
+requires no new linkage decisions. Revisiting the `Message`/`Conversation`
+mapping is left as a future decision if call-summary-to-thread linkage
+becomes a requirement.
+
+Intentional deviations from the old Next.js route (Section 2.13):
+
+- **No raw payload or transcript stored.** The old route stores the entire
+  `rawBody` as `raw_payload` on every `calls` upsert (caller phone numbers,
+  names, and the full Vapi envelope land in the database either way — see
+  Section 2.13's note). The backend route stores only a bounded, allowlisted
+  `payload` (`callId`, truncated `summary`, `language`, `outcome`,
+  `durationSeconds`, `endedReason`) on `IntegrationEvent` — phone/name are
+  extracted by the adapter (for parity with other Vapi adapters' alias
+  coverage) but are **not** persisted or returned, since AGENTS.md Phase 31
+  item 5 explicitly excludes them from the storage/response allowlist.
+  `transcript`/`transcriptText`/`fullTranscript` aliases are recognized by
+  the adapter (so a payload carrying them is still accepted) but the value is
+  never stored or returned anywhere.
+- **Summary is bounded.** `truncateSummary()` caps stored summaries at 4,000
+  characters (`MAX_SUMMARY_LENGTH`); the old route stores whatever length
+  Vapi sends, unbounded.
+- **Required-field policy is explicit.** The old route has **no field
+  validation at all** (Section 2.13) — every field is optional and the only
+  failure mode is a thrown Supabase error. The backend route requires at
+  least `callId` OR `summary`; both missing returns
+  `{ success: false, missing_fields: ["call_id_or_summary"] }` (logged as a
+  `ToolLog` `"failure"`) rather than silently inserting an empty-ish row.
+- **No `calls` table equivalent — `IntegrationEvent` instead.** No upsert-by-
+  `call_id` semantics either: every accepted call creates a new
+  `IntegrationEvent` row (no `vapi_call_id` unique constraint exists on this
+  model, so repeated `log_call_summary` calls for the same `callId` create
+  multiple rows, intentionally — this is an event log, not a mutable `calls`
+  record).
+- **No `silent`/`assistant_instruction` response fields.** The old route's
+  response shape (`{ success, silent, assistant_instruction }`, Section 2.13)
+  is not reproduced; the new contract is `{ success, message, logged,
+  call_id, event_id, missing_fields }` per AGENTS.md Phase 31 item 5's
+  required response shape. If the live Vapi assistant prompt depends on
+  `assistant_instruction`'s specific wording to avoid a "please wait"
+  utterance, that is a gap to close before any cutover, not an oversight.
+- **`IntegrationConnection.status` is enforced**, matching Phase 28-30's
+  hardening pattern, not the still-open `check-availability` gap (Section 7).
+- **No Customer/ReservationRequest/Reservation creation.** Unlike the legacy
+  dispatcher's `log_call_summary` tool (Section 2.1) and the
+  `create_reservation_request` tool's `calls` upsert side effect, this route
+  never touches `Customer`/`ReservationRequest`/`Reservation` — confirmed by
+  the integration test's explicit zero-row-count assertions.
+
+ToolLog behavior: a `ToolLog` row (`toolName: "log_call_summary"`) is
+created in `"processing"` status before the missing-fields check (same
+convention as `get-customer-profile`/`create-customer-profile`'s
+`customerProfileAdapter.ts` contract — a missing-fields call is logged as
+`"failure"`, not skipped). `responsePayload` on success contains only
+`{ eventId, callId }` — never the full response body or `rawPayload`.
+
+Tests added:
+
+- `backend/src/tests/vapiCallSummaryAdapter.test.ts` — pure
+  argument-extraction, missing-field, truncation, and response-shape checks,
+  wired into `npm test` (`test:vapi-call-summary-adapter`).
+- `backend/src/tests/vapiCallSummary.integration.test.ts` — DB-backed,
+  **not** wired into `npm test` (same convention as the other
+  `*.integration.test.ts` files). Run via `npm run test:vapi-call-summary`.
+
+No Prisma schema or migration change was made — the existing `IntegrationEvent`
+model (`restaurantId`, `integrationId`, `channel`, `provider`, `eventType`,
+`status`, `payload`) already had every field this phase needed. No Vapi
+dashboard URL was changed and no production data was touched while
+implementing or documenting Phase 31 — see
+`docs/backend-production-cutover-plan.md` for the unchanged cutover status.
+
+Still not in scope for this phase: `modify-reservation-request`,
+`cancel-reservation-request`, `handoff-to-staff` remain stubs;
+`check-availability`'s connection-status gap remains open; no Menu/MenuItem
+model exists; `get-menu-info`/`get-item-details`/the legacy `webhook`
+dispatcher remain unimplemented on the backend.

@@ -175,7 +175,7 @@ sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials
   credentialsEncrypted webhookVerifyTokenHash accessToken apiKey
   providerSecret clientSecret tokenValue rawPayload stateJson
-  availableTableIds tableIds
+  availableTableIds tableIds transcript fullTranscript
 )
 
 grep_args=()
@@ -224,6 +224,27 @@ if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
   fi
 else
   echo "SKIPPED: POST /api/webhooks/vapi/.../create-customer-profile (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
+fi
+
+# --- Vapi log-call-summary webhook (Phase 31) ---
+# WRITES an IntegrationEvent + ToolLog row, so this is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is skipped by default. Only enable against
+# a disposable test/beta database — never production. Uses clearly fake data
+# tagged SMOKE_TEST_DO_NOT_USE so any leaked row is obviously identifiable.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  vapi_call_summary_file="$TMP_DIR/vapi-log-call-summary.json"
+  smoke_call_id="smoke-call-summary-$(date +%s)"
+  vapi_call_summary_code=$(curl -s -o "$vapi_call_summary_file" -w "%{http_code}" \
+    -X POST "$api/api/webhooks/vapi/$vapi_key/log-call-summary" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$smoke_call_id\",\"summary\":\"SMOKE_TEST_DO_NOT_USE call summary logging check\",\"phone\":\"+33000000002\",\"language\":\"en\",\"durationSeconds\":30}")
+  if [ "$vapi_call_summary_code" = "200" ] && grep -q '"success":true' "$vapi_call_summary_file"; then
+    log_pass "POST /api/webhooks/vapi/$vapi_key/log-call-summary -> 200 (success:true)"
+  else
+    log_fail "POST /api/webhooks/vapi/$vapi_key/log-call-summary -> $vapi_call_summary_code"
+  fi
+else
+  echo "SKIPPED: POST /api/webhooks/vapi/.../log-call-summary (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
 fi
 
 # --- sensitive field leak check across all captured responses ---

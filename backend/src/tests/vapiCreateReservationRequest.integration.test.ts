@@ -182,10 +182,18 @@ async function main() {
         },
       }),
     });
-    const nestedBody = await readVapiJson(nestedRes);
     assert.equal(nestedRes.status, 200);
+    const nestedEnvelope = (await nestedRes.json()) as {
+      results?: Array<{ toolCallId: string; result?: string; error?: string }>;
+    };
+    assert.ok(
+      nestedEnvelope.results?.[0]?.result,
+      `nested tool-call payload must be wrapped in the Vapi results[] envelope: ${JSON.stringify(nestedEnvelope)}`
+    );
+    const nestedBody = JSON.parse(nestedEnvelope.results![0].result!) as VapiToolHttpBody;
     assert.equal(nestedBody.success, true, `nested tool-call create must succeed: ${JSON.stringify(nestedBody)}`);
-    assertNoSensitiveFields(nestedBody, "nested tool-call create");
+    assert.ok(nestedBody.reservation_request_id, "nested tool-call create must return reservation_request_id");
+    assertNoSensitiveFields(nestedEnvelope, "nested tool-call create");
 
     const nestedRequest = await prisma.reservationRequest.findFirst({
       where: { restaurantId: restaurant.id, sourceExternalId: nestedCallId },

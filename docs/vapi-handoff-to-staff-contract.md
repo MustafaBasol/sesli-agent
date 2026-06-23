@@ -34,7 +34,7 @@ Same shapes the other Vapi adapters in this backend accept
 | reason | `reason`, `handoffReason`, `handoff_reason` |
 | message | `message`, `customerMessage`, `customer_message` |
 | urgency | `urgency`, `priority` |
-| customerName | `customerName`, `name`, `fullName` |
+| customerName | `customerName`, `name`, `fullName`, `customer_name`, `full_name` |
 | phone | `phone`, `phoneNumber`, `callerNumber`, `customerPhone` (+ Vapi envelope caller-number fallback) |
 | email | `email`, `customerEmail` |
 | language | `language`, `lang`, `locale` |

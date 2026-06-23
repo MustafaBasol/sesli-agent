@@ -36,8 +36,12 @@ remove the Supabase admin, do not switch the Vapi webhook URL here).
     `/api/restaurants/:restaurantId/availability/slots` (Phase 25 — slot
     calculation service; none of these are wired into any Vapi route yet,
     see Section C)
-  - `/api/webhooks/vapi/:publicWebhookKey/create-reservation-request`
-    (other webhook actions exist as routes but are `notImplemented` — see
+  - `/api/webhooks/vapi/:publicWebhookKey/create-reservation-request`,
+    `/api/webhooks/vapi/:publicWebhookKey/check-availability`,
+    `/api/webhooks/vapi/:publicWebhookKey/get-customer-profile`,
+    `/api/webhooks/vapi/:publicWebhookKey/create-customer-profile` (Phase 29)
+    (`modify-reservation-request`, `cancel-reservation-request`, and
+    `handoff-to-staff` exist as routes but are still `notImplemented` — see
     `backend/src/routes/webhooks/vapi.ts`)
 - The two systems are fully independent today: separate databases
   (Supabase Postgres vs the backend's own PostgreSQL via Prisma), separate
@@ -152,8 +156,9 @@ or backfill strategy). That phase is out of scope here.
   `get-customer-profile`, `create-customer-profile`, `get-item-details`,
   `get-menu-info`, `get-opening-hours`, `log-call-summary`, `webhook`).
 - The backend exposes parallel routes under
-  `/api/webhooks/vapi/:publicWebhookKey/*`. `create-reservation-request` and
-  (as of Phase 27) `check-availability` are implemented today;
+  `/api/webhooks/vapi/:publicWebhookKey/*`. `create-reservation-request`,
+  (as of Phase 27) `check-availability`, and (as of Phase 29)
+  `get-customer-profile`/`create-customer-profile` are implemented today;
   `modify-reservation-request`, `cancel-reservation-request`, and
   `handoff-to-staff` exist as routes but return "not implemented"
   (`backend/src/routes/webhooks/vapi.ts`). The backend route set is **not
@@ -191,6 +196,22 @@ or backfill strategy). That phase is out of scope here.
   representative Vapi payloads (recorded from real calls or Vapi's test
   console) and diff the resulting Supabase vs backend database writes for
   parity. This comparison work is not part of this phase.
+
+### Vapi dashboard cutover not performed (Phase 29)
+
+- `get-customer-profile` and `create-customer-profile` backend adapters now
+  exist (see `docs/backend-vapi-webhook-parity-assessment.md` Section 12 and
+  `docs/vapi-customer-profile-contract.md` for the full contract), but the
+  live Vapi dashboard URL is **unchanged** and continues to serve
+  `src/app/api/vapi/get-customer-profile/route.ts` and
+  `src/app/api/vapi/create-customer-profile/route.ts`. The backend routes
+  are intentionally stricter (exact tenant-scoped phone/email match instead
+  of a global fuzzy suffix scan, plus a new conflict response) — these are
+  *not* byte-compatible with the old routes and must not be assumed
+  drop-in-equivalent before a real Vapi payload/response comparison is done
+  (same caveat as `check-availability`/`create-reservation-request` below).
+- Rollback for these two routes, if ever cut over, is the same single-step
+  dashboard URL revert described in Section F.
 
 ### Vapi dashboard cutover not performed (Phase 27)
 

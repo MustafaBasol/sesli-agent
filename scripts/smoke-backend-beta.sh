@@ -123,6 +123,22 @@ else
   log_fail "POST /api/webhooks/vapi/$vapi_key/check-availability -> $vapi_code"
 fi
 
+# --- Vapi get-customer-profile webhook (Phase 29) ---
+# Public, publicWebhookKey-authenticated route, read-only: never
+# creates/updates a Customer. Uses a fake phone number so a real customer
+# record is never required for this check to pass; success:false/found:false
+# is the expected, non-failing result.
+vapi_get_customer_profile_file="$TMP_DIR/vapi-get-customer-profile.json"
+vapi_get_customer_code=$(curl -s -o "$vapi_get_customer_profile_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/get-customer-profile" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+10000000000"}')
+if [ "$vapi_get_customer_code" = "200" ] && grep -q '"success"' "$vapi_get_customer_profile_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/get-customer-profile -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/get-customer-profile -> $vapi_get_customer_code"
+fi
+
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials
@@ -155,6 +171,28 @@ if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
   fi
 else
   echo "SKIPPED: POST /api/webhooks/vapi/.../create-reservation-request (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
+fi
+
+# --- Vapi create-customer-profile webhook (Phase 29) ---
+# WRITES/updates a Customer row, so this is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is skipped by default. Only enable against
+# a disposable test/beta database — never production. Uses clearly fake data
+# tagged SMOKE_TEST_DO_NOT_USE so any leaked row is obviously identifiable.
+# This creates the Customer on first run and updates the same tagged row on
+# any repeat run (same phone number reused on purpose).
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  vapi_create_customer_file="$TMP_DIR/vapi-create-customer-profile.json"
+  vapi_create_customer_code=$(curl -s -o "$vapi_create_customer_file" -w "%{http_code}" \
+    -X POST "$api/api/webhooks/vapi/$vapi_key/create-customer-profile" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Smoke Test Customer","phone":"+33000000001","email":"smoke-customer@example.test","notes":"SMOKE_TEST_DO_NOT_USE"}')
+  if [ "$vapi_create_customer_code" = "200" ] && grep -q '"success":true' "$vapi_create_customer_file"; then
+    log_pass "POST /api/webhooks/vapi/$vapi_key/create-customer-profile -> 200 (success:true)"
+  else
+    log_fail "POST /api/webhooks/vapi/$vapi_key/create-customer-profile -> $vapi_create_customer_code"
+  fi
+else
+  echo "SKIPPED: POST /api/webhooks/vapi/.../create-customer-profile (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
 fi
 
 # --- sensitive field leak check across all captured responses ---

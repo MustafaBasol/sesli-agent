@@ -39,11 +39,38 @@ const SENSITIVE_FIELD_PATTERNS = [
   "fullTranscript",
 ];
 
-function assertNoSensitiveFields(body: unknown, label: string) {
-  const json = JSON.stringify(body);
-  for (const pattern of SENSITIVE_FIELD_PATTERNS) {
-    assert.ok(!json.includes(pattern), `${label} response must not contain "${pattern}": ${json}`);
+// Checks object/array KEY NAMES recursively against the sensitive-field
+// patterns (case-insensitive substring match on the key itself), not the
+// serialized JSON text. This avoids false positives where a sensitive word
+// appears inside a legitimate VALUE (e.g. a test callId containing the word
+// "transcript") while still catching any field actually named like a
+// sensitive pattern, at any nesting depth.
+function collectSensitiveKeyHits(value: unknown, patterns: string[], path = ""): string[] {
+  const hits: string[] = [];
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => hits.push(...collectSensitiveKeyHits(item, patterns, `${path}[${index}]`)));
+    return hits;
   }
+  if (value && typeof value === "object") {
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      const keyPath = path ? `${path}.${key}` : key;
+      const lowerKey = key.toLowerCase();
+      if (patterns.some((pattern) => lowerKey.includes(pattern.toLowerCase()))) {
+        hits.push(keyPath);
+      }
+      hits.push(...collectSensitiveKeyHits(val, patterns, keyPath));
+    }
+  }
+  return hits;
+}
+
+function assertNoSensitiveFields(body: unknown, label: string) {
+  const hits = collectSensitiveKeyHits(body, SENSITIVE_FIELD_PATTERNS);
+  assert.equal(
+    hits.length,
+    0,
+    `${label} response must not contain sensitive field name(s) [${hits.join(", ")}]: ${JSON.stringify(body)}`
+  );
 }
 
 interface VapiCallSummaryBody {
@@ -242,18 +269,30 @@ async function main() {
     assert.ok(storedSummary.length <= 4000, "stored summary must be bounded to <= 4000 characters");
     assert.ok(storedSummary.length < longSummary.length, "stored summary must be truncated from the original input");
 
-    // 11. Transcript/raw payload is never returned in the response.
+    // 11. Transcript/raw payload is never returned in the response. The
+    // fixture's callId deliberately avoids the literal word "transcript" so
+    // this assertion can only pass by the response truly omitting a
+    // transcript-named field, not by coincidentally avoiding the substring.
     const transcriptRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        call_id: `${TEST_TAG}_call_transcript`,
+        call_id: `${TEST_TAG}_call_privacy_case`,
         summary: "Has a transcript field too.",
         transcript: "This is the full transcript text that must never leak.",
       }),
     });
     const transcriptBody = await readJson(transcriptRes);
     assertNoSensitiveFields(transcriptBody, "log-call-summary with transcript field");
+
+    // Also verify the chosen storage row (IntegrationEvent.payload) never
+    // persists the transcript text, and that the transcript input is in fact
+    // recognized (proving this isn't a vacuous pass due to a parsing miss).
+    const transcriptEvent = await prisma.integrationEvent.findUnique({
+      where: { id: transcriptBody.event_id! },
+    });
+    assert.ok(transcriptEvent, "an IntegrationEvent row must be created even when a transcript field is present");
+    assertNoSensitiveFields(transcriptEvent!.payload, "IntegrationEvent.payload with transcript field present");
 
     // 12. No Customer/ReservationRequest/Reservation is created by this route.
     const customerCount = await prisma.customer.count({ where: { restaurantId: restaurantA.id } });

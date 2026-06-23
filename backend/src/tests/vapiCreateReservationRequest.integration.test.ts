@@ -24,6 +24,20 @@ import { prisma } from "../prisma/client";
 
 const TEST_TAG = `vapicrr_${Date.now()}`;
 
+/**
+ * Phase 28's availability hard-block check rejects dates past the
+ * restaurant's bookingWindowDays (defaults to 30 — see
+ * restaurantAvailabilityService.ts DEFAULT_SETTINGS). A fixed far-future
+ * date like "2027-06-01" is comfortably "in the future" but can fall
+ * outside that 30-day window depending on when this test runs, so scenarios
+ * that must reach a successful create use a date relative to today instead.
+ */
+function nearFutureDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
 const SENSITIVE_FIELD_PATTERNS = [
   "passwordHash",
   "resetToken",
@@ -125,7 +139,7 @@ async function main() {
         call_id: camelCallId,
         fullName: "Grace Hopper",
         phoneNumber: "+1 212 555 0100",
-        reservationDate: "2027-06-01",
+        reservationDate: nearFutureDate(5),
         reservationTime: "19:00",
         numberOfGuests: 2,
         specialRequests: "highchair needed",
@@ -133,6 +147,7 @@ async function main() {
     });
     const camelBody = await readVapiJson(camelRes);
     assert.equal(camelRes.status, 200);
+    assert.equal(camelBody.success, true, `camelCase create must succeed: ${JSON.stringify(camelBody)}`);
     assertNoSensitiveFields(camelBody, "camelCase create");
 
     const camelRequest = await prisma.reservationRequest.findFirst({
@@ -157,7 +172,7 @@ async function main() {
                 arguments: JSON.stringify({
                   customer_name: "Margaret Hamilton",
                   phone_number: "+1 650 555 0100",
-                  reservation_date: "2027-08-01",
+                  reservation_date: nearFutureDate(6),
                   reservation_time: "12:00",
                   party_size: 5,
                 }),
@@ -169,6 +184,7 @@ async function main() {
     });
     const nestedBody = await readVapiJson(nestedRes);
     assert.equal(nestedRes.status, 200);
+    assert.equal(nestedBody.success, true, `nested tool-call create must succeed: ${JSON.stringify(nestedBody)}`);
     assertNoSensitiveFields(nestedBody, "nested tool-call create");
 
     const nestedRequest = await prisma.reservationRequest.findFirst({
@@ -248,7 +264,7 @@ async function main() {
       call_id: idemCallId,
       customer_name: "Idem Potent",
       phone_number: "+1 555 2222",
-      reservation_date: "2027-09-05",
+      reservation_date: nearFutureDate(7),
       reservation_time: "20:00",
       party_size: 2,
     };

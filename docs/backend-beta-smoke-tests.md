@@ -296,6 +296,28 @@ Expect `200` and `success:true` in the response body, and a new
 a production database). Include `/tmp/vapi-log-call-summary-response.json`
 in the section F sensitive-field grep below.
 
+```bash
+# Phase 33 — backend Vapi handoff-to-staff webhook adapter. This WRITES an
+# IntegrationEvent + ToolLog row, so it is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is NOT run by default. Only run this
+# against a disposable test/beta database, never production. Logging only —
+# no staff notification channel exists, so this never pages/emails/SMSes anyone.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  SMOKE_HANDOFF_CALL_ID="smoke-handoff-$(date +%s)"
+  curl -s -o /tmp/vapi-handoff-to-staff-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/handoff-to-staff" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$SMOKE_HANDOFF_CALL_ID\",\"reason\":\"SMOKE_TEST_DO_NOT_USE handoff request\",\"customerName\":\"Smoke Handoff Customer\",\"phone\":\"+33000000003\",\"language\":\"en\"}"
+fi
+```
+
+Expect `200` and `success:true` in the response body, and a new
+`IntegrationEvent` row (`eventType: "handoff_to_staff"`) created in the test
+database (never run this against a production database). Include
+`/tmp/vapi-handoff-to-staff-response.json` in the section F sensitive-field
+grep below.
+
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the
 account does not have access to `$RESTAURANT_ID` (tenant isolation working

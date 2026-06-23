@@ -201,6 +201,56 @@ or backfill strategy). That phase is out of scope here.
   console) and diff the resulting Supabase vs backend database writes for
   parity. This comparison work is not part of this phase.
 
+### Remaining blocker: modify / cancel / handoff (Phase 32 update)
+
+- Phase 32 was documentation-only and resolved the **behavior decision** for
+  `modify-reservation-request`, `cancel-reservation-request`, and
+  `handoff-to-staff` — see `docs/vapi-modify-cancel-handoff-decision-pack.md`
+  for the full decision pack and
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 15 for the status
+  update. **No code was written.** The three backend routes still return
+  `501 { error: "Not implemented yet" }` (`backend/src/routes/webhooks/vapi.ts`).
+- Recommended implementation order (Phase 33+): `handoff-to-staff` first
+  (`IntegrationEvent`, reusing the Phase 31 `log-call-summary` pattern, no
+  staff-notification channel implied), then `cancel-reservation-request`
+  (auto-cancel only unambiguous matches against *pending* requests via
+  existing status-transition logic; everything else falls back to an
+  audit-only row — never a hard delete), then
+  `modify-reservation-request` (always an audit-only new request, never an
+  auto-applied mutation, due to higher matching-ambiguity risk).
+- **Explicitly restated: the Vapi dashboard cutover for these three tools
+  remains not allowed.** This was already true before Phase 32 because the
+  routes were unimplemented; it remains true after Phase 32 because the
+  routes are still unimplemented — Phase 32 only removed the *decision*
+  blocker, not the *implementation* blocker. Cutover additionally still
+  requires the same real-payload parity comparison described earlier in
+  this section for every other route.
+
+### Remaining blocker: modify / cancel still unimplemented; handoff now built but no staff notification channel (Phase 33 update)
+
+- A backend `handoff-to-staff` adapter now exists
+  (`POST /api/webhooks/vapi/:publicWebhookKey/handoff-to-staff` in
+  `backend/src/routes/webhooks/vapi.ts`), implementing the Phase 32 decision:
+  it stores a bounded `IntegrationEvent` (`eventType: "handoff_to_staff"`)
+  via the same `ToolLog` processing→success/failure pattern as every other
+  Vapi adapter, and creates no `Customer`/`ReservationRequest`/`Reservation`
+  row. See `docs/backend-vapi-webhook-parity-assessment.md` Section 16 and
+  `docs/vapi-handoff-to-staff-contract.md` for the full contract.
+- **No staff notification channel exists yet.** This route only logs an
+  auditable handoff intent; it does not page, email, SMS, or otherwise alert
+  any human. The response wording was deliberately written to avoid
+  implying otherwise ("your request has been recorded for the restaurant
+  team... they will follow up"), and this remains true after Phase 33 — a
+  real notification channel is a separate, not-yet-scoped piece of work.
+- `modify-reservation-request` and `cancel-reservation-request` are still
+  `501 { error: "Not implemented yet" }` stubs — unchanged by Phase 33.
+- **The Vapi dashboard cutover remains not allowed for any of the three
+  tools.** `handoff-to-staff` now has backend code, but cutover additionally
+  requires the same real-payload parity comparison described earlier in this
+  section, plus a product decision on whether logging-only (no notification)
+  is acceptable as the live behavior — that decision has not been made.
+  `modify`/`cancel` remain blocked on implementation as before.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

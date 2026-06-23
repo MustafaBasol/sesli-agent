@@ -46,6 +46,13 @@ import {
   computeCallSummaryMissingFields,
   extractCallSummaryArgs,
 } from "../../utils/vapi/callSummaryAdapter";
+import {
+  buildHandoffToStaffMissingFieldsResponse,
+  buildHandoffToStaffSuccessResponse,
+  buildSafeHandoffToStaffPayload,
+  computeHandoffToStaffMissingFields,
+  extractHandoffToStaffArgs,
+} from "../../utils/vapi/handoffToStaffAdapter";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/client";
 import {
@@ -848,6 +855,95 @@ vapiWebhookRouter.post(
   })
 );
 
+// POST /api/webhooks/vapi/:publicWebhookKey/handoff-to-staff
+//
+// Phase 32 decision (docs/vapi-modify-cancel-handoff-decision-pack.md): stores
+// the handoff intent as a safe, bounded IntegrationEvent — same storage
+// pattern as Phase 31's log-call-summary — and never claims staff were
+// actually notified, because no staff notification channel exists yet. Never
+// creates/mutates a Customer, ReservationRequest, or Reservation. The old
+// Next.js/Supabase route (insert-only into staff_handoffs, no notification
+// either) and the legacy dispatcher's no-op handoff_to_staff case are both
+// untouched and keep serving the production Vapi assistant during this
+// migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/handoff-to-staff",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractHandoffToStaffArgs(allSources, rawBody);
+
+    const missingFields = computeHandoffToStaffMissingFields(args);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "handoff_to_staff",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildHandoffToStaffMissingFieldsResponse(missingFields, args.language));
+      return;
+    }
+
+    try {
+      const safePayload = buildSafeHandoffToStaffPayload(args);
+
+      const event = await prisma.integrationEvent.create({
+        data: {
+          restaurantId,
+          integrationId: connection.id,
+          channel: "voice",
+          provider: "vapi",
+          eventType: "handoff_to_staff",
+          status: "received",
+          payload: safePayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { eventId: event.id, callId: args.callId } },
+      });
+
+      sendVapiToolResponse(res, rawBody, buildHandoffToStaffSuccessResponse(event.id, args.language));
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi handoff-to-staff failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while logging handoff to staff");
+    }
+  })
+);
+
 // Scaffolded for a later phase — Phase 4 only implements create-reservation-request.
 function notImplemented(req: Request, res: Response): void {
   res.status(501).json({ error: "Not implemented yet" });
@@ -855,6 +951,5 @@ function notImplemented(req: Request, res: Response): void {
 
 vapiWebhookRouter.post("/:publicWebhookKey/modify-reservation-request", notImplemented);
 vapiWebhookRouter.post("/:publicWebhookKey/cancel-reservation-request", notImplemented);
-vapiWebhookRouter.post("/:publicWebhookKey/handoff-to-staff", notImplemented);
 
 export default vapiWebhookRouter;

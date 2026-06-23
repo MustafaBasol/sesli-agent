@@ -1057,3 +1057,74 @@ Still not in scope for this phase: `modify-reservation-request`,
 `check-availability`'s connection-status gap remains open; no Menu/MenuItem
 model exists; `get-menu-info`/`get-item-details`/the legacy `webhook`
 dispatcher remain unimplemented on the backend.
+
+## 15. Phase 32 decision status (update)
+
+Phase 32 was a documentation/decision-only phase (no code, schema, or
+Vapi/Supabase changes) that resolved the "Blocker (behavior undecided)"
+status this assessment assigned to `modify-reservation-request`,
+`cancel-reservation-request`, and `handoff-to-staff` in Sections 5–7 above.
+Full behavior decisions, old-route inspection detail, backend model mapping,
+and per-route acceptance criteria now live in
+`docs/vapi-modify-cancel-handoff-decision-pack.md` — this section only
+records the resulting status change.
+
+- **modify-reservation-request**: **Decision-ready, not implemented.**
+  Decided behavior: new `ReservationRequest` row (`requestType: "change"`),
+  never an auto-applied mutation of an existing request/reservation. No
+  schema change needed — `requestType` already documents `"change"` as a
+  value. Recommended target phase: 35 (last of the three, due to matching
+  complexity).
+- **cancel-reservation-request**: **Decision-ready, not implemented.**
+  Decided behavior: auto-cancel only an unambiguous match against a
+  *pending* `ReservationRequest` (via the existing
+  `setReservationRequestStatus`/`isValidStatusTransition`); anything
+  touching a confirmed `Reservation`, or any ambiguous match, falls back to
+  an audit-only `ReservationRequest` (`requestType: "cancel"`) for staff to
+  action manually. No hard-delete in any case. Recommended target phase: 34.
+- **handoff-to-staff**: **Decision-ready, not implemented.**
+  Decided behavior: `IntegrationEvent` (`eventType: "handoff_requested"`),
+  reusing the exact pattern Phase 31's `log-call-summary` already
+  established, plus an optional `Conversation.status = "pending"` +
+  `Message` when a `Conversation` resolves via `callId`. Explicitly no
+  staff-notification channel exists or is implied by this design.
+  Recommended target phase: 33 (first of the three — lowest risk, reuses an
+  already-proven pattern).
+
+This changes the Section 6 recommendation codes for these three routes from
+**E** (needs a data/behavior decision) to **decision made, implementation
+pending** — they remain unbuilt, but are no longer blocked on a product
+question. `docs/backend-production-cutover-plan.md` has been updated to
+reflect that Vapi dashboard cutover is still withheld pending
+*implementation*, not pending *decision*, for these three tools.
+
+## 16. Phase 33 implementation status (update)
+
+`POST /api/webhooks/vapi/:publicWebhookKey/handoff-to-staff` is now
+implemented in `backend/src/routes/webhooks/vapi.ts`, replacing its
+`notImplemented` (501) stub. It follows the Phase 32 decision and reuses
+Phase 31's `log-call-summary` pattern exactly: tenant resolved via
+`resolveVapiIntegrationConnection`, `ToolLog` processing→success/failure
+audit trail, and a single bounded `IntegrationEvent`
+(`eventType: "handoff_to_staff"`, `payload`: callId/reason/message/urgency/
+customerName/phone/email/language/requestedAt/source — never the raw Vapi
+body or transcript). One intentional naming deviation from the decision
+pack: `eventType` is `"handoff_to_staff"` rather than `"handoff_requested"`,
+matching the route's own tool name; this was an allowed choice in the Phase
+33 spec and does not change the storage policy. The optional
+`Conversation`/`Message` write described as optional in the decision pack
+was deferred — `IntegrationEvent` only, per the decision pack's own
+fallback guidance ("if uncertain, defer Conversation changes").
+
+The response never claims staff were notified — wording is "your request
+has been recorded for the restaurant team. They will follow up with you as
+soon as possible" (or the Turkish/French equivalents), consistent with the
+documented absence of a staff notification channel. No `Customer`,
+`ReservationRequest`, or `Reservation` row is created or mutated by this
+route.
+
+`modify-reservation-request` and `cancel-reservation-request` remain
+`notImplemented` (501) stubs — out of scope for Phase 33. The old
+Next.js/Supabase `handoff-to-staff` route and the legacy dispatcher's
+`handoff_to_staff` no-op case are both untouched and continue to serve the
+production Vapi assistant; the Vapi dashboard has not been switched.

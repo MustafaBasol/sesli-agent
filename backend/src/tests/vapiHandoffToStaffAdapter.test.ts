@@ -39,6 +39,7 @@ async function main() {
   assert.equal(flat.reason, "Customer wants a refund.");
   assert.equal(flat.message, "Please call me back.");
   assert.equal(flat.urgency, "high");
+  assert.equal(flat.customerName, "Jane Doe");
   assert.equal(flat.phone, "+1 555 0100");
   assert.equal(flat.normalizedPhone, "15550100");
   assert.equal(flat.email, "jane@example.com");

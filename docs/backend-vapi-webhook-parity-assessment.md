@@ -818,3 +818,133 @@ Still not in scope for this phase: `modify-reservation-request`,
 `check-availability`'s connection-status gap remains open; no Menu/MenuItem
 model exists; `log-call-summary`/`get-opening-hours`/the legacy `webhook`
 dispatcher remain unimplemented on the backend.
+
+## 13. Phase 30 implementation status (update)
+
+`get-current-date` and `get-opening-hours` backend status moves from
+**Missing**/**C** and **Missing (route gap only)**/**B** (Section 5/6) to
+**implemented**. This closes the Section 7/8 backlog item for `get-opening-hours`
+("data ready, only formatting logic is missing") and the low-priority
+`get-current-date` port noted in Section 6/8.
+
+What was built:
+
+- `POST /api/webhooks/vapi/:publicWebhookKey/get-current-date` — read-only.
+  Reports the *restaurant's* local date/time (`Restaurant.timezone`, falling
+  back to `Europe/Paris` only if blank) instead of the old route's
+  hardcoded `Europe/Paris` constant (Section 2.7's `current-date.ts`). Adds
+  a `day_of_week` localized via `Restaurant.defaultLanguage` (or a caller-
+  supplied `language`/`lang`/`locale`), which the old route did not have
+  (its Turkish-only spoken-date helpers are a separate concern not ported).
+- `POST /api/webhooks/vapi/:publicWebhookKey/get-opening-hours` — read-only.
+  Formats `RestaurantSettings.openingHoursJson` + active `BlackoutDate`s into
+  a structured `opening_periods`/`weekly_hours` shape instead of the old
+  route's pre-formatted `{ opening_hours, holiday_closures }` strings
+  (Section 2.12). Supports an optional requested `date`; without one, returns
+  today's status plus the full week. Never calls `calculateAvailabilitySlots`
+  — slot math remains exclusively `check-availability`'s responsibility
+  (AGENTS.md Phase 30 constraint).
+- `backend/src/utils/vapi/dateOpeningHoursAdapter.ts` — pure functions
+  (argument/date/language extraction and normalization, response-shape
+  builders), same pattern as `checkAvailabilityAdapter.ts` /
+  `customerProfileAdapter.ts`. No Prisma access — fully unit-testable. Reuses
+  `getNowPartsInTimezone`/`getWeekdayFromLocalDate`/`isValidOpeningHoursJson`
+  from `availabilitySlotHelpers.ts` (Phase 25) rather than re-implementing
+  timezone/weekday math.
+- No new service file — both routes read `Restaurant`,
+  `getOrCreateAvailabilitySettings` (Phase 24/25), and `BlackoutDate`
+  directly in `routes/webhooks/vapi.ts`, the same Prisma access pattern
+  already used by `check-availability` for `calculateAvailabilitySlots`.
+
+Timezone policy: `Restaurant.timezone` is authoritative; the
+`RestaurantSettings` model has no timezone field, so the documented
+"RestaurantSettings fallback" in AGENTS.md Phase 30 item 3 is a no-op in the
+current schema (`Restaurant.timezone` always has a DB default of
+`Europe/Paris`, so the final hardcoded fallback only triggers for a blank
+string at the application layer, not a missing column).
+
+Opening-hours "not configured" contract decision: returns
+`{ success: true, configured: false, ... }`, not `success: false` — chosen
+to match the existing `get-customer-profile` not-found precedent
+(`success:true, found:false`) so the Vapi assistant treats "no hours on
+file" as a normal, gracefully-handled outcome rather than a tool error worth
+retrying. "Empty" is defined as `openingHoursJson` being `null`/invalid, **or**
+a valid object where every weekday's window list is empty — both treated as
+unconfigured per AGENTS.md Phase 30 item 4's "missing or empty" wording. See
+`docs/vapi-date-opening-hours-contract.md` for the full contract.
+
+Blackout handling: a full-day `BlackoutDate` for the resolved date overrides
+the normal opening-hours computation entirely (`is_open: false,
+closed_reason: "blackout_full_day"`, mirroring `check-availability`'s
+`blackout_full_day` blocked reason). A partial-day blackout
+(`isFullDay: false` with both `startsAtLocal`/`endsAtLocal` set) does **not**
+flip `is_open` — it is surfaced as an additional `partial_blackout_note`
+field plus inline text in `message`, since the restaurant is still genuinely
+open outside that window and slot-level exclusion is `check-availability`'s
+job, not this route's.
+
+Restaurant-inactive / reservations-disabled policy: both return
+`{ success: true, is_open: false, closed_reason: "restaurant_inactive" |
+"reservations_disabled" }` — same safe-for-voice shape as the not-configured
+case, reusing the message wording already established in
+`checkAvailabilityAdapter.ts`'s `BLOCKED_REASON_MESSAGES` (kept as a
+separate, smaller constant in the new adapter rather than importing across
+adapter files, to keep each adapter independently testable).
+
+Intentional deviations from the old Next.js routes (Section 2.7/2.12):
+
+- **Structured response instead of pre-formatted strings.** The old
+  `get-opening-hours` route builds `opening_hours`/`holiday_closures` as
+  newline/comma-joined strings server-side. The backend route returns
+  `opening_periods: [{opens, closes}]` and `weekly_hours` as a compact
+  per-weekday object — the assistant prompt is expected to phrase this
+  itself, consistent with the rest of this backend's structured-data
+  philosophy (e.g. `check-availability`'s `available_slots`).
+- **No day-of-week-only Supabase row format.** The old route's
+  `restaurant_settings` is one row per weekday with `day_of_week` (int),
+  `open_time`/`close_time`, `is_closed`. The backend's
+  `RestaurantSettings.openingHoursJson` (Phase 25) is a single JSON document
+  keyed by weekday name with an array of windows per day, supporting
+  multiple opening windows per day (e.g. lunch + dinner) that the old flat
+  row shape could not represent.
+- **No Turkish-specific spoken-date helpers ported.** `current-date.ts`'s
+  `numberToTurkishWords`/`formatDateForTurkishSpeech` (Section 2.7) are not
+  reproduced — `day_of_week` is a plain localized label (English/Turkish/
+  French), not a fully spoken-out date string. If the live assistant prompt
+  depends on the exact Turkish spoken-date wording, that is a gap to close
+  before any cutover, not an oversight.
+- **`IntegrationConnection.status` is enforced** (`!== "active"` rejected
+  the same as an unknown key), matching Phase 28/29's hardening, not Phase
+  27's `check-availability` (open gap, Section 7).
+
+ToolLog behavior: a `ToolLog` row (`toolName: "get_current_date"` /
+`"get_opening_hours"`) is created in `"processing"` status (for
+`get-opening-hours`, only after the date-format validation passes — an
+invalid date is logged directly as a `"failure"` row, mirroring the
+missing-fields-as-failure convention from Phase 29's `customerProfileAdapter.ts`
+contract). Both routes log `responsePayload` with only safe scalar fields
+(timezone/date/isOpen/configured/closedReason) — never the full response
+body or `rawPayload`.
+
+Tests added:
+
+- `backend/src/tests/vapiDateOpeningHoursAdapter.test.ts` — pure
+  argument-extraction, date-validation, and response-shape checks, wired
+  into `npm test` (`test:vapi-date-opening-hours-adapter`).
+- `backend/src/tests/vapiDateOpeningHours.integration.test.ts` — DB-backed,
+  **not** wired into `npm test` (same convention as the other
+  `*.integration.test.ts` files). Run via
+  `npm run test:vapi-date-opening-hours`.
+
+No Prisma schema or migration change was made — `Restaurant.timezone`/
+`defaultLanguage`/`status`, `RestaurantSettings.openingHoursJson`/
+`reservationsEnabled`, and `BlackoutDate` (all from Phase 24/25) already had
+every field this phase needed. No Vapi dashboard URL was changed and no
+production data was touched while implementing or documenting Phase 30 — see
+`docs/backend-production-cutover-plan.md` for the unchanged cutover status.
+
+Still not in scope for this phase: `modify-reservation-request`,
+`cancel-reservation-request`, `handoff-to-staff` remain stubs;
+`check-availability`'s connection-status gap remains open; no Menu/MenuItem
+model exists; `log-call-summary`/the legacy `webhook` dispatcher remain
+unimplemented on the backend.

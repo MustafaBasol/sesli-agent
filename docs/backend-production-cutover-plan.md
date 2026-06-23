@@ -157,8 +157,9 @@ or backfill strategy). That phase is out of scope here.
   `get-menu-info`, `get-opening-hours`, `log-call-summary`, `webhook`).
 - The backend exposes parallel routes under
   `/api/webhooks/vapi/:publicWebhookKey/*`. `create-reservation-request`,
-  (as of Phase 27) `check-availability`, and (as of Phase 29)
-  `get-customer-profile`/`create-customer-profile` are implemented today;
+  (as of Phase 27) `check-availability`, (as of Phase 29)
+  `get-customer-profile`/`create-customer-profile`, and (as of Phase 30)
+  `get-current-date`/`get-opening-hours` are implemented today;
   `modify-reservation-request`, `cancel-reservation-request`, and
   `handoff-to-staff` exist as routes but return "not implemented"
   (`backend/src/routes/webhooks/vapi.ts`). The backend route set is **not
@@ -196,6 +197,22 @@ or backfill strategy). That phase is out of scope here.
   representative Vapi payloads (recorded from real calls or Vapi's test
   console) and diff the resulting Supabase vs backend database writes for
   parity. This comparison work is not part of this phase.
+
+### Vapi dashboard cutover not performed (Phase 30)
+
+- `get-current-date` and `get-opening-hours` backend adapters now exist (see
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 13 and
+  `docs/vapi-date-opening-hours-contract.md` for the full contract), but the
+  live Vapi dashboard URL is **unchanged** and continues to serve
+  `src/app/api/vapi/get-current-date/route.ts` and
+  `src/app/api/vapi/get-opening-hours/route.ts`. Both backend routes return a
+  structured shape (`opening_periods`/`weekly_hours`, localized `day_of_week`)
+  rather than the old routes' pre-formatted strings — these are *not*
+  byte-compatible and must not be assumed drop-in-equivalent before a real
+  Vapi payload/response comparison is done (same caveat as the other routes
+  below).
+- Rollback for these two routes, if ever cut over, is the same single-step
+  dashboard URL revert described in Section F.
 
 ### Vapi dashboard cutover not performed (Phase 29)
 

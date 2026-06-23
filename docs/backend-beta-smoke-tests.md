@@ -61,6 +61,7 @@ npm run test:vapi-webhook-integration
 npm run test:vapi-check-availability
 npm run test:vapi-create-reservation-request
 npm run test:vapi-customer-profile
+npm run test:vapi-date-opening-hours
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -240,6 +241,39 @@ update the same tagged row instead of accumulating duplicates). Include
 `/tmp/vapi-get-customer-profile-response.json` and
 `/tmp/vapi-create-customer-profile-response.json` in the section F
 sensitive-field grep below.
+
+```bash
+# Phase 30 — backend Vapi get-current-date webhook adapter. Public,
+# key-authenticated route, read-only: never touches the database beyond a
+# Restaurant lookup. Always expected to succeed.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+curl -s -o /tmp/vapi-get-current-date-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/get-current-date" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expect `200` and a `success:true` field, with `timezone` matching the
+restaurant's configured timezone (not the server's), and `current_date`/
+`current_time` in `YYYY-MM-DD`/`HH:mm` format.
+
+```bash
+# Phase 30 — backend Vapi get-opening-hours webhook adapter. Public,
+# key-authenticated route, read-only: never creates/updates a DB row.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+curl -s -o /tmp/vapi-get-opening-hours-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/get-opening-hours" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expect `200` and a `success` field. If the seeded restaurant has no
+`RestaurantSettings.openingHoursJson` configured, `configured:false` is the
+expected, non-failing response (see
+`docs/vapi-date-opening-hours-contract.md`) — do not assert `is_open`
+either way. Include `/tmp/vapi-get-current-date-response.json` and
+`/tmp/vapi-get-opening-hours-response.json` in the section F sensitive-field
+grep below.
 
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the

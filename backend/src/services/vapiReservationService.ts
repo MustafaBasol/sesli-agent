@@ -207,3 +207,63 @@ export async function createVapiReservationRequest(
     conversationId,
   };
 }
+
+/**
+ * Looks up a ReservationRequest scoped to restaurantId for the
+ * cancel-reservation-request adapter. Returns null for both "does not
+ * exist" and "belongs to another restaurant" — same convention as
+ * findReservationRequestForRestaurant in reservationRequestService.ts —
+ * so a probing request can never distinguish the two.
+ */
+export async function findVapiReservationRequestById(restaurantId: string, requestId: string) {
+  return prisma.reservationRequest.findFirst({ where: { id: requestId, restaurantId } });
+}
+
+/** Pending statuses eligible for caller-initiated auto-cancellation (Phase 34). */
+const CANCELLABLE_PENDING_STATUSES = ["new", "pending_info"];
+
+export type PendingMatchResult =
+  | { status: "exact"; request: { id: string; status: string } }
+  | { status: "unmatched" }
+  | { status: "ambiguous" };
+
+/**
+ * Best-effort match against pending ReservationRequests by normalizedPhone +
+ * reservationDate + reservationTime — exact match only, no fuzzy matching.
+ * Only ever used to decide whether an *unambiguous* auto-cancel is safe;
+ * zero or multiple candidates must never mutate anything (Phase 34 policy).
+ */
+export async function findUnambiguousPendingMatch(
+  restaurantId: string,
+  normalizedPhone: string,
+  reservationDate: string,
+  reservationTime: string
+): Promise<PendingMatchResult> {
+  const candidates = await prisma.reservationRequest.findMany({
+    where: {
+      restaurantId,
+      normalizedPhone,
+      reservationTime,
+      reservationDate: new Date(reservationDate),
+      status: { in: CANCELLABLE_PENDING_STATUSES },
+    },
+    select: { id: true, status: true },
+  });
+
+  if (candidates.length === 0) return { status: "unmatched" };
+  if (candidates.length > 1) return { status: "ambiguous" };
+  return { status: "exact", request: candidates[0] };
+}
+
+/**
+ * Looks up a confirmed Reservation scoped to restaurantId, for the
+ * confirmed-Reservation audit-only path (Phase 34 — never directly
+ * cancelled by voice).
+ */
+export async function findVapiReservationById(restaurantId: string, reservationId: string) {
+  return prisma.reservation.findFirst({ where: { id: reservationId, restaurantId } });
+}
+
+export function isCancellablePendingStatus(status: string): boolean {
+  return CANCELLABLE_PENDING_STATUSES.includes(status);
+}

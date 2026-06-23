@@ -251,6 +251,31 @@ or backfill strategy). That phase is out of scope here.
   is acceptable as the live behavior — that decision has not been made.
   `modify`/`cancel` remain blocked on implementation as before.
 
+### Remaining blocker: modify still unimplemented; cancel now built but never auto-cancels a confirmed reservation (Phase 34 update)
+
+- A backend `cancel-reservation-request` adapter now exists
+  (`POST /api/webhooks/vapi/:publicWebhookKey/cancel-reservation-request` in
+  `backend/src/routes/webhooks/vapi.ts`), implementing the Phase 32 decision
+  (Section 3B) as refined this phase: it auto-cancels only an unambiguous
+  **pending** `ReservationRequest` match (via the existing
+  `setReservationRequestStatus`/`isValidStatusTransition` machinery) and
+  logs everything else — a confirmed `Reservation`, a confirmed/terminal
+  `ReservationRequest`, an ambiguous match, or no match — as a bounded
+  `IntegrationEvent` (`eventType: "reservation_cancellation_requested"`)
+  for staff review. See `docs/backend-vapi-webhook-parity-assessment.md`
+  Section 17 and `docs/vapi-cancel-reservation-request-contract.md` for the
+  full contract.
+- **Confirmed reservations are never directly cancelled by voice in this
+  phase.** The response wording for that case is "your cancellation request
+  has been recorded for the restaurant team to review" — it never claims
+  the reservation was actually cancelled.
+- `modify-reservation-request` is still a `501 { error: "Not implemented
+  yet" }` stub — unchanged by Phase 34, target Phase 35.
+- **The Vapi dashboard cutover remains not allowed for any of the three
+  tools.** `cancel-reservation-request` now has backend code, but cutover
+  additionally requires the same real-payload parity comparison described
+  earlier in this section. `modify` remains blocked on implementation.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

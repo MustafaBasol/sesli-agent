@@ -220,15 +220,17 @@ This ranking matches the order suggested in the Phase 32 prompt and is confirmed
 - Pure adapter test added: `backend/src/tests/vapiHandoffToStaffAdapter.test.ts`, wired into `npm test` via `npm run test:vapi-handoff-to-staff-adapter`.
 - Gated by the existing `SMOKE_RUN_WRITE_CHECKS` convention — added to `scripts/smoke-backend-beta.sh`.
 
-### cancel-reservation-request (target: Phase 34)
+### cancel-reservation-request (target: Phase 34) — IMPLEMENTED in Phase 34
 
 - No hard-delete, ever — confirmed against both the pending-request and confirmed-reservation code paths.
-- Clear, narrow matching rule: phone (normalized) + reservation date + reservation time, exact match only — no fuzzy/partial matching for this destructive-adjacent action.
-- Pending-request match -> `setReservationRequestStatus(..., "cancelled")`, reusing `isValidStatusTransition` so an already-terminal request returns a controlled "already finalized" response, not a silent no-op or a crash.
-- Confirmed-`Reservation` match or no/ambiguous match -> audit `ReservationRequest` (`requestType: "cancel"`) only; existing reservations are never silently cancelled by this path.
-- Conflict (multiple candidate matches) is handled by falling through to the audit-row path, not by guessing or erroring 500.
-- `ToolLog` + response contract consistent with the other implemented routes.
-- DB-backed integration test covering: successful pending-cancel, ambiguous-match audit fallback, confirmed-reservation audit fallback (not cancelled), unknown key, cross-tenant isolation.
+- Matching rule, as implemented: an explicit `reservationRequestId` (preferred, tenant-scoped lookup) or an exact normalizedPhone + reservationDate + reservationTime match against pending requests only — no fuzzy/partial matching. (One refinement versus this section's original wording: a confirmed `Reservation` can also be referenced directly via `reservationId`, in which case it is always logged for review, never matched/cancelled by phone+date+time.)
+- Pending-request match -> `setReservationRequestStatus(..., "cancelled")`, reusing `isValidStatusTransition`/`STATUS_TRANSITIONS` as-is — no new transition logic was added. Confirmed/rejected/cancelled/done requests are never force-transitioned even though the map technically permits `confirmed -> cancelled`; Phase 34 deliberately excludes that case from auto-cancel.
+- Confirmed-`Reservation` match (via `reservationId`), confirmed/terminal `ReservationRequest` match, ambiguous match, or no match -> a single bounded `IntegrationEvent` (`eventType: "reservation_cancellation_requested"`) only; nothing is silently cancelled by any of these paths.
+- Conflict (multiple candidate matches) is handled by falling through to the audit-event path, not by guessing or erroring 500.
+- `ToolLog` + response contract consistent with the other implemented routes; response wording never claims a confirmed reservation was cancelled unless it actually was.
+- DB-backed integration test added: `backend/src/tests/vapiCancelReservationRequest.integration.test.ts`, covering successful pending-cancel (by id and by phone+date+time match), non-existing id, confirmed-request audit fallback, ambiguous-match audit fallback, confirmed-Reservation audit fallback, unknown/inactive webhook key, cross-tenant isolation, alias normalization, nested tool-call envelope, reason truncation, and the sensitive-field leak check. Not wired into `npm test` (needs `DATABASE_URL`), run via `npm run test:vapi-cancel-reservation-request`.
+- Pure adapter test added: `backend/src/tests/vapiCancelReservationRequestAdapter.test.ts`, wired into `npm test` via `npm run test:vapi-cancel-reservation-request-adapter`.
+- Gated by the existing `SMOKE_RUN_WRITE_CHECKS` convention — added to `scripts/smoke-backend-beta.sh`, using a fake/non-existing `reservationRequestId` so the smoke command only ever exercises the audit-intent-logging path.
 
 ### modify-reservation-request (target: Phase 35)
 

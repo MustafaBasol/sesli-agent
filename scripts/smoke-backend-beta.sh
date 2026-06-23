@@ -139,6 +139,37 @@ else
   log_fail "POST /api/webhooks/vapi/$vapi_key/get-customer-profile -> $vapi_get_customer_code"
 fi
 
+# --- Vapi get-current-date webhook (Phase 30) ---
+# Public, publicWebhookKey-authenticated route, read-only: never touches the
+# database beyond the Restaurant lookup. Always expected to succeed.
+vapi_get_current_date_file="$TMP_DIR/vapi-get-current-date.json"
+vapi_get_current_date_code=$(curl -s -o "$vapi_get_current_date_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/get-current-date" \
+  -H "Content-Type: application/json" \
+  -d '{}')
+if [ "$vapi_get_current_date_code" = "200" ] && grep -q '"success"' "$vapi_get_current_date_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/get-current-date -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/get-current-date -> $vapi_get_current_date_code"
+fi
+
+# --- Vapi get-opening-hours webhook (Phase 30) ---
+# Public, publicWebhookKey-authenticated route, read-only: never creates or
+# updates a DB row. Succeeds whether or not RestaurantSettings.openingHoursJson
+# is configured (success:true with configured:false is the documented safe
+# response for an unconfigured restaurant — see
+# docs/vapi-date-opening-hours-contract.md).
+vapi_get_opening_hours_file="$TMP_DIR/vapi-get-opening-hours.json"
+vapi_get_opening_hours_code=$(curl -s -o "$vapi_get_opening_hours_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/get-opening-hours" \
+  -H "Content-Type: application/json" \
+  -d '{}')
+if [ "$vapi_get_opening_hours_code" = "200" ] && grep -q '"success"' "$vapi_get_opening_hours_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/get-opening-hours -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/get-opening-hours -> $vapi_get_opening_hours_code"
+fi
+
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials

@@ -26,6 +26,19 @@ import {
   extractGetCustomerProfileArgs,
   toSafeCustomerPayload,
 } from "../../utils/vapi/customerProfileAdapter";
+import {
+  buildClosedReasonResponse,
+  buildCurrentDateResponse,
+  buildInvalidDateResponse,
+  buildNotConfiguredResponse,
+  buildOpeningHoursResponse,
+  extractGetCurrentDateArgs,
+  extractGetOpeningHoursArgs,
+  hasAnyConfiguredWindows,
+  resolveLanguage,
+  resolveRestaurantTimezone,
+  validateRequestedDate,
+} from "../../utils/vapi/dateOpeningHoursAdapter";
 import { prisma } from "../../prisma/client";
 import {
   createVapiReservationRequest,
@@ -34,6 +47,9 @@ import {
 } from "../../services/vapiReservationService";
 import { calculateAvailabilitySlots } from "../../services/availabilitySlotService";
 import { lookupVapiCustomer, upsertVapiCustomer } from "../../services/vapiCustomerProfileService";
+import { getOrCreateAvailabilitySettings } from "../../services/restaurantAvailabilityService";
+import { getNowPartsInTimezone, getWeekdayFromLocalDate, isValidOpeningHoursJson } from "../../services/availabilitySlotHelpers";
+import type { OpeningHoursJson } from "../../services/availabilitySlotTypes";
 
 export const vapiWebhookRouter = express.Router();
 
@@ -492,6 +508,247 @@ vapiWebhookRouter.post(
         });
 
       sendVapiToolErrorResponse(res, rawBody, "Internal error while creating customer profile");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/get-current-date
+//
+// Read-only adapter over Restaurant.timezone/defaultLanguage. Mirrors
+// src/app/api/vapi/get-current-date/route.ts's intent (give the assistant a
+// trustworthy "now") but resolves the tenant from
+// IntegrationConnection.publicWebhookKey and reports the *restaurant's*
+// timezone instead of a single hardcoded "Europe/Paris" constant. The old
+// Next.js route is untouched and keeps serving the production Vapi
+// assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/get-current-date",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractGetCurrentDateArgs(allSources, rawBody);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "get_current_date",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    try {
+      const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+      const timezone = resolveRestaurantTimezone(restaurant?.timezone);
+      const language = resolveLanguage(args.language, restaurant?.defaultLanguage ?? null);
+      const now = new Date();
+      const { localDate, localTime } = getNowPartsInTimezone(now, timezone);
+      const weekday = getWeekdayFromLocalDate(localDate);
+
+      const response = buildCurrentDateResponse({
+        timezone,
+        localDate,
+        localTime,
+        // localDate is always a valid YYYY-MM-DD here (computed via Intl), so
+        // getWeekdayFromLocalDate cannot return null.
+        weekday: weekday!,
+        language,
+        now,
+      });
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { timezone, localDate, localTime } },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi get-current-date failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while getting current date");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/get-opening-hours
+//
+// Read-only adapter over RestaurantSettings.openingHoursJson + active
+// BlackoutDates. Mirrors src/app/api/vapi/get-opening-hours/route.ts's intent
+// (tell the caller when the restaurant is open) but resolves the tenant from
+// IntegrationConnection.publicWebhookKey, returns structured opening_periods
+// instead of a pre-formatted multi-line string, and never calculates
+// availability slots (that is check-availability's job — see AGENTS.md
+// Phase 30 constraints). The old Next.js route is untouched and keeps
+// serving the production Vapi assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/get-opening-hours",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const currentYear = new Date().getFullYear();
+    const args = extractGetOpeningHoursArgs(allSources, rawBody);
+
+    // Validated before the ToolLog write so an invalid date is logged as a
+    // failure, same convention as a missing-fields create-customer-profile call.
+    const requestedDate = validateRequestedDate(args.rawDate, currentYear);
+    if (args.rawDate && !requestedDate) {
+      await prisma.toolLog.create({
+        data: {
+          restaurantId,
+          channel: "voice",
+          provider: "vapi",
+          toolName: "get_opening_hours",
+          externalCallId: args.callId,
+          requestPayload: rawBody,
+          status: "failure",
+          errorMessage: `Invalid date format: ${args.rawDate}`,
+        },
+      });
+      sendVapiToolResponse(res, rawBody, buildInvalidDateResponse());
+      return;
+    }
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "get_opening_hours",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    try {
+      const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+      if (!restaurant) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: "Restaurant not found" },
+        });
+        sendVapiToolErrorResponse(res, rawBody, "Internal error while getting opening hours");
+        return;
+      }
+
+      const timezone = resolveRestaurantTimezone(restaurant.timezone);
+      const language = resolveLanguage(args.language, restaurant.defaultLanguage);
+
+      if (restaurant.status !== "active") {
+        const response = buildClosedReasonResponse("restaurant_inactive", timezone);
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { closedReason: "restaurant_inactive" } },
+        });
+        sendVapiToolResponse(res, rawBody, response);
+        return;
+      }
+
+      const settings = await getOrCreateAvailabilitySettings(restaurantId);
+
+      if (!settings.reservationsEnabled) {
+        const response = buildClosedReasonResponse("reservations_disabled", timezone);
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { closedReason: "reservations_disabled" } },
+        });
+        sendVapiToolResponse(res, rawBody, response);
+        return;
+      }
+
+      const openingHoursJson = settings.openingHoursJson;
+      if (!isValidOpeningHoursJson(openingHoursJson) || !hasAnyConfiguredWindows(openingHoursJson)) {
+        const response = buildNotConfiguredResponse(timezone);
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { configured: false } },
+        });
+        sendVapiToolResponse(res, rawBody, response);
+        return;
+      }
+
+      const localDate = requestedDate ?? getNowPartsInTimezone(new Date(), timezone).localDate;
+      // localDate is always a valid YYYY-MM-DD here (either passed through
+      // validateRequestedDate or computed via Intl), so this cannot be null.
+      const weekday = getWeekdayFromLocalDate(localDate)!;
+      const windows = (openingHoursJson as OpeningHoursJson)[weekday] ?? [];
+
+      const blackouts = await prisma.blackoutDate.findMany({
+        where: { restaurantId, localDate, status: "active" },
+      });
+      const fullDayBlackout = blackouts.find((b) => b.isFullDay);
+      const partialBlackout = !fullDayBlackout
+        ? blackouts.find((b) => !b.isFullDay && b.startsAtLocal && b.endsAtLocal)
+        : undefined;
+
+      const response = buildOpeningHoursResponse({
+        localDate,
+        weekday,
+        language,
+        timezone,
+        windows,
+        // Weekly hours are only useful context when the caller didn't ask
+        // about one specific date.
+        includeWeeklyHours: !requestedDate,
+        openingHoursJson: openingHoursJson as OpeningHoursJson,
+        isFullDayBlackout: Boolean(fullDayBlackout),
+        blackoutReason: fullDayBlackout?.reason ?? null,
+        partialBlackout: partialBlackout
+          ? { starts: partialBlackout.startsAtLocal!, ends: partialBlackout.endsAtLocal!, reason: partialBlackout.reason }
+          : null,
+      });
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { date: localDate, isOpen: response.is_open ?? null } },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi get-opening-hours failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while getting opening hours");
     }
   })
 );

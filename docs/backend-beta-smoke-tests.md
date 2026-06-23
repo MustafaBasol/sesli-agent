@@ -318,6 +318,32 @@ database (never run this against a production database). Include
 `/tmp/vapi-handoff-to-staff-response.json` in the section F sensitive-field
 grep below.
 
+```bash
+# Phase 34 — backend Vapi cancel-reservation-request webhook adapter. This
+# WRITES an IntegrationEvent + ToolLog row (and may transition a pending
+# ReservationRequest to "cancelled" if it matches), so it is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is NOT run by default. Only run this
+# against a disposable test/beta database, never production. Uses a clearly
+# fake/non-existing reservationRequestId so this always exercises the
+# audit-intent-logging path only — it never cancels a real reservation.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  SMOKE_CANCEL_CALL_ID="smoke-cancel-$(date +%s)"
+  SMOKE_CANCEL_REQUEST_ID="smoke-non-existing-request-$(date +%s)"
+  curl -s -o /tmp/vapi-cancel-reservation-request-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/cancel-reservation-request" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$SMOKE_CANCEL_CALL_ID\",\"reservationRequestId\":\"$SMOKE_CANCEL_REQUEST_ID\",\"reason\":\"SMOKE_TEST_DO_NOT_USE cancellation request\",\"customerName\":\"Smoke Cancel Customer\",\"phone\":\"+33000000004\",\"language\":\"en\"}"
+fi
+```
+
+Expect `200` and `success:true` in the response body, with either
+`cancellation_logged:true` or `requires_review:true` (the fake
+`reservationRequestId` guarantees the "not found, intent logged" path — no
+real `ReservationRequest`/`Reservation` row is ever touched by this smoke
+command). Include `/tmp/vapi-cancel-reservation-request-response.json` in
+the section F sensitive-field grep below.
+
 Each command should print `200`. A `401`/`403` usually means an expired or
 missing token; a `404` on a restaurant-scoped route usually means the
 account does not have access to `$RESTAURANT_ID` (tenant isolation working

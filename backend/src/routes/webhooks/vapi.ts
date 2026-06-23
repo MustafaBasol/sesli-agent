@@ -53,13 +53,28 @@ import {
   computeHandoffToStaffMissingFields,
   extractHandoffToStaffArgs,
 } from "../../utils/vapi/handoffToStaffAdapter";
+import {
+  buildCancelMissingFieldsResponse,
+  buildPendingCancelledResponse,
+  buildReviewRequiredResponse,
+  buildSafeCancelReservationRequestPayload,
+  computeCancelReservationRequestMissingFields,
+  extractCancelReservationRequestArgs,
+  type CancelActionTaken,
+  type CancelMatchStatus,
+} from "../../utils/vapi/cancelReservationRequestAdapter";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/client";
 import {
   createVapiReservationRequest,
   findExistingReservationRequestByCallId,
+  findUnambiguousPendingMatch,
+  findVapiReservationById,
+  findVapiReservationRequestById,
+  isCancellablePendingStatus,
   resolveVapiIntegrationConnection,
 } from "../../services/vapiReservationService";
+import { setReservationRequestStatus } from "../../services/reservationRequestService";
 import { calculateAvailabilitySlots } from "../../services/availabilitySlotService";
 import { lookupVapiCustomer, upsertVapiCustomer } from "../../services/vapiCustomerProfileService";
 import { getOrCreateAvailabilitySettings } from "../../services/restaurantAvailabilityService";
@@ -944,12 +959,169 @@ vapiWebhookRouter.post(
   })
 );
 
+// POST /api/webhooks/vapi/:publicWebhookKey/cancel-reservation-request
+//
+// Phase 34 decision (docs/vapi-modify-cancel-handoff-decision-pack.md Section
+// 3B, refined per this phase's instructions): only an unambiguous *pending*
+// ReservationRequest (status new/pending_info) is ever auto-cancelled, and
+// only through the existing setReservationRequestStatus/isValidStatusTransition
+// machinery — never a direct/bypassed status write. A confirmed Reservation
+// is never directly cancelled by voice; it is always logged as an auditable
+// cancellation intent for staff review. Ambiguous or no matches are also
+// logged-only. Hard-delete is never performed. The old Next.js/Supabase
+// route and the legacy dispatcher's hard-delete behavior are both untouched
+// and keep serving the production Vapi assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/cancel-reservation-request",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const currentYear = new Date().getFullYear();
+    const args = extractCancelReservationRequestArgs(allSources, rawBody, currentYear);
+
+    const missingFields = computeCancelReservationRequestMissingFields(args);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "cancel_reservation_request",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildCancelMissingFieldsResponse(missingFields, args.language));
+      return;
+    }
+
+    try {
+      let matchStatus: CancelMatchStatus;
+      let actionTaken: CancelActionTaken;
+      let cancelledRequestId: string | null = null;
+
+      if (args.reservationRequestId) {
+        // A. Explicit reservationRequestId — scoped lookup, never trust an id
+        // from another tenant (findVapiReservationRequestById returns null
+        // for both "not found" and "other tenant").
+        const found = await findVapiReservationRequestById(restaurantId, args.reservationRequestId);
+        if (!found) {
+          matchStatus = "unmatched";
+          actionTaken = "intent_logged";
+        } else if (isCancellablePendingStatus(found.status)) {
+          await setReservationRequestStatus(found.id, "cancelled");
+          matchStatus = "exact";
+          actionTaken = "pending_request_cancelled";
+          cancelledRequestId = found.id;
+        } else {
+          // Already confirmed/rejected/cancelled/done — never force a status
+          // change; log the intent for staff review instead.
+          matchStatus = "confirmed_reservation_review_required";
+          actionTaken = "review_required";
+        }
+      } else if (args.reservationId) {
+        // C. Explicit reservationId — a confirmed Reservation is never
+        // directly cancelled by voice in this phase, regardless of whether
+        // it is found.
+        const foundReservation = await findVapiReservationById(restaurantId, args.reservationId);
+        matchStatus = foundReservation ? "confirmed_reservation_review_required" : "unmatched";
+        actionTaken = foundReservation ? "review_required" : "intent_logged";
+      } else if (args.normalizedPhone && args.date && args.time) {
+        // B. No reservationRequestId — try an unambiguous phone+date+time
+        // match against pending requests only. Zero or multiple candidates
+        // must never mutate anything.
+        const matchResult = await findUnambiguousPendingMatch(restaurantId, args.normalizedPhone, args.date, args.time);
+        if (matchResult.status === "exact") {
+          await setReservationRequestStatus(matchResult.request.id, "cancelled");
+          matchStatus = "exact";
+          actionTaken = "pending_request_cancelled";
+          cancelledRequestId = matchResult.request.id;
+        } else if (matchResult.status === "ambiguous") {
+          matchStatus = "ambiguous";
+          actionTaken = "intent_logged";
+        } else {
+          matchStatus = "unmatched";
+          actionTaken = "intent_logged";
+        }
+      } else {
+        // D. General fallback — not enough identifying detail to even
+        // attempt a match (e.g. only a reason or callId was given).
+        matchStatus = "unmatched";
+        actionTaken = "intent_logged";
+      }
+
+      const safePayload = buildSafeCancelReservationRequestPayload(args, matchStatus, actionTaken);
+
+      const event = await prisma.integrationEvent.create({
+        data: {
+          restaurantId,
+          integrationId: connection.id,
+          channel: "voice",
+          provider: "vapi",
+          eventType: "reservation_cancellation_requested",
+          status: "received",
+          payload: safePayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      const response =
+        actionTaken === "pending_request_cancelled" && cancelledRequestId
+          ? buildPendingCancelledResponse(args.language, cancelledRequestId)
+          : buildReviewRequiredResponse(args.language, event.id, matchStatus);
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: {
+          status: "success",
+          responsePayload: {
+            eventId: event.id,
+            matchStatus,
+            actionTaken,
+            reservationRequestId: cancelledRequestId,
+          },
+        },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi cancel-reservation-request failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while cancelling reservation request");
+    }
+  })
+);
+
 // Scaffolded for a later phase — Phase 4 only implements create-reservation-request.
 function notImplemented(req: Request, res: Response): void {
   res.status(501).json({ error: "Not implemented yet" });
 }
 
 vapiWebhookRouter.post("/:publicWebhookKey/modify-reservation-request", notImplemented);
-vapiWebhookRouter.post("/:publicWebhookKey/cancel-reservation-request", notImplemented);
 
 export default vapiWebhookRouter;

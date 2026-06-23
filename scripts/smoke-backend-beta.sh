@@ -268,6 +268,33 @@ else
   echo "SKIPPED: POST /api/webhooks/vapi/.../handoff-to-staff (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
 fi
 
+# --- Vapi cancel-reservation-request webhook (Phase 34) ---
+# WRITES an IntegrationEvent + ToolLog row (and may transition a pending
+# ReservationRequest to "cancelled" if it matches), so this is gated behind
+# SMOKE_RUN_WRITE_CHECKS=true and is skipped by default. Only enable against
+# a disposable test/beta database — never production. Uses a clearly
+# fake/non-existing reservationRequestId so this always exercises the
+# audit-intent-logging path only — it never cancels a real pending request
+# or reservation. Tagged SMOKE_TEST_DO_NOT_USE so any leaked row is
+# obviously identifiable.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  vapi_cancel_file="$TMP_DIR/vapi-cancel-reservation-request.json"
+  smoke_cancel_call_id="smoke-cancel-$(date +%s)"
+  smoke_cancel_request_id="smoke-non-existing-request-$(date +%s)"
+  vapi_cancel_code=$(curl -s -o "$vapi_cancel_file" -w "%{http_code}" \
+    -X POST "$api/api/webhooks/vapi/$vapi_key/cancel-reservation-request" \
+    -H "Content-Type: application/json" \
+    -d "{\"callId\":\"$smoke_cancel_call_id\",\"reservationRequestId\":\"$smoke_cancel_request_id\",\"reason\":\"SMOKE_TEST_DO_NOT_USE cancellation request\",\"customerName\":\"Smoke Cancel Customer\",\"phone\":\"+33000000004\",\"language\":\"en\"}")
+  if [ "$vapi_cancel_code" = "200" ] && grep -q '"success":true' "$vapi_cancel_file" \
+    && { grep -q '"cancellation_logged":true' "$vapi_cancel_file" || grep -q '"requires_review":true' "$vapi_cancel_file"; }; then
+    log_pass "POST /api/webhooks/vapi/$vapi_key/cancel-reservation-request -> 200 (success:true, cancellation_logged or requires_review)"
+  else
+    log_fail "POST /api/webhooks/vapi/$vapi_key/cancel-reservation-request -> $vapi_cancel_code"
+  fi
+else
+  echo "SKIPPED: POST /api/webhooks/vapi/.../cancel-reservation-request (set SMOKE_RUN_WRITE_CHECKS=true on a disposable test DB to enable)"
+fi
+
 # --- sensitive field leak check across all captured responses ---
 leaked_files="$(grep -ril "${grep_args[@]}" "$TMP_DIR"/*.json 2>/dev/null || true)"
 if [ -n "$leaked_files" ]; then

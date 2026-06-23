@@ -1128,3 +1128,38 @@ route.
 Next.js/Supabase `handoff-to-staff` route and the legacy dispatcher's
 `handoff_to_staff` no-op case are both untouched and continue to serve the
 production Vapi assistant; the Vapi dashboard has not been switched.
+
+## 17. Phase 34 implementation status (update)
+
+`POST /api/webhooks/vapi/:publicWebhookKey/cancel-reservation-request` is
+now implemented and hardened in `backend/src/routes/webhooks/vapi.ts`,
+replacing its `notImplemented` (501) stub. It follows the Phase 32 decision
+pack (Section 3B) and this phase's refinement of it: an unambiguous
+**pending** `ReservationRequest` (status `new`/`pending_info`) matched
+either by an explicit `reservationRequestId` or by an exact
+phone+date+time match is cancelled through the existing
+`setReservationRequestStatus`/`isValidStatusTransition` machinery — no new
+transition logic was added. A confirmed `Reservation`, a confirmed/
+terminal `ReservationRequest`, an ambiguous match, or no match at all is
+**never mutated** — each of those cases logs a bounded
+`IntegrationEvent` (`eventType: "reservation_cancellation_requested"`) for
+staff review instead, and the voice response is the generic "your
+cancellation request has been recorded for the restaurant team to review"
+— it never claims a confirmed reservation was cancelled. Hard-delete is
+never performed anywhere in this route.
+
+New pure helper: `backend/src/utils/vapi/cancelReservationRequestAdapter.ts`
+(payload normalization/aliasing, missing-field policy, response builders,
+bounded safe-payload builder — same shape as Phase 33's
+`handoffToStaffAdapter.ts`). New service helpers added to
+`backend/src/services/vapiReservationService.ts`:
+`findVapiReservationRequestById`, `findUnambiguousPendingMatch`,
+`findVapiReservationById`, `isCancellablePendingStatus` — all tenant-scoped,
+no schema change.
+
+`modify-reservation-request` remains a `notImplemented` (501) stub — out of
+scope for Phase 34, target Phase 35. The old Next.js/Supabase
+`cancel-reservation-request` route (audit-only insert into
+`reservation_cancellations`) and the legacy dispatcher's hard-delete
+`cancel_reservation_request` case are both untouched and continue to serve
+the production Vapi assistant; the Vapi dashboard has not been switched.

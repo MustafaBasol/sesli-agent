@@ -39,7 +39,10 @@ remove the Supabase admin, do not switch the Vapi webhook URL here).
   - `/api/webhooks/vapi/:publicWebhookKey/create-reservation-request`,
     `/api/webhooks/vapi/:publicWebhookKey/check-availability`,
     `/api/webhooks/vapi/:publicWebhookKey/get-customer-profile`,
-    `/api/webhooks/vapi/:publicWebhookKey/create-customer-profile` (Phase 29)
+    `/api/webhooks/vapi/:publicWebhookKey/create-customer-profile` (Phase 29),
+    `/api/webhooks/vapi/:publicWebhookKey/get-current-date`,
+    `/api/webhooks/vapi/:publicWebhookKey/get-opening-hours` (Phase 30),
+    `/api/webhooks/vapi/:publicWebhookKey/log-call-summary` (Phase 31)
     (`modify-reservation-request`, `cancel-reservation-request`, and
     `handoff-to-staff` exist as routes but are still `notImplemented` — see
     `backend/src/routes/webhooks/vapi.ts`)
@@ -197,6 +200,22 @@ or backfill strategy). That phase is out of scope here.
   representative Vapi payloads (recorded from real calls or Vapi's test
   console) and diff the resulting Supabase vs backend database writes for
   parity. This comparison work is not part of this phase.
+
+### Vapi dashboard cutover not performed (Phase 31)
+
+- A backend `log-call-summary` adapter now exists (see
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 14 and
+  `docs/vapi-call-summary-contract.md` for the full contract), but the live
+  Vapi dashboard URL is **unchanged** and continues to serve
+  `src/app/api/vapi/log-call-summary/route.ts`. The backend route stores a
+  bounded `IntegrationEvent` row instead of a full Supabase `calls` upsert
+  with a raw-payload dump — it intentionally never stores the raw payload or
+  transcript, so it is **not** byte-compatible with the old route's storage
+  behavior and must not be assumed drop-in-equivalent before a real Vapi
+  payload/response comparison is done (same caveat as the other routes
+  below).
+- Rollback for this route, if ever cut over, is the same single-step
+  dashboard URL revert described in Section F.
 
 ### Vapi dashboard cutover not performed (Phase 30)
 

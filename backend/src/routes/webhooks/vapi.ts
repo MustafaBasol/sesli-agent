@@ -39,6 +39,14 @@ import {
   resolveRestaurantTimezone,
   validateRequestedDate,
 } from "../../utils/vapi/dateOpeningHoursAdapter";
+import {
+  buildCallSummaryMissingFieldsResponse,
+  buildCallSummarySuccessResponse,
+  buildSafeCallSummaryPayload,
+  computeCallSummaryMissingFields,
+  extractCallSummaryArgs,
+} from "../../utils/vapi/callSummaryAdapter";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma/client";
 import {
   createVapiReservationRequest,
@@ -749,6 +757,93 @@ vapiWebhookRouter.post(
         });
 
       sendVapiToolErrorResponse(res, rawBody, "Internal error while getting opening hours");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/log-call-summary
+//
+// Mirrors src/app/api/vapi/log-call-summary/route.ts's intent (best-effort
+// end-of-call logging) but stores a safe, bounded IntegrationEvent instead of
+// a full Supabase `calls` row, and never stores the raw payload or
+// transcript — see AGENTS.md Phase 31 item 5 (privacy / data minimization).
+// Never creates a Customer/ReservationRequest/Reservation (see AGENTS.md
+// Phase 31 storage policy). The old Next.js/Supabase route is untouched and
+// keeps serving the production Vapi assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/log-call-summary",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractCallSummaryArgs(allSources, rawBody);
+
+    const missingFields = computeCallSummaryMissingFields(args);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "log_call_summary",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildCallSummaryMissingFieldsResponse(missingFields));
+      return;
+    }
+
+    try {
+      const safePayload = buildSafeCallSummaryPayload(args);
+
+      const event = await prisma.integrationEvent.create({
+        data: {
+          restaurantId,
+          integrationId: connection.id,
+          channel: "voice",
+          provider: "vapi",
+          eventType: "call_summary",
+          status: "received",
+          payload: safePayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { eventId: event.id, callId: args.callId } },
+      });
+
+      sendVapiToolResponse(res, rawBody, buildCallSummarySuccessResponse(args.callId, event.id));
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi log-call-summary failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while logging call summary");
     }
   })
 );

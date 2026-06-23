@@ -17,6 +17,15 @@ import {
   computeMissingFields,
   extractCreateReservationRequestArgs,
 } from "../../utils/vapi/createReservationRequestAdapter";
+import {
+  buildCustomerProfileConflictResponse,
+  buildCustomerProfileMissingFieldsResponse,
+  computeCreateCustomerProfileMissingFields,
+  computeGetCustomerProfileMissingFields,
+  extractCreateCustomerProfileArgs,
+  extractGetCustomerProfileArgs,
+  toSafeCustomerPayload,
+} from "../../utils/vapi/customerProfileAdapter";
 import { prisma } from "../../prisma/client";
 import {
   createVapiReservationRequest,
@@ -24,6 +33,7 @@ import {
   resolveVapiIntegrationConnection,
 } from "../../services/vapiReservationService";
 import { calculateAvailabilitySlots } from "../../services/availabilitySlotService";
+import { lookupVapiCustomer, upsertVapiCustomer } from "../../services/vapiCustomerProfileService";
 
 export const vapiWebhookRouter = express.Router();
 
@@ -275,6 +285,213 @@ vapiWebhookRouter.post(
         });
 
       sendVapiToolErrorResponse(res, rawBody, "Internal error while checking availability");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/get-customer-profile
+//
+// Read-only adapter over the backend Customer model. Mirrors
+// src/app/api/vapi/get-customer-profile/route.ts's intent (recognize a
+// returning caller) but looks up by an exact normalizedPhone/email match
+// scoped to restaurantId instead of a global last-9-digits suffix scan, and
+// never performs the old route's legacy-dispatcher "silent registration"
+// (it is strictly read-only — see AGENTS.md Phase 29 item 4). The old
+// Next.js/Supabase route is untouched and keeps serving the production Vapi
+// assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/get-customer-profile",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractGetCustomerProfileArgs(allSources, rawBody);
+
+    const missingFields = computeGetCustomerProfileMissingFields(args);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "get_customer_profile",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildCustomerProfileMissingFieldsResponse(missingFields));
+      return;
+    }
+
+    try {
+      const { customer, conflict } = await lookupVapiCustomer(restaurantId, args.normalizedPhone, args.email);
+
+      if (conflict) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { conflict: true } },
+        });
+        sendVapiToolResponse(res, rawBody, buildCustomerProfileConflictResponse());
+        return;
+      }
+
+      if (!customer) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { found: false } },
+        });
+        sendVapiToolResponse(res, rawBody, {
+          success: true,
+          found: false,
+          message: "Customer not found.",
+        });
+        return;
+      }
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { found: true, customerId: customer.id } },
+      });
+      sendVapiToolResponse(res, rawBody, {
+        success: true,
+        found: true,
+        message: "Customer found.",
+        customer_id: customer.id,
+        customer: toSafeCustomerPayload(customer),
+      });
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi get-customer-profile failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while looking up customer profile");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/create-customer-profile
+//
+// Upsert adapter over the backend Customer model — update-if-found,
+// create-if-not, scoped to restaurantId. Never creates a ReservationRequest
+// or Reservation (see AGENTS.md Phase 29 constraints). The old
+// Next.js/Supabase route is untouched and keeps serving the production Vapi
+// assistant during this migration phase.
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/create-customer-profile",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractCreateCustomerProfileArgs(allSources, rawBody);
+
+    const missingFields = computeCreateCustomerProfileMissingFields(args);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "create_customer_profile",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildCustomerProfileMissingFieldsResponse(missingFields));
+      return;
+    }
+
+    try {
+      const { customer: existing, conflict } = await lookupVapiCustomer(
+        restaurantId,
+        args.normalizedPhone,
+        args.email
+      );
+
+      if (conflict) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { conflict: true } },
+        });
+        sendVapiToolResponse(res, rawBody, buildCustomerProfileConflictResponse());
+        return;
+      }
+
+      const { action, customer } = await upsertVapiCustomer(
+        {
+          restaurantId,
+          name: args.name,
+          phone: args.phone,
+          normalizedPhone: args.normalizedPhone,
+          email: args.email,
+          notes: args.notes,
+        },
+        existing
+      );
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "success", responsePayload: { action, customerId: customer.id } },
+      });
+
+      sendVapiToolResponse(res, rawBody, {
+        success: true,
+        action,
+        message: action === "created" ? "Customer profile created." : "Customer profile updated.",
+        customer_id: customer.id,
+        customer: toSafeCustomerPayload(customer),
+      });
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi create-customer-profile failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while creating customer profile");
     }
   })
 );

@@ -723,3 +723,98 @@ Still not in scope for this phase (unchanged from Section 7/10):
 `handoff-to-staff` remain stubs; `check-availability`'s connection-status
 gap remains open; no Menu/MenuItem model exists; no live Vapi payload
 sample was captured. The Vapi dashboard URL was not changed.
+
+## 12. Phase 29 implementation status (update)
+
+`get-customer-profile` and `create-customer-profile` backend status moves
+from **Missing**/**B** (Section 5/6) to **implemented**. This closes the
+"Should implement" backlog item from Section 7 covering these two routes.
+
+What was built:
+
+- `POST /api/webhooks/vapi/:publicWebhookKey/get-customer-profile` —
+  read-only. Looks up a `Customer` scoped to `restaurantId`, preferring an
+  exact `normalizedPhone` match, falling back to `email`. Never performs the
+  legacy dispatcher's "silent registration" (Section 2.1/2.8) — a not-found
+  lookup returns `success:true, found:false` and creates nothing.
+- `POST /api/webhooks/vapi/:publicWebhookKey/create-customer-profile` —
+  update-if-found / create-if-not, same restaurantId scoping. Existing
+  non-empty fields are never overwritten by empty/null input (see
+  `upsertVapiCustomer` in `vapiCustomerProfileService.ts`).
+- `backend/src/utils/vapi/customerProfileAdapter.ts` — pure functions
+  (`extractGetCustomerProfileArgs`, `extractCreateCustomerProfileArgs`,
+  `computeGetCustomerProfileMissingFields`,
+  `computeCreateCustomerProfileMissingFields`, `toSafeCustomerPayload`,
+  response builders), same pattern as `checkAvailabilityAdapter.ts` /
+  `createReservationRequestAdapter.ts`. No Prisma access — fully
+  unit-testable.
+- `backend/src/services/vapiCustomerProfileService.ts` — the only file in
+  this phase that touches Prisma (`lookupVapiCustomer`, `upsertVapiCustomer`).
+
+Intentional deviations from the old Next.js routes (Section 2.8/2.9):
+
+- **Lookup is exact, not fuzzy.** The old `get-customer-profile` route does
+  an `ilike` last-9-digits suffix scan with no tenant scoping at all
+  (Supabase has no `restaurantId` column on `customers`). The backend route
+  requires an exact `normalizedPhone` (digits-only) or `email` match, scoped
+  to `restaurantId` — a deliberately stricter, tenant-safe replacement, not
+  a bug. A caller dialing from a new number will get `found:false` even if
+  an old fuzzy-matched row exists for them; this is the correct tradeoff for
+  multi-tenant correctness.
+- **Conflict handling is new.** Neither old generation has any concept of
+  "phone and email belong to different customers" — they only ever look up
+  by phone. The backend route adds a conservative conflict response
+  (`success:false, conflict:true`) instead of guessing which record to use
+  or silently merging them (AGENTS.md Phase 29 item 4).
+- **At least one of phone/email is required** for both routes (plus `name`
+  for create), returned as `missing_fields: ["phone_or_email"]` /
+  `["name", "phone_or_email"]` rather than the old `create-customer-profile`
+  route's behavior of defaulting an absent name to `'Unknown Customer'` and
+  only hard-requiring phone.
+- **No `calls`/`Conversation`/`Message` side effect.** The old
+  `create-customer-profile` route also upserts a `calls` row keyed by
+  `call_id`. The backend route does not create or touch `Conversation`/
+  `Message` — customer-profile management is treated as a pure `Customer`
+  CRUD operation, not a call-logging event. If call-thread tracking for
+  these tools is needed later, it should reuse the `Conversation`/`Message`
+  pattern already proven in `vapiReservationService.ts`, as its own
+  decision, not bundled into this phase.
+- **No `notes`-in-response change.** `notes` is still returned in
+  `get-customer-profile`'s response when non-empty, matching both old
+  generations' behavior (Section 2.8's standing risk note still applies —
+  this phase does not add new exposure, but does not remove the existing
+  one either, since the field is part of the established contract).
+- **`IntegrationConnection.status` is enforced** (`!== "active"` rejected
+  the same as an unknown key), matching Phase 28's hardening of
+  `create-reservation-request`, not Phase 27's `check-availability` (which
+  still has the open gap noted in Section 7).
+
+ToolLog behavior: a `ToolLog` row is created in `"processing"` status before
+the missing-fields check (not after, unlike `create-reservation-request`'s
+pattern of skipping ToolLog entirely for missing fields) — see
+`docs/vapi-customer-profile-contract.md` for the full status-transition
+table, including why a missing-fields call is logged as `"failure"` while a
+detected conflict is logged as `"success"` (the conflict response is the
+*correct*, successfully-detected outcome, not an error).
+
+Tests added:
+
+- `backend/src/tests/vapiCustomerProfileAdapter.test.ts` — pure
+  argument-extraction, missing-field, and response-shape checks, wired into
+  `npm test` (`test:vapi-customer-profile-adapter`).
+- `backend/src/tests/vapiCustomerProfile.integration.test.ts` — DB-backed,
+  **not** wired into `npm test` (same convention as the other
+  `*.integration.test.ts` files). Run via `npm run test:vapi-customer-profile`.
+
+No Prisma schema or migration change was made — the existing `Customer`
+model (`fullName`, `phoneNumber`, `normalizedPhone`, `email`, `notes`,
+`restaurantId`) already had every field this phase needed. No Vapi dashboard
+URL was changed and no production data was touched while implementing or
+documenting Phase 29 — see `docs/backend-production-cutover-plan.md` for the
+unchanged cutover status.
+
+Still not in scope for this phase: `modify-reservation-request`,
+`cancel-reservation-request`, `handoff-to-staff` remain stubs;
+`check-availability`'s connection-status gap remains open; no Menu/MenuItem
+model exists; `log-call-summary`/`get-opening-hours`/the legacy `webhook`
+dispatcher remain unimplemented on the backend.

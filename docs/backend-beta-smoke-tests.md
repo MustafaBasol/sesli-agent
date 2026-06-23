@@ -60,6 +60,7 @@ disposable test/beta database (these mutate that database):
 npm run test:vapi-webhook-integration
 npm run test:vapi-check-availability
 npm run test:vapi-create-reservation-request
+npm run test:vapi-customer-profile
 npm run test:reservation-requests-integration
 npm run test:customers-integration
 npm run test:conversations-integration
@@ -200,6 +201,44 @@ Expect `200` and `success:true` in the response body, and a new
 `ReservationRequest` row created in the test database (never run this
 against a production database). Include
 `/tmp/vapi-create-reservation-request-response.json` in the section F
+sensitive-field grep below.
+
+```bash
+# Phase 29 — backend Vapi get-customer-profile webhook adapter. Public,
+# key-authenticated route, read-only: never creates/updates a Customer. Uses
+# a fake phone number so a real customer's data is never required for this
+# check to pass.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+curl -s -o /tmp/vapi-get-customer-profile-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/get-customer-profile" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+10000000000"}'
+```
+
+Expect `200` and a `success` field. Do not assert `found:true` — the fake
+phone number is expected to come back `found:false`; that is the correct,
+non-failing response for this read-only check.
+
+```bash
+# Phase 29 — backend Vapi create-customer-profile webhook adapter. This
+# WRITES a Customer row, so it is gated behind SMOKE_RUN_WRITE_CHECKS=true
+# and is NOT run by default. Only run this against a disposable test/beta
+# database, never production.
+if [ "${SMOKE_RUN_WRITE_CHECKS:-false}" = "true" ]; then
+  VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+  curl -s -o /tmp/vapi-create-customer-profile-response.json -w "%{http_code}\n" \
+    -X POST "$API/api/webhooks/vapi/$VAPI_KEY/create-customer-profile" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Smoke Test Customer","phone":"+33000000001","email":"smoke-customer@example.test","notes":"SMOKE_TEST_DO_NOT_USE"}'
+fi
+```
+
+Expect `200` and `success:true` in the response body — `action` will be
+`"created"` on first run and `"updated"` on any repeat run against the same
+test database (the fake phone number is reused on purpose so repeated runs
+update the same tagged row instead of accumulating duplicates). Include
+`/tmp/vapi-get-customer-profile-response.json` and
+`/tmp/vapi-create-customer-profile-response.json` in the section F
 sensitive-field grep below.
 
 Each command should print `200`. A `401`/`403` usually means an expired or

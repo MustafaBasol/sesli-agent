@@ -438,6 +438,27 @@ or backfill strategy). That phase is out of scope here.
   adapter passes the same real-payload parity comparison required of every
   other tool.
 
+### Real menu export dry-run review workflow added (still no real import; Phase 41 update)
+
+- Phase 41 prepared the Phase 39/40 dry-run tool for reviewing a **real** Supabase menu export —
+  see `docs/menu-data-migration-plan.md` Section 2b/5b/5c for the full design. It adds a
+  gitignored `scripts/migration/menu-input-real/` drop folder (only its `README.md` is
+  committed), non-blocking data-quality warning thresholds, and an optional Markdown companion
+  summary alongside the existing JSON report. No code change in this phase connects to Supabase,
+  writes to any database, or enables write mode (`MENU_IMPORT_WRITE_ENABLED` remains unset by
+  default, as before).
+- **This does not lift the menu cutover blocker from the Phase 38/39/40 updates above.** Reviewing
+  a real export's dry-run report — even a clean one with no errors or threshold warnings — is a
+  precondition for considering a future write-mode run, not an approval to perform one or a
+  substitute for it. No real data has been imported as of this update. No Vapi dashboard URL,
+  Prisma schema/migration, `src/app/api/vapi/*` route, or old `/admin/*` page was touched by this
+  phase.
+- The Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains blocked until a real
+  write-mode import (Phase 40 mechanism, gated behind §11 of
+  `docs/menu-data-migration-plan.md`) actually populates the target restaurant's backend menu
+  tables and the adapter passes the same real-payload parity comparison required of every other
+  tool.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

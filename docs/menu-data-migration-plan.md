@@ -1,4 +1,13 @@
-# Phase 39/40 — Menu Data Migration / Import Dry-Run + Gated Write Mode
+# Phase 39/40/41 — Menu Data Migration / Import Dry-Run + Gated Write Mode + Real Export Review
+
+Status (Phase 41): this phase prepares the dry-run tool for reviewing a **real** Supabase menu
+export, but remains dry-run only — write mode is not enabled, no Supabase connection is made
+(live or otherwise), and no production data is touched. It adds: a gitignored
+`scripts/migration/menu-input-real/` drop folder (§2b) for the real export, a non-blocking
+warning-threshold check (§5b) that flags data-quality issues without failing the run, and an
+optional Markdown companion summary (§5c) alongside the JSON report. Builds on Phase 39 (dry-run)
+and Phase 40 (gated write mode, §9/§11 below, still not exercised against real data as of this
+phase).
 
 Status (Phase 40): a gated write mode now exists alongside the Phase 39 dry-run. No Supabase
 connection is ever made (live or otherwise), no production data has been touched, no Vapi
@@ -42,6 +51,42 @@ reported as "not found", not an error — the dry-run still runs with whichever 
 
 This directory is not committed; only the fake fixtures under
 `scripts/migration/menu-input-sample/` are. **Never commit a real export.**
+
+## 2b. Reviewing a real export (Phase 41)
+
+A dedicated, gitignored drop folder exists for a real export review, separate from the committed
+fake fixtures:
+
+```
+scripts/migration/menu-input-real/menu_categories.json
+scripts/migration/menu-input-real/menu_items.json
+```
+
+Only `scripts/migration/menu-input-real/README.md` is committed (it documents the expected
+files/fields, mirroring this section) — the JSON files themselves are gitignored (see
+`/scripts/migration/menu-input-real/*` in `.gitignore`) and must never be committed.
+
+**How to export the old Supabase menu tables manually:** use the Supabase dashboard's table
+editor (Table Editor → `menu_categories` / `menu_items` → Export → export to JSON), or run
+`select * from menu_categories` / `select * from menu_items` in the SQL editor and save each
+result set as a JSON array of row objects. Place the two resulting files at the paths above.
+
+**Exact dry-run command for a real export review:**
+
+```sh
+MENU_IMPORT_RESTAURANT_ID="94581a20-a09a-4c9c-8ccb-88ab4e6df19f" \
+MENU_IMPORT_INPUT_DIR="scripts/migration/menu-input-real" \
+npm run migration:menu:dry-run
+```
+
+Do **not** set `MENU_IMPORT_WRITE_ENABLED`, `DATABASE_URL`, or any `MENU_IMPORT_ALLOW_PRODUCTION`/
+`MENU_IMPORT_PRODUCTION_CONFIRMATION` override for this review — those belong to the separate,
+explicitly-gated write-mode step in §4b/§11, not this review.
+
+**This phase does not approve a production import.** A clean report (no errors, no threshold
+warnings — see §5b) is a precondition for considering write mode, not an approval to run it. The
+Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains blocked regardless of this
+review's outcome, per §10.
 
 ## 3. Field mapping
 
@@ -160,6 +205,40 @@ The dry-run always writes `scripts/migration/output/menu-import-report.json` (gi
   `productionAllowed` / `productionConfirmationProvided` (the production override pair — see
   §11.3). Present and informative even when write mode was never requested.
 
+## 5b. Warning thresholds (Phase 41)
+
+After the counts above are final, the dry-run evaluates a fixed set of non-blocking thresholds
+and appends any that trip to both `report.warnings` and a dedicated `report.thresholdWarnings`
+array (pure, independently-testable via `evaluateThresholdWarnings` in
+`scripts/migration/menuImportHelpers.ts`):
+
+- `categoriesRead === 0` — no categories were read at all.
+- `itemsRead === 0` — no items were read at all.
+- more than 20% of valid items have a missing or invalid price.
+- more than 20% of valid items have an orphan category reference.
+- `duplicateItemNames > 0` — any duplicate item name+category combination at all.
+
+These thresholds only ever **warn**, never fail the run — the only conditions that fail the dry-run
+are a missing input directory or invalid JSON in a source file (existing Phase 39 behavior,
+unchanged). A tripped threshold is a signal to review the data before considering a write import,
+not a hard stop.
+
+## 5c. Markdown summary (Phase 41)
+
+Alongside the JSON report, the dry-run also writes a human-readable Markdown companion to
+`scripts/migration/output/menu-import-report.md` (gitignored, same as the JSON report; pure
+generation via `buildMarkdownSummary` in `scripts/migration/menuImportMarkdownSummary.ts`). It
+includes: categories/items read, skipped/duplicate/orphan counts, missing/invalid price counts,
+the top warnings (capped, with a count of how many more exist), the threshold warnings from §5b,
+and a `GO`/`NO-GO` recommendation line.
+
+**The JSON report remains the source of truth.** The Markdown file is a convenience summary for a
+human reviewer — it is derived entirely from the JSON report's fields and never contains
+information the JSON report doesn't already have. The `GO`/`NO-GO` line is a non-binding
+suggestion (`NO-GO` if there are any errors, zero categories/items read, or any threshold
+warning; `GO` otherwise) — it is not an approval mechanism and does not gate write mode in any
+way (write mode's actual gates are §11, unrelated to this recommendation).
+
 ## 6. Price parsing policy
 
 `priceCents` is computed from the old `price` field via string-based parsing (never naive
@@ -199,7 +278,8 @@ The dry-run always writes `scripts/migration/output/menu-import-report.json` (gi
   only ever reads local JSON files; write mode adds a connection to the backend's own Postgres
   (via `DATABASE_URL`), never to Supabase.
 - Only fake fixture data is committed (`scripts/migration/menu-input-sample/`). Real exports go
-  in `scripts/migration/menu-input/`, which is not committed.
+  in `scripts/migration/menu-input/` or `scripts/migration/menu-input-real/` (see §2b), neither of
+  which is committed.
 
 ## 9. Write mode (Phase 40)
 
@@ -302,3 +382,16 @@ and the created/updated row counts in the report, then correct or delete the aff
 Every path — pure dry-run, a gate-abort, a successful write, or a failed write — always writes
 `scripts/migration/output/menu-import-report.json`. An abort or failure never leaves a human
 without a record of what was attempted and why it didn't proceed.
+
+## 12. Real export dry-run review (Phase 41)
+
+Phase 41 prepares this tool for reviewing a real Supabase menu export — see §2b for the input
+folder, export instructions, and exact command; §5b for the new non-blocking warning thresholds;
+and §5c for the optional Markdown summary. No code in this phase connects to Supabase, writes to
+any database, or touches production data, and write mode (§9/§11) is not enabled by this phase.
+
+**Production import is not approved by this phase.** A clean dry-run report against a real export
+is a precondition for considering a future write-mode run, never an approval to perform one — that
+remains a separate, explicit decision gated by §11 and reviewed by a human. The Vapi dashboard
+cutover for `get-menu-info`/`get-item-details` remains blocked per §10 regardless of this review's
+outcome — reviewing a real export dry-run report does not by itself lift that blocker.

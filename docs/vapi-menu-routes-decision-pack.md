@@ -760,4 +760,30 @@ remains blocked until a real write-mode import populates the backend menu
 tables and the adapter passes the same real-payload parity comparison
 required of every other tool.
 
+## 15. Phase 41 status update
+
+Phase 41 prepared the dry-run tool for reviewing a **real** Supabase menu
+export, while remaining dry-run only (full design in
+`docs/menu-data-migration-plan.md` Section 2b/5b/5c, status update in
+`docs/backend-production-cutover-plan.md`'s Phase 41 update). It adds a
+gitignored `scripts/migration/menu-input-real/` drop folder for the real
+export (only its `README.md` is committed), non-blocking data-quality
+warning thresholds (zero categories/items read, >20% missing/invalid price,
+>20% orphan category references, any duplicate item), and an optional
+Markdown companion summary with a non-binding GO/NO-GO recommendation
+alongside the existing JSON report. Write mode is not enabled by this
+phase — `MENU_IMPORT_WRITE_ENABLED` remains unset by default, as before.
+
+**This does not change Section 7's cutover-blocked conclusion.** Reviewing
+a real export's dry-run report, even a clean one, is a precondition for
+considering a future write-mode run, not an approval to perform one or a
+substitute for it — no real data has been imported as of this update. No
+Vapi dashboard URL, Prisma schema, `src/app/api/vapi/*` route, or old
+`/admin/*` page was touched by this phase. Vapi dashboard cutover for
+`get-menu-info`/`get-item-details` remains blocked until a real
+write-mode import populates the backend menu tables and the adapter passes
+the same real-payload parity comparison required of every other tool.
+
+Do not start Phase 42 until this Phase 41 update is accepted.
+
 Do not start Phase 41 until this Phase 40 update is accepted.

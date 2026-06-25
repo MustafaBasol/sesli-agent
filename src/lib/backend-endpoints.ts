@@ -1384,3 +1384,218 @@ export function getAvailabilitySlots(
     },
   });
 }
+
+// --- Menu (Phase 37 backend API + beta UI) ---
+// No Vapi menu adapter exists yet (see docs/vapi-menu-routes-decision-pack.md)
+// — this is the backend-admin-only management surface.
+
+export const MENU_STATUSES = ['active', 'inactive'] as const;
+export type MenuStatus = (typeof MENU_STATUSES)[number];
+
+export type MenuCategoryListItem = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  status: MenuStatus;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MenuCategoryListParams = {
+  status?: MenuStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type MenuCategoryListResponse = {
+  data: MenuCategoryListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listMenuCategories(
+  restaurantId: string,
+  token: string,
+  params: MenuCategoryListParams = {}
+): Promise<MenuCategoryListResponse> {
+  return backendRequest<MenuCategoryListResponse>(`/restaurants/${restaurantId}/menu/categories`, {
+    token,
+    query: {
+      status: params.status,
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export function getMenuCategoryDetail(
+  restaurantId: string,
+  token: string,
+  categoryId: string
+): Promise<MenuCategoryListItem> {
+  return backendRequest<MenuCategoryListItem>(`/restaurants/${restaurantId}/menu/categories/${categoryId}`, { token });
+}
+
+export type CreateMenuCategoryPayload = {
+  name: string;
+  description?: string | null;
+  sortOrder?: number;
+  status?: MenuStatus;
+};
+
+export function createMenuCategory(
+  restaurantId: string,
+  token: string,
+  payload: CreateMenuCategoryPayload
+): Promise<MenuCategoryListItem> {
+  return backendRequest<MenuCategoryListItem>(`/restaurants/${restaurantId}/menu/categories`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateMenuCategoryPayload = {
+  name?: string;
+  description?: string | null;
+  sortOrder?: number;
+  status?: MenuStatus;
+};
+
+export function updateMenuCategory(
+  restaurantId: string,
+  token: string,
+  categoryId: string,
+  payload: UpdateMenuCategoryPayload
+): Promise<MenuCategoryListItem> {
+  return backendRequest<MenuCategoryListItem>(`/restaurants/${restaurantId}/menu/categories/${categoryId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export type MenuItemListItem = {
+  id: string;
+  restaurantId: string;
+  categoryId: string | null;
+  name: string;
+  description: string | null;
+  priceCents: number | null;
+  currency: string;
+  allergens: string[];
+  dietaryTags: string[];
+  aliases: string[];
+  isAvailable: boolean;
+  sortOrder: number;
+  status: MenuStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MenuItemListParams = {
+  categoryId?: string;
+  status?: MenuStatus;
+  isAvailable?: boolean;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type MenuItemListResponse = {
+  data: MenuItemListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+export function listMenuItems(
+  restaurantId: string,
+  token: string,
+  params: MenuItemListParams = {}
+): Promise<MenuItemListResponse> {
+  return backendRequest<MenuItemListResponse>(`/restaurants/${restaurantId}/menu/items`, {
+    token,
+    query: {
+      categoryId: params.categoryId,
+      status: params.status,
+      isAvailable: params.isAvailable === undefined ? undefined : String(params.isAvailable),
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
+  });
+}
+
+export function getMenuItemDetail(
+  restaurantId: string,
+  token: string,
+  itemId: string
+): Promise<MenuItemListItem> {
+  return backendRequest<MenuItemListItem>(`/restaurants/${restaurantId}/menu/items/${itemId}`, { token });
+}
+
+export type CreateMenuItemPayload = {
+  name: string;
+  description?: string | null;
+  categoryId?: string | null;
+  priceCents?: number | null;
+  currency?: string;
+  allergensJson?: string[];
+  dietaryTagsJson?: string[];
+  aliasesJson?: string[];
+  isAvailable?: boolean;
+  sortOrder?: number;
+  status?: MenuStatus;
+};
+
+export function createMenuItem(
+  restaurantId: string,
+  token: string,
+  payload: CreateMenuItemPayload
+): Promise<MenuItemListItem> {
+  return backendRequest<MenuItemListItem>(`/restaurants/${restaurantId}/menu/items`, {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export type UpdateMenuItemPayload = {
+  name?: string;
+  description?: string | null;
+  categoryId?: string | null;
+  priceCents?: number | null;
+  currency?: string;
+  allergensJson?: string[];
+  dietaryTagsJson?: string[];
+  aliasesJson?: string[];
+  isAvailable?: boolean;
+  sortOrder?: number;
+  status?: MenuStatus;
+};
+
+export function updateMenuItem(
+  restaurantId: string,
+  token: string,
+  itemId: string,
+  payload: UpdateMenuItemPayload
+): Promise<MenuItemListItem> {
+  return backendRequest<MenuItemListItem>(`/restaurants/${restaurantId}/menu/items/${itemId}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}

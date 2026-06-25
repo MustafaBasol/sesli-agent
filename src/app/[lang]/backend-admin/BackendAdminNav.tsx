@@ -13,6 +13,7 @@ export default function BackendAdminNav({ onLogout }: { onLogout: () => void }) 
     { href: `/${lang}/backend-admin/reservation-requests`, label: 'Reservation Requests' },
     { href: `/${lang}/backend-admin/reservations`, label: 'Reservations' },
     { href: `/${lang}/backend-admin/tables`, label: 'Tables' },
+    { href: `/${lang}/backend-admin/menu`, label: 'Menu' },
     { href: `/${lang}/backend-admin/customers`, label: 'Customers' },
     { href: `/${lang}/backend-admin/conversations`, label: 'Conversations' },
     { href: `/${lang}/backend-admin/integrations`, label: 'Integrations' },

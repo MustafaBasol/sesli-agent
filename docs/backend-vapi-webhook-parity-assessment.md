@@ -1208,3 +1208,56 @@ Next.js/Supabase `modify-reservation-request` route (audit-only insert into
 `reservation_changes`) and the legacy dispatcher's direct-UPDATE
 `modify_reservation_request` case are both untouched and continue to serve
 the production Vapi assistant; the Vapi dashboard has not been switched.
+
+## 19. Phase 36 decision status (update)
+
+Phase 36 was a documentation/decision-only phase (no code, schema, or
+Vapi/Supabase changes) that resolved the menu data-source question this
+assessment flagged as a **model gap** for `get-menu-info` and
+`get-item-details` in Sections 2.10–2.11, 5, and 6–7 above ("no Menu/MenuItem
+Prisma model exists" / "explicitly blocked on a Menu/MenuItem Prisma model
+decision"). Full old-route behavior inventory, backend capability mapping,
+options analysis, a draft future schema, and a future route behavior spec
+now live in `docs/vapi-menu-routes-decision-pack.md` — this section only
+records the resulting status change.
+
+- **get-menu-info / get-item-details**: **Decision-ready, not implemented.**
+  Decided data-source direction: defer real menu routes until dedicated
+  `MenuCategory`/`MenuItem` Prisma models exist (recommended as Phase 37:
+  schema + admin/API foundation, Phase 38: Vapi menu adapters + Supabase
+  data migration). Storing menu data in an existing `Json?` column
+  (`RestaurantSettings`/`IntegrationConnection.configJson`) was explicitly
+  considered and rejected for this domain — see the decision pack's Option C
+  for the full reasoning, including a new finding that menu data also has
+  an active staff-facing admin UI today (`src/app/[lang]/admin/menu/actions.ts`),
+  not just Vapi-read usage, which raises the bar against an unstructured-JSON
+  shortcut.
+- Both old per-tool routes were confirmed to be live, non-trivial,
+  currently-serving tools (not legacy dead code) — `get-menu-info` returns
+  the full active-item list as a formatted string with a static VAT footer;
+  `get-item-details` does an ILIKE substring name match with a curated
+  response shape. The legacy dispatcher's equivalents were also inspected
+  and found to disagree on response shape (raw, unfiltered DB row for
+  `get_item_details`) — explicitly rejected as a pattern for any future
+  backend route.
+- This changes nothing about Section 5/6's **Missing (model gap)**/**C/E**
+  rating for these two routes other than confirming, via direct inspection,
+  that the gap is real and recommending the specific resolution path
+  (Phase 37/38) rather than leaving it open-ended.
+- `docs/backend-production-cutover-plan.md` has been updated with an
+  explicit menu-route cutover blocker, independent of (and not blocking)
+  the cutover status of every other already-implemented Vapi tool.
+
+## 20. Phase 37 status update
+
+Phase 37 (Backend Menu Schema + Admin/API Foundation) implemented the
+`MenuCategory`/`MenuItem` Prisma models, tenant-scoped CRUD routes/services,
+and a `/backend-admin/menu` beta UI recommended above — see
+`docs/backend-menu-foundation.md`. This closes the **model gap** itself (a
+real schema now exists), but **does not change the route status**:
+`get-menu-info`/`get-item-details` remain **Missing (no Vapi adapter
+implemented)** — Phase 37 was schema/admin scope only, per its own
+instructions, and explicitly did not implement either Vapi route or migrate
+any Supabase `menu_items`/`menu_categories` data. The still-pending Phase 38
+(Vapi menu adapters + data migration) is what would actually change these
+two rows' status in Sections 5/6 above.

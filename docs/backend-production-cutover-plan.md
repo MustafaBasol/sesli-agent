@@ -304,6 +304,60 @@ or backfill strategy). That phase is out of scope here.
   routes (still out of scope) and the legacy dispatcher cutover (a separate
   architectural decision, not bundled with this phase).
 
+### Remaining blocker: menu routes deferred to a data-source decision, independent of every other tool (Phase 36 update)
+
+- Phase 36 was documentation-only and resolved the **data-source decision**
+  for `get-menu-info` and `get-item-details` — see
+  `docs/vapi-menu-routes-decision-pack.md` for the full decision pack and
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 19 for the status
+  update. **No code, schema, or migration was written.**
+- Decision: defer real backend menu routes until dedicated
+  `MenuCategory`/`MenuItem` Prisma models exist (recommended Phase 37:
+  schema + admin/API foundation; Phase 38: Vapi menu adapters + Supabase
+  data migration). Storing menu data in an existing `Json?` column was
+  considered and explicitly rejected for this domain.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details`
+  remains not allowed** — both old per-tool routes
+  (`src/app/api/vapi/get-menu-info`, `src/app/api/vapi/get-item-details`)
+  were confirmed to be live, non-trivial, currently-serving tools (not dead
+  code), so no backend equivalent exists yet to cut over to. This blocker
+  is **independent of, and does not block,** cutover of every other
+  already-implemented Vapi tool (`create-reservation-request`,
+  `check-availability`, `get-customer-profile`/`create-customer-profile`,
+  `get-current-date`/`get-opening-hours`, `log-call-summary`,
+  `handoff-to-staff`, `cancel-reservation-request`,
+  `modify-reservation-request`) — Vapi's per-tool dashboard configuration
+  allows each tool's URL to be switched independently, so menu tools can
+  keep pointing at the old Next.js routes indefinitely while every other
+  tool proceeds through its own real-payload parity comparison and cutover
+  on its own schedule.
+- This is the last open item from `docs/backend-vapi-webhook-parity-assessment.md`
+  Section 7's "Can defer" list (`get-menu-info`/`get-item-details`) — the
+  legacy dispatcher cutover (assistant-request / end-of-call-report /
+  tool-calls switch) remains the only other deferred item, and is explicitly
+  a separate architectural decision not bundled with this phase or with the
+  menu data-source decision above.
+
+### Menu backend foundation exists, but Vapi menu cutover remains blocked (Phase 37 update)
+
+- Phase 37 implemented the `MenuCategory`/`MenuItem` Prisma models,
+  tenant-scoped CRUD routes/services, and a `/backend-admin/menu` beta UI —
+  see `docs/backend-menu-foundation.md`. **A real backend menu data store
+  now exists**, which did not before.
+- **This does not lift the cutover blocker above.** No Vapi adapter
+  (`get-menu-info`/`get-item-details`) was implemented against these models
+  in Phase 37, and no Supabase `menu_items`/`menu_categories` data was
+  migrated into them — the new tables start empty besides whatever an admin
+  creates by hand through the new UI. Cutting Vapi traffic over to an empty
+  or hand-entered backend menu before a real data migration would be a
+  guest-facing regression, not a parity improvement.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details`
+  remains blocked** until the still-pending Phase 38 (Vapi menu adapters +
+  Supabase → backend data migration) lands and passes the same
+  real-payload parity comparison required of every other tool. As before,
+  this is independent of, and does not block, cutover of any other
+  already-implemented Vapi tool.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

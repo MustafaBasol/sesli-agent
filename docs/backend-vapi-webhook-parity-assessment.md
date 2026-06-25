@@ -1301,3 +1301,20 @@ DB-backed integration test (`vapiMenu.integration.test.ts`), but:
   migration happens — implementing the adapter is a precondition for
   cutover, not cutover itself. See
   `docs/backend-production-cutover-plan.md` for the updated blocker note.
+
+## 22. Phase 39 status update
+
+A read-only menu data migration/import **dry-run** tool now exists —
+`scripts/migration/menu-import-dry-run.ts` (see
+`docs/menu-data-migration-plan.md` for the full plan). It reads local JSON
+exports of the old Supabase `menu_categories`/`menu_items` tables,
+normalizes/validates/maps them against the Phase 37 `MenuCategory`/
+`MenuItem` models, and produces a JSON report (duplicate names, invalid/
+missing prices, orphan category references, proposed mappings) — it never
+connects to Supabase and **never writes to any database**.
+
+This does not change Section 21's conclusion. The Phase 38 adapters are
+unaffected; their cutover-blocked status is unchanged until a real write
+import (Phase 40, not yet built) actually populates the backend menu tables
+for the target restaurant and the adapter passes the same real-payload
+parity comparison required of every other tool.

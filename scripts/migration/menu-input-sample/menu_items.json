@@ -1,0 +1,38 @@
+[
+  {
+    "id": 10,
+    "name": "Hummus with Pastirma",
+    "category": "Cold Starters",
+    "price": "8.50",
+    "currency": "EUR",
+    "description": "Traditional hummus topped with spicy pastirma.",
+    "is_available": true
+  },
+  {
+    "id": 11,
+    "name": "Lamb Chops",
+    "category": "Grilled Meats",
+    "price": "18,90",
+    "currency": "EUR",
+    "description": "Tender lamb chops with rosemary.",
+    "is_available": true,
+    "allergens": ["none"]
+  },
+  {
+    "id": 12,
+    "name": "Baklava with Pistachio",
+    "category": "Desserts",
+    "price": 7,
+    "currency": "EUR",
+    "description": "Freshly made crispy baklava.",
+    "is_available": false
+  },
+  {
+    "id": 13,
+    "name": "Seasonal Special",
+    "category": "Soups",
+    "price": null,
+    "currency": "EUR",
+    "description": "Ask staff for today's special — orphan category example."
+  }
+]

@@ -710,3 +710,26 @@ comparison required of every other tool. No Vapi dashboard URL was changed
 by this phase.
 
 Do not start Phase 39 until this Phase 38 update is accepted.
+
+## 13. Phase 39 status update
+
+Phase 39 (Menu Data Migration / Import Dry-Run) has landed: a read-only,
+non-destructive dry-run tool (`scripts/migration/menu-import-dry-run.ts`,
+full plan in `docs/menu-data-migration-plan.md`) reads local JSON exports of
+the old Supabase `menu_categories`/`menu_items` tables, normalizes/validates/
+maps them against the Phase 37 `MenuCategory`/`MenuItem` models, and produces
+a JSON report (duplicate names, invalid/missing prices, orphan category
+references, proposed mappings) — it never connects to Supabase and never
+writes to any database.
+
+**This does not change Section 7's cutover-blocked conclusion.** No real
+data was imported by this phase; the dry-run report is a planning artifact,
+not migrated data. Vapi dashboard cutover for `get-menu-info`/
+`get-item-details` remains blocked until a real write import (Phase 40,
+not yet built — see `docs/menu-data-migration-plan.md` Section 9) actually
+populates the backend menu tables and the adapter passes the same
+real-payload parity comparison required of every other tool. No Vapi
+dashboard URL, Prisma schema, `src/app/api/vapi/*` route, or old `/admin/*`
+page was touched by this phase.
+
+Do not start Phase 40 until this Phase 39 update is accepted.

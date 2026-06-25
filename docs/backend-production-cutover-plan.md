@@ -385,6 +385,26 @@ or backfill strategy). That phase is out of scope here.
   independent of, and does not block, cutover of any other already-
   implemented Vapi tool.
 
+### Menu data migration dry-run tool exists, but no data has actually been migrated (Phase 39 update)
+
+- Phase 39 added a read-only menu data migration/import **dry-run** tool
+  (`scripts/migration/menu-import-dry-run.ts`, see
+  `docs/menu-data-migration-plan.md`). It reads local JSON exports of the
+  old Supabase `menu_categories`/`menu_items` tables and reports proposed
+  `MenuCategory`/`MenuItem` mappings, duplicates, invalid/missing prices,
+  and orphan category references — it never connects to Supabase and
+  **never writes to any database**. No Prisma schema/migration was added.
+- **This does not lift the menu cutover blocker from the Phase 38 update
+  above.** A dry-run report is a planning artifact, not migrated data — the
+  backend menu tables remain exactly as populated by the Phase 37 admin UI
+  (or empty) until a real write import actually runs. The Vapi dashboard
+  cutover for `get-menu-info`/`get-item-details` remains blocked until a
+  future Phase 40 write import (gated behind `MENU_IMPORT_WRITE_ENABLED` +
+  a confirmed target restaurant id, neither implemented yet) populates the
+  backend menu tables and the adapter passes the same real-payload parity
+  comparison required of every other tool. No Vapi dashboard URL was
+  changed by this phase.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

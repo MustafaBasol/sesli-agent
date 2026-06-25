@@ -115,3 +115,50 @@ export function readCategoryReference(record: Record<string, unknown>): string |
   if (typeof raw === "string" || typeof raw === "number") return raw;
   return null;
 }
+
+/**
+ * Phase 41 — non-blocking go/no-go threshold checks. These only ever produce
+ * warnings, never errors: the dry-run still fails on missing files/invalid
+ * JSON (handled separately), not on data-quality thresholds.
+ */
+export function evaluateThresholdWarnings(counts: {
+  categoriesRead: number;
+  itemsRead: number;
+  validItems: number;
+  missingPrice: number;
+  invalidPrice: number;
+  orphanCategoryReferences: number;
+  duplicateItemNames: number;
+}): string[] {
+  const warnings: string[] = [];
+
+  if (counts.categoriesRead === 0) {
+    warnings.push("threshold: 0 categories read from menu_categories.json");
+  }
+  if (counts.itemsRead === 0) {
+    warnings.push("threshold: 0 items read from menu_items.json");
+  }
+
+  const itemBase = counts.validItems;
+  if (itemBase > 0) {
+    const badPriceRatio = (counts.missingPrice + counts.invalidPrice) / itemBase;
+    if (badPriceRatio > 0.2) {
+      warnings.push(
+        `threshold: ${counts.missingPrice + counts.invalidPrice}/${itemBase} items (${(badPriceRatio * 100).toFixed(1)}%) have missing/invalid price — exceeds 20%`
+      );
+    }
+
+    const orphanRatio = counts.orphanCategoryReferences / itemBase;
+    if (orphanRatio > 0.2) {
+      warnings.push(
+        `threshold: ${counts.orphanCategoryReferences}/${itemBase} items (${(orphanRatio * 100).toFixed(1)}%) have orphan category references — exceeds 20%`
+      );
+    }
+  }
+
+  if (counts.duplicateItemNames > 0) {
+    warnings.push(`threshold: ${counts.duplicateItemNames} duplicate item name+category combination(s) found`);
+  }
+
+  return warnings;
+}

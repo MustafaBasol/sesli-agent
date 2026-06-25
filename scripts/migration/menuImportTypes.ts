@@ -90,6 +90,8 @@ export type MenuImportReport = {
   duplicateItemKeysList: string[];
   warnings: string[];
   errors: string[];
+  /** Phase 41 — non-blocking go/no-go threshold checks, evaluated after counts are final. */
+  thresholdWarnings: string[];
   recommendedNextActions: string[];
   /** Records exactly which write-mode safety gates were evaluated and how. */
   writeModeSafety: {

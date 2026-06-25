@@ -19,6 +19,10 @@ backend/dist
 /scripts/migration/output/
 /.migration-output/
 
+# real Supabase menu export (Phase 41) — never commit; only the README placeholder is tracked
+/scripts/migration/menu-input-real/*
+!/scripts/migration/menu-input-real/README.md
+
 # next.js
 /.next/
 /out/

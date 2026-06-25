@@ -8,8 +8,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { mapIsAvailable, mapStatus, normalizeMenuName, parsePriceToCents, toBoundedStringArray } from "./menuImportHelpers";
+import {
+  evaluateThresholdWarnings,
+  mapIsAvailable,
+  mapStatus,
+  normalizeMenuName,
+  parsePriceToCents,
+  toBoundedStringArray,
+} from "./menuImportHelpers";
 import { evaluateWriteModeGates } from "./menuImportWriteGates";
+import { buildMarkdownSummary } from "./menuImportMarkdownSummary";
 
 async function main() {
   // parsePriceToCents
@@ -112,8 +120,108 @@ async function main() {
       productionAllowed: false,
       productionConfirmationProvided: false,
     });
+
+    // Phase 41 — this fixture has missing/invalid price and a duplicate item,
+    // both of which should surface as non-blocking threshold warnings, and
+    // the markdown summary should recommend NO-GO as a result.
+    assert.ok(report.thresholdWarnings.length > 0);
+    const markdown = buildMarkdownSummary(report);
+    assert.ok(markdown.includes("**NO-GO**"));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  // Phase 41 — real input directory path handling: an arbitrary directory
+  // path (mirroring scripts/migration/menu-input-real/) is read the same way
+  // as any other input dir, no special-casing, no write mode triggered.
+  const realLikeDir = fs.mkdtempSync(path.join(os.tmpdir(), "menu-input-real-"));
+  try {
+    fs.writeFileSync(path.join(realLikeDir, "menu_categories.json"), JSON.stringify([{ id: 1, name: "Mains", display_order: 1 }]));
+    fs.writeFileSync(
+      path.join(realLikeDir, "menu_items.json"),
+      JSON.stringify([{ id: 1, name: "Steak", category: "Mains", price: "12.00" }])
+    );
+
+    const { __buildReportForTest } = await import("./menu-import-dry-run");
+    const report = __buildReportForTest(realLikeDir, "94581a20-a09a-4c9c-8ccb-88ab4e6df19f");
+
+    assert.equal(report.dryRun, true);
+    assert.equal(report.writeEnabled, false);
+    assert.equal(report.inputDir, realLikeDir);
+    assert.equal(report.counts.categoriesRead, 1);
+    assert.equal(report.counts.itemsRead, 1);
+    assert.deepEqual(report.thresholdWarnings, [], "a clean small dataset has no threshold warnings");
+
+    const markdown = buildMarkdownSummary(report);
+    assert.ok(markdown.includes("# Menu import dry-run report"));
+    assert.ok(markdown.includes("**GO**"), "clean dataset recommends GO");
+  } finally {
+    fs.rmSync(realLikeDir, { recursive: true, force: true });
+  }
+
+  // evaluateThresholdWarnings — pure warning-threshold checks (Phase 41).
+  {
+    const noWarnings = evaluateThresholdWarnings({
+      categoriesRead: 5,
+      itemsRead: 10,
+      validItems: 10,
+      missingPrice: 0,
+      invalidPrice: 0,
+      orphanCategoryReferences: 0,
+      duplicateItemNames: 0,
+    });
+    assert.deepEqual(noWarnings, []);
+  }
+  {
+    const zeroRead = evaluateThresholdWarnings({
+      categoriesRead: 0,
+      itemsRead: 0,
+      validItems: 0,
+      missingPrice: 0,
+      invalidPrice: 0,
+      orphanCategoryReferences: 0,
+      duplicateItemNames: 0,
+    });
+    assert.ok(zeroRead.some((w) => w.includes("0 categories read")));
+    assert.ok(zeroRead.some((w) => w.includes("0 items read")));
+  }
+  {
+    // 3 of 10 items (30%) have invalid/missing price -> exceeds the 20% threshold.
+    const badPrice = evaluateThresholdWarnings({
+      categoriesRead: 1,
+      itemsRead: 10,
+      validItems: 10,
+      missingPrice: 2,
+      invalidPrice: 1,
+      orphanCategoryReferences: 0,
+      duplicateItemNames: 0,
+    });
+    assert.ok(badPrice.some((w) => w.includes("missing/invalid price")));
+  }
+  {
+    // 3 of 10 items (30%) have orphan category references -> exceeds the 20% threshold.
+    const orphans = evaluateThresholdWarnings({
+      categoriesRead: 1,
+      itemsRead: 10,
+      validItems: 10,
+      missingPrice: 0,
+      invalidPrice: 0,
+      orphanCategoryReferences: 3,
+      duplicateItemNames: 0,
+    });
+    assert.ok(orphans.some((w) => w.includes("orphan category references")));
+  }
+  {
+    const duplicates = evaluateThresholdWarnings({
+      categoriesRead: 1,
+      itemsRead: 10,
+      validItems: 10,
+      missingPrice: 0,
+      invalidPrice: 0,
+      orphanCategoryReferences: 0,
+      duplicateItemNames: 2,
+    });
+    assert.ok(duplicates.some((w) => w.includes("duplicate item name+category")));
   }
 
   // No source files at all -> errors flagged, never crashes.

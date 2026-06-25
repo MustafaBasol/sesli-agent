@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  evaluateThresholdWarnings,
   mapIsAvailable,
   mapStatus,
   normalizeMenuName,
@@ -27,6 +28,7 @@ import {
 } from "./menuImportHelpers";
 import type { MappedMenuCategory, MappedMenuItem, MenuImportReport, SourceMenuCategory, SourceMenuItem } from "./menuImportTypes";
 import { evaluateWriteModeGates } from "./menuImportWriteGates";
+import { buildMarkdownSummary } from "./menuImportMarkdownSummary";
 
 const SOURCE_FILES = ["menu_categories.json", "menu_items.json"] as const;
 
@@ -219,6 +221,7 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     duplicateItemKeysList: [],
     warnings: [],
     errors: [],
+    thresholdWarnings: [],
     recommendedNextActions: [],
     writeModeSafety: { writeEnabled: false, confirmationMatched: false, productionAllowed: false, productionConfirmationProvided: false },
   };
@@ -268,6 +271,17 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     report.errors.push("no source records found in menu_categories.json or menu_items.json — nothing to report on");
   }
 
+  report.thresholdWarnings = evaluateThresholdWarnings({
+    categoriesRead: report.counts.categoriesRead,
+    itemsRead: report.counts.itemsRead,
+    validItems: report.counts.validItems,
+    missingPrice: report.counts.missingPrice,
+    invalidPrice: report.counts.invalidPrice,
+    orphanCategoryReferences: report.counts.orphanCategoryReferences,
+    duplicateItemNames: report.counts.duplicateItemNames,
+  });
+  report.warnings.push(...report.thresholdWarnings);
+
   report.recommendedNextActions.push(
     "review duplicateCategoryNamesList/duplicateItemKeysList before any write import is attempted",
     "review orphanCategoryReferences and missingCategory items before any write import is attempted",
@@ -304,6 +318,10 @@ function writeReportFile(report: MenuImportReport): void {
   const outputPath = path.join(outputDir, "menu-import-report.json");
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), "utf-8");
   console.log(`\nReport also written to: ${outputPath}`);
+
+  const markdownPath = path.join(outputDir, "menu-import-report.md");
+  fs.writeFileSync(markdownPath, buildMarkdownSummary(report), "utf-8");
+  console.log(`Markdown summary written to: ${markdownPath} (the JSON report remains the source of truth)`);
 }
 
 async function main() {

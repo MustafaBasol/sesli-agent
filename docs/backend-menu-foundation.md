@@ -147,3 +147,53 @@ category item-count, item list filters (category/status/isAvailable/
 search), pagination, `categoryId` cross-tenant rejection on both create and
 update, no raw/internal fields in responses, and confirms there is no
 `DELETE` route.
+
+## 8. Phase 37 VPS fix-up (post-review)
+
+VPS verification of the first cut found two issues, both now fixed/clarified:
+
+1. **`isAvailable=false` query filter returned the wrong item.** The list
+   query schema (`backend/src/schemas/menu.ts`) used
+   `z.coerce.boolean().optional()` for the `isAvailable` query param.
+   `z.coerce.boolean()` calls JS `Boolean(value)`, which is `true` for *any*
+   non-empty string — including the literal string `"false"` that arrives
+   from a real querystring (`?isAvailable=false`). So the filter silently
+   inverted: requesting unavailable items returned available ones instead.
+   Fixed by adding a dedicated `queryBooleanSchema =
+   z.enum(["true","false"]).transform(v => v === "true")` and using it only
+   for the query-string field. `isAvailable` in the create/update body
+   schemas is unaffected — those values arrive as real JSON booleans, where
+   `Boolean(false) === false` is correct.
+2. **`/en/backend-admin/menu` returned 404 on the VPS despite being in the
+   build manifest.** No code defect was found: reproducing locally with the
+   beta flag unset at build time 404s *every* `backend-admin/*` route
+   uniformly (not just `/menu`), so a missing build-time flag does not
+   explain an isolated 404 on one new route. `next.config.ts` sets
+   `output: 'standalone'`; running `next start` against that config
+   prints `"next start" does not work with "output: standalone"
+   configuration. Use "node .next/standalone/server.js" instead.` — meaning
+   the actual production process most likely *is* the long-running
+   standalone `server.js`, and a `npm run build` alone does not refresh it.
+   The fix is operational, not a code change: restart the standalone server
+   process after every build (see Section 9), copying `.next/static` and
+   `public/` into `.next/standalone/` as required by Next.js standalone
+   deployments.
+
+## 9. Correct VPS restart procedure (standalone output)
+
+```bash
+cd /docker/sesli-agent/app
+npm run build
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/public 2>/dev/null || true
+
+# stop the existing standalone server process, then:
+PORT=3000 nohup node .next/standalone/server.js > /tmp/sesli-agent-frontend.log 2>&1 &
+
+curl -I http://127.0.0.1:3000/en/backend-admin/menu
+curl -I http://127.0.0.1:3000/en/admin/menu
+```
+
+`npm start` (`next start`) is not the right restart command for this
+project's `output: 'standalone'` build — it works for local checks but
+Next.js itself warns it is unsupported for this config.

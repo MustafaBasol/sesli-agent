@@ -9,6 +9,11 @@ const statusEnum = z.enum(MENU_STATUSES);
 // Keeps the JSON columns from accepting arbitrarily large/nested payloads.
 const stringListSchema = z.array(z.string().trim().min(1).max(60)).max(30);
 
+// Query-string booleans arrive as the literal strings "true"/"false" —
+// z.coerce.boolean() uses JS `Boolean(value)`, which is true for ANY
+// non-empty string (including "false"), so it must not be used here.
+const queryBooleanSchema = z.enum(["true", "false"]).transform((value) => value === "true");
+
 // --- Categories ---------------------------------------------------------
 
 export const listMenuCategoriesQuerySchema = z.object({
@@ -50,7 +55,7 @@ export const listMenuItemsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   categoryId: z.string().trim().min(1).max(100).optional(),
   status: statusEnum.optional(),
-  isAvailable: z.coerce.boolean().optional(),
+  isAvailable: queryBooleanSchema.optional(),
   search: z.string().trim().min(1).max(200).optional(),
 });
 

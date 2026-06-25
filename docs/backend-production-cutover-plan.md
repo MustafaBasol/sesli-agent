@@ -459,6 +459,29 @@ or backfill strategy). That phase is out of scope here.
   tables and the adapter passes the same real-payload parity comparison required of every other
   tool.
 
+### Test-database import and Vapi menu preview prepared, but not yet run (Phase 42 update)
+
+- Phase 42 prepares (does not itself perform, since the authoring agent has no VPS/live-environment
+  access) a real import of the Phase 41-reviewed real menu export into the **VPS/test database
+  only** (`postgresql://.../sesliagent_test`), using the existing Phase 40 gated write-mode
+  mechanism unchanged. No new write-path code was needed; the existing
+  `MENU_IMPORT_WRITE_ENABLED` + `MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID` + `DATABASE_URL` gates
+  (`docs/menu-data-migration-plan.md` §11) are sufficient.
+- It adds one read-only helper, `scripts/migration/menu-test-db-preview.ts`
+  (`npm run migration:menu:preview`), which prints `MenuCategory`/`MenuItem` counts and samples for
+  `MENU_IMPORT_RESTAURANT_ID` from `DATABASE_URL` — never writes, updates, or deletes anything. See
+  `docs/menu-data-migration-plan.md` Section 13 for the full design and the exact manual VPS
+  command sequence.
+- **No production DB, no live Supabase, and no Vapi dashboard URL were touched.** No code under
+  `src/app/api/vapi/*` or `/admin/*` was modified. No Prisma schema/migration change was made.
+- **Acceptance requires a human to actually run the prepared VPS commands** (dry-run, test-DB write
+  import, idempotent re-run, the menu/Vapi-menu integration tests, `npm run test`/`typecheck`/
+  `build`, and a webhook smoke check of `get-menu-info`/`get-item-details`) and report real PASS/FAIL
+  output back — this update only documents what to run, not that it has been run.
+- This does not lift the menu cutover blocker from the Phase 38–41 updates above. The Vapi dashboard
+  cutover for `get-menu-info`/`get-item-details` remains blocked, and **Phase 43 must not start**
+  until the Phase 42 verification report above is reviewed and accepted.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

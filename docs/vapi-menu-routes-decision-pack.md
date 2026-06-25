@@ -787,3 +787,21 @@ the same real-payload parity comparison required of every other tool.
 Do not start Phase 42 until this Phase 41 update is accepted.
 
 Do not start Phase 41 until this Phase 40 update is accepted.
+
+## 16. Phase 42 status update
+
+Phase 42 prepares a real import of the Phase 41-reviewed export into the
+VPS/test database only, plus a manual smoke preview of the
+`get-menu-info`/`get-item-details` webhook routes against that imported
+data (full design in `docs/menu-data-migration-plan.md` Section 13, status
+update in `docs/backend-production-cutover-plan.md`'s Phase 42 update). No
+route, schema, or Vapi-dashboard change was made; the only addition is a
+read-only preview script (`scripts/migration/menu-test-db-preview.ts`).
+
+The authoring agent has no VPS/live-environment access, so this phase only
+*prepares* the import/preview commands — it does not claim they were run.
+**Section 7's cutover-blocked conclusion is unchanged.** Vapi dashboard
+cutover for `get-menu-info`/`get-item-details` remains blocked until a
+human runs the prepared VPS commands and reports real PASS/FAIL results.
+
+Do not start Phase 43 until this Phase 42 update is accepted.

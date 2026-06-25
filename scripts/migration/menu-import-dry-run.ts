@@ -26,6 +26,7 @@ import {
   toBoundedStringArray,
 } from "./menuImportHelpers";
 import type { MappedMenuCategory, MappedMenuItem, MenuImportReport, SourceMenuCategory, SourceMenuItem } from "./menuImportTypes";
+import { evaluateWriteModeGates } from "./menuImportWriteGates";
 
 const SOURCE_FILES = ["menu_categories.json", "menu_items.json"] as const;
 
@@ -200,6 +201,18 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
       inactiveCategories: 0,
       unavailableItems: 0,
     },
+    categories: { read: 0, valid: 0, created: 0, updated: 0, unchanged: 0, skipped: 0, duplicateSkipped: 0 },
+    items: {
+      read: 0,
+      valid: 0,
+      created: 0,
+      updated: 0,
+      unchanged: 0,
+      skipped: 0,
+      duplicateSkipped: 0,
+      importedWithNullCategory: 0,
+      autoCreatedCategoryFromItemLabel: 0,
+    },
     proposedCategoryMappings: [],
     proposedItemMappings: [],
     duplicateCategoryNamesList: [],
@@ -207,6 +220,7 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     warnings: [],
     errors: [],
     recommendedNextActions: [],
+    writeModeSafety: { writeEnabled: false, confirmationMatched: false, productionAllowed: false, productionConfirmationProvided: false },
   };
 
   const categoriesPath = path.join(inputDir, "menu_categories.json");
@@ -240,6 +254,16 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
   report.duplicateItemKeysList = duplicateKeys;
   report.counts.duplicateItemNames = duplicateKeys.length;
 
+  report.categories.read = report.counts.categoriesRead;
+  report.categories.valid = report.counts.validCategories;
+  report.categories.skipped = report.counts.skippedCategories;
+  report.categories.duplicateSkipped = report.counts.duplicateCategoryNames;
+
+  report.items.read = report.counts.itemsRead;
+  report.items.valid = report.counts.validItems;
+  report.items.skipped = report.counts.skippedItems;
+  report.items.duplicateSkipped = report.counts.duplicateItemNames;
+
   if (report.counts.categoriesRead === 0 && report.counts.itemsRead === 0) {
     report.errors.push("no source records found in menu_categories.json or menu_items.json — nothing to report on");
   }
@@ -248,7 +272,7 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     "review duplicateCategoryNamesList/duplicateItemKeysList before any write import is attempted",
     "review orphanCategoryReferences and missingCategory items before any write import is attempted",
     "review invalidPrice/missingPrice items — these would import with a null priceCents and must be fixed by hand",
-    "do not enable MENU_IMPORT_WRITE_ENABLED — no write path exists in this phase (write import is Phase 40)"
+    "to write for real, set MENU_IMPORT_WRITE_ENABLED=true plus MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID and DATABASE_URL — see docs/menu-data-migration-plan.md §11; prefer a VPS/test database first"
   );
 
   return report;
@@ -273,7 +297,16 @@ function printUsageAndExit(message: string): never {
   process.exit(1);
 }
 
-function main() {
+function writeReportFile(report: MenuImportReport): void {
+  console.log(JSON.stringify(report, null, 2));
+  const outputDir = path.join(process.cwd(), "scripts/migration/output");
+  fs.mkdirSync(outputDir, { recursive: true });
+  const outputPath = path.join(outputDir, "menu-import-report.json");
+  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), "utf-8");
+  console.log(`\nReport also written to: ${outputPath}`);
+}
+
+async function main() {
   const targetRestaurantId = process.env.MENU_IMPORT_RESTAURANT_ID;
   if (!targetRestaurantId || !targetRestaurantId.trim()) {
     printUsageAndExit("MENU_IMPORT_RESTAURANT_ID is required — this script never guesses a target restaurant.");
@@ -284,18 +317,58 @@ function main() {
     printUsageAndExit(`Input directory not found: ${inputDir}`);
   }
 
-  if (process.env.MENU_IMPORT_WRITE_ENABLED === "true") {
-    console.warn("MENU_IMPORT_WRITE_ENABLED=true was set, but no write path exists in this phase — continuing in dry-run mode only.");
+  const report = buildReport(inputDir, targetRestaurantId as string);
+  const gates = evaluateWriteModeGates(process.env);
+
+  report.writeModeSafety = gates.safety;
+
+  if (!gates.writeRequested) {
+    // Default dry-run path — unchanged from Phase 39 behavior.
+    writeReportFile(report);
+    return;
   }
 
-  const report = buildReport(inputDir, targetRestaurantId as string);
-  console.log(JSON.stringify(report, null, 2));
+  if (!gates.canWrite) {
+    report.dryRun = true;
+    report.writeEnabled = false;
+    for (const reason of gates.abortReasons) {
+      report.errors.push(`write mode aborted: ${reason}`);
+    }
+    writeReportFile(report);
+    console.error("\nWrite mode was requested but aborted by a safety gate — see report.errors. No database write occurred.");
+    process.exitCode = 1;
+    return;
+  }
 
-  const outputDir = path.join(process.cwd(), "scripts/migration/output");
-  fs.mkdirSync(outputDir, { recursive: true });
-  const outputPath = path.join(outputDir, "menu-import-report.json");
-  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2), "utf-8");
-  console.log(`\nReport also written to: ${outputPath}`);
+  try {
+    const { writeMenuImport } = await import("../../backend/src/scripts/menuImportWrite");
+    const writeResult = await writeMenuImport({
+      restaurantId: targetRestaurantId as string,
+      categories: report.proposedCategoryMappings,
+      items: report.proposedItemMappings,
+    });
+
+    report.dryRun = false;
+    report.writeEnabled = true;
+    report.categories.created = writeResult.categories.created;
+    report.categories.updated = writeResult.categories.updated;
+    report.categories.unchanged = writeResult.categories.unchanged;
+    report.items.created = writeResult.items.created;
+    report.items.updated = writeResult.items.updated;
+    report.items.unchanged = writeResult.items.unchanged;
+    report.items.importedWithNullCategory = writeResult.items.importedWithNullCategory;
+    report.items.autoCreatedCategoryFromItemLabel = writeResult.items.autoCreatedCategoryFromItemLabel;
+    report.warnings.push(...writeResult.warnings);
+
+    writeReportFile(report);
+  } catch (err) {
+    report.dryRun = true;
+    report.writeEnabled = false;
+    report.errors.push(`write mode failed: ${err instanceof Error ? err.message : String(err)}`);
+    writeReportFile(report);
+    console.error("\nWrite mode failed — no partial writes should remain (single transaction). See report.errors.");
+    process.exitCode = 1;
+  }
 }
 
 if (require.main === module) {

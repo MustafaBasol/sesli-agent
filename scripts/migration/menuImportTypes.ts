@@ -1,6 +1,8 @@
 /**
- * menuImportTypes.ts — shared types for the Phase 39 menu import dry-run.
- * No I/O, no database access, no Supabase access.
+ * menuImportTypes.ts — shared types for the Phase 39 menu import dry-run and
+ * the Phase 40 gated write mode. No I/O, no database access, no Supabase
+ * access (the write-mode DB calls themselves live in
+ * backend/src/scripts/menuImportWrite.ts, not here).
  *
  * Policy reference: docs/menu-data-migration-plan.md
  */
@@ -41,8 +43,8 @@ export type MenuImportReport = {
   runStartedAt: string;
   inputDir: string;
   targetRestaurantId: string;
-  dryRun: true;
-  writeEnabled: false;
+  dryRun: boolean;
+  writeEnabled: boolean;
   sourceFiles: { file: string; found: boolean; recordCount: number }[];
   counts: {
     categoriesRead: number;
@@ -60,6 +62,28 @@ export type MenuImportReport = {
     inactiveCategories: number;
     unavailableItems: number;
   };
+  /** Write-mode outcome counters for categories. Zeroed out in dry-run mode. */
+  categories: {
+    read: number;
+    valid: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    duplicateSkipped: number;
+  };
+  /** Write-mode outcome counters for items. Zeroed out in dry-run mode. */
+  items: {
+    read: number;
+    valid: number;
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    duplicateSkipped: number;
+    importedWithNullCategory: number;
+    autoCreatedCategoryFromItemLabel: number;
+  };
   proposedCategoryMappings: MappedMenuCategory[];
   proposedItemMappings: MappedMenuItem[];
   duplicateCategoryNamesList: string[];
@@ -67,4 +91,11 @@ export type MenuImportReport = {
   warnings: string[];
   errors: string[];
   recommendedNextActions: string[];
+  /** Records exactly which write-mode safety gates were evaluated and how. */
+  writeModeSafety: {
+    writeEnabled: boolean;
+    confirmationMatched: boolean;
+    productionAllowed: boolean;
+    productionConfirmationProvided: boolean;
+  };
 };

@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { mapIsAvailable, mapStatus, normalizeMenuName, parsePriceToCents, toBoundedStringArray } from "./menuImportHelpers";
+import { evaluateWriteModeGates } from "./menuImportWriteGates";
 
 async function main() {
   // parsePriceToCents
@@ -94,6 +95,23 @@ async function main() {
     assert.equal(hummus!.categoryName, "Starters");
 
     assert.equal(fs.existsSync(path.join(tmpDir, "menu_categories.json")), true);
+
+    // Phase 40 write-mode counter blocks exist and mirror the dry-run counts
+    // (write mode never ran, so created/updated/etc. stay at zero).
+    assert.equal(report.categories.read, 3);
+    assert.equal(report.categories.valid, 2);
+    assert.equal(report.categories.duplicateSkipped, 1);
+    assert.equal(report.categories.created, 0);
+    assert.equal(report.items.read, 5);
+    assert.equal(report.items.valid, 5);
+    assert.equal(report.items.duplicateSkipped, 1);
+    assert.equal(report.items.created, 0);
+    assert.deepEqual(report.writeModeSafety, {
+      writeEnabled: false,
+      confirmationMatched: false,
+      productionAllowed: false,
+      productionConfirmationProvided: false,
+    });
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -108,6 +126,64 @@ async function main() {
     assert.ok(report.errors.length > 0);
   } finally {
     fs.rmSync(emptyDir, { recursive: true, force: true });
+  }
+
+  // evaluateWriteModeGates — pure write-mode safety gate checks (Phase 40).
+  // Each call passes an explicit env object; process.env is never touched.
+  const baseWriteEnv = {
+    MENU_IMPORT_WRITE_ENABLED: "true",
+    MENU_IMPORT_RESTAURANT_ID: "rest-1",
+    MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID: "rest-1",
+    DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
+  };
+
+  // Dry-run remains the default when MENU_IMPORT_WRITE_ENABLED is unset.
+  {
+    const gates = evaluateWriteModeGates({});
+    assert.equal(gates.writeRequested, false);
+    assert.equal(gates.canWrite, false);
+  }
+
+  // All gates satisfied -> write may proceed.
+  {
+    const gates = evaluateWriteModeGates(baseWriteEnv);
+    assert.equal(gates.writeRequested, true);
+    assert.equal(gates.canWrite, true);
+    assert.deepEqual(gates.abortReasons, []);
+  }
+
+  // Missing DATABASE_URL -> abort.
+  {
+    const { DATABASE_URL, ...rest } = baseWriteEnv;
+    const gates = evaluateWriteModeGates(rest);
+    assert.equal(gates.canWrite, false);
+    assert.ok(gates.abortReasons.some((r) => r.includes("DATABASE_URL")));
+  }
+
+  // Confirmation restaurant id mismatch -> abort.
+  {
+    const gates = evaluateWriteModeGates({ ...baseWriteEnv, MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID: "rest-2" });
+    assert.equal(gates.canWrite, false);
+    assert.equal(gates.safety.confirmationMatched, false);
+    assert.ok(gates.abortReasons.some((r) => r.includes("does not match")));
+  }
+
+  // Production mode without explicit override -> abort.
+  {
+    const gates = evaluateWriteModeGates({ ...baseWriteEnv, NODE_ENV: "production" });
+    assert.equal(gates.canWrite, false);
+    assert.ok(gates.abortReasons.some((r) => r.includes("NODE_ENV=production")));
+  }
+
+  // Production mode with both required overrides -> allowed.
+  {
+    const gates = evaluateWriteModeGates({
+      ...baseWriteEnv,
+      NODE_ENV: "production",
+      MENU_IMPORT_ALLOW_PRODUCTION: "true",
+      MENU_IMPORT_PRODUCTION_CONFIRMATION: "I_UNDERSTAND_THIS_WRITES_MENU_DATA",
+    });
+    assert.equal(gates.canWrite, true);
   }
 
   console.log("menu-import-dry-run.test.ts: all checks passed");

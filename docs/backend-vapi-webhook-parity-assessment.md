@@ -1318,3 +1318,32 @@ unaffected; their cutover-blocked status is unchanged until a real write
 import (Phase 40, not yet built) actually populates the backend menu tables
 for the target restaurant and the adapter passes the same real-payload
 parity comparison required of every other tool.
+
+## 23. Phase 40 status update
+
+Phase 40 added a gated **write mode** to the Phase 39 dry-run tool. The new
+file `backend/src/scripts/menuImportWrite.ts` is the only file in the
+import tool that imports `@prisma/client`; it is reached via a dynamic
+`import()` from `scripts/migration/menu-import-dry-run.ts`, gated by the
+pure, independently-tested `scripts/migration/menuImportWriteGates.ts`. Four
+environment variables (`MENU_IMPORT_WRITE_ENABLED`,
+`MENU_IMPORT_RESTAURANT_ID`, `MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID`,
+`DATABASE_URL`) must all be set together for a write to proceed; dry-run
+remains the default. Categories are matched by `restaurantId` + normalized
+name, items by `restaurantId` + normalized name + resolved category id (or
+null) — both derived from the current import, never a persisted old
+Supabase id, so re-running the same input is always idempotent. See
+`docs/menu-data-migration-plan.md` Section 9/11 for the full design.
+
+**This still does not change Section 21's conclusion.** Write mode is a
+capability, not a completed migration — no real Supabase export has been
+imported as of this update, and the Phase 38 adapters' cutover-blocked
+status is unchanged. No Supabase connection was made (live or otherwise),
+no production data was touched, no Vapi dashboard URL was changed, no
+`src/app/api/vapi/*` file or old `/admin/*` page was modified, and no
+Prisma schema/migration was added — every field write mode writes already
+existed on `MenuCategory`/`MenuItem`. Cutover remains blocked until a real
+write-mode import (against a VPS/test database first, then eventually a
+reviewed production export) populates the target restaurant's backend menu
+tables and the adapter passes the same real-payload parity comparison
+required of every other tool.

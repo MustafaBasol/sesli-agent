@@ -405,6 +405,39 @@ or backfill strategy). That phase is out of scope here.
   comparison required of every other tool. No Vapi dashboard URL was
   changed by this phase.
 
+### Menu data migration write mode exists (gated, test/staging only), but no real import has run yet (Phase 40 update)
+
+- Phase 40 added a gated **write mode** to the Phase 39 dry-run tool — see
+  `docs/menu-data-migration-plan.md` Section 9/11 for the full design. Write
+  mode performs real Prisma writes to `MenuCategory`/`MenuItem` for the
+  records the dry-run already reports, but only when four environment
+  variables are all set together (`MENU_IMPORT_WRITE_ENABLED`,
+  `MENU_IMPORT_RESTAURANT_ID`, a matching
+  `MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID`, and `DATABASE_URL`); dry-run
+  remains the default with none of them set.
+- **This does not lift the menu cutover blocker from the Phase 38/39
+  updates above.** Write mode is a tool capability, not a completed
+  migration — no real Supabase export has been imported through it as of
+  this update. The intended next step is to exercise write mode against a
+  VPS/test database (target restaurant id and test database url to be
+  supplied separately), not production.
+- An additional production-only override pair
+  (`MENU_IMPORT_ALLOW_PRODUCTION` + `MENU_IMPORT_PRODUCTION_CONFIRMATION`)
+  exists in the gating logic as a **future safety mechanism only** — it is
+  explicitly not exercised or recommended for this phase, and even with it
+  set, write mode still never connects to Supabase, only to local export
+  files and the backend's own database.
+- No Prisma schema/migration was added — every field write mode needs
+  already existed on `MenuCategory`/`MenuItem` from Phase 37. No Vapi
+  dashboard URL was changed. No `src/app/api/vapi/*` file or old `/admin/*`
+  page was touched.
+- The Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains
+  blocked until a real write-mode import actually populates the target
+  restaurant's backend menu tables (from a real reviewed export, with
+  explicit production approval if ever targeting production) and the
+  adapter passes the same real-payload parity comparison required of every
+  other tool.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

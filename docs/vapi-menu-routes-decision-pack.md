@@ -684,3 +684,29 @@ routes, no Vapi adapter was implemented in Phase 37, and no
 cutover-blocked status for these two tools remains unchanged and is
 expected to be resolved by the still-pending Phase 38 (Vapi menu adapters +
 data migration).
+
+## 12. Phase 38 status update
+
+Phase 38 (Backend Vapi Menu Adapters) has landed: real
+`get-menu-info`/`get-item-details` adapters now exist over the Phase 37
+`MenuCategory`/`MenuItem` models —
+`backend/src/utils/vapi/menuInfoAdapter.ts`,
+`backend/src/utils/vapi/itemDetailsAdapter.ts`, and the routes in
+`backend/src/routes/webhooks/vapi.ts` — following the exact pattern
+anticipated in Section 4 (pure extraction/response-builder functions, a
+`ToolLog`-audited route, never a raw DB object, the legacy dispatcher's
+raw-row `get_item_details` response explicitly not propagated). See
+`docs/backend-vapi-webhook-parity-assessment.md` Section 21 for the full
+behavior summary and `docs/backend-production-cutover-plan.md`'s Phase 38
+update for the cutover status.
+
+**This does not change Section 7's cutover-blocked conclusion.** No
+Supabase `menu_items`/`menu_categories` data was migrated in this phase —
+the adapter is real and tested, but the underlying backend menu tables are
+only as complete as whatever a future migration or an admin enters by hand.
+Vapi dashboard cutover for these two tools remains blocked until that data
+migration happens and the adapter passes the same real-payload parity
+comparison required of every other tool. No Vapi dashboard URL was changed
+by this phase.
+
+Do not start Phase 39 until this Phase 38 update is accepted.

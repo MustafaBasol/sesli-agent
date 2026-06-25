@@ -380,6 +380,39 @@ account does not have access to `$RESTAURANT_ID` (tenant isolation working
 as intended, not necessarily a bug — confirm against the expected tester
 account).
 
+```bash
+# Phase 38 — backend Vapi get-menu-info webhook adapter. Public,
+# key-authenticated route, read-only: never writes anything beyond its own
+# ToolLog row. The test DB may have no MenuCategory/MenuItem rows at all, so
+# only assert HTTP 200 + a `success` field — not menu_available:true.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+curl -s -o /tmp/vapi-get-menu-info-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/get-menu-info" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expect `200` and a `success` field in the response body. Include
+`/tmp/vapi-get-menu-info-response.json` in the section F sensitive-field
+grep below.
+
+```bash
+# Phase 38 — backend Vapi get-item-details webhook adapter. Public,
+# key-authenticated route, read-only: never writes anything beyond its own
+# ToolLog row. Uses a fake item name on purpose — a real menu item is never
+# required for this check, so only assert HTTP 200 + a `success` field, not
+# item_found:true.
+VAPI_KEY="${SMOKE_VAPI_PUBLIC_WEBHOOK_KEY:-dev_vapi_golden_meat}"
+curl -s -o /tmp/vapi-get-item-details-response.json -w "%{http_code}\n" \
+  -X POST "$API/api/webhooks/vapi/$VAPI_KEY/get-item-details" \
+  -H "Content-Type: application/json" \
+  -d '{"item_name":"SMOKE_TEST_DO_NOT_USE_no_such_item"}'
+```
+
+Expect `200` and a `success` field in the response body. Include
+`/tmp/vapi-get-item-details-response.json` in the section F sensitive-field
+grep below.
+
 ## F) Sensitive field leak check
 
 Run after section D and E so `/tmp/*-response.json` files exist:

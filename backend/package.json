@@ -16,7 +16,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx src/prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:vapi-check-availability-adapter && npm run test:vapi-create-reservation-request-adapter && npm run test:vapi-customer-profile-adapter && npm run test:vapi-date-opening-hours-adapter && npm run test:vapi-call-summary-adapter && npm run test:vapi-handoff-to-staff-adapter && npm run test:vapi-cancel-reservation-request-adapter && npm run test:vapi-modify-reservation-request-adapter && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query && npm run test:rate-limit && npm run test:availability-slot-helpers",
+    "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:vapi-check-availability-adapter && npm run test:vapi-create-reservation-request-adapter && npm run test:vapi-customer-profile-adapter && npm run test:vapi-date-opening-hours-adapter && npm run test:vapi-call-summary-adapter && npm run test:vapi-handoff-to-staff-adapter && npm run test:vapi-cancel-reservation-request-adapter && npm run test:vapi-modify-reservation-request-adapter && npm run test:vapi-menu-info-adapter && npm run test:vapi-item-details-adapter && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query && npm run test:rate-limit && npm run test:availability-slot-helpers",
     "test:restaurant-access": "tsx src/tests/restaurantAccess.test.ts",
     "test:availability-slot-helpers": "tsx src/tests/availabilitySlotHelpers.test.ts",
     "test:rate-limit": "tsx src/tests/rateLimit.test.ts",
@@ -30,6 +30,8 @@
     "test:vapi-handoff-to-staff-adapter": "tsx src/tests/vapiHandoffToStaffAdapter.test.ts",
     "test:vapi-cancel-reservation-request-adapter": "tsx src/tests/vapiCancelReservationRequestAdapter.test.ts",
     "test:vapi-modify-reservation-request-adapter": "tsx src/tests/vapiModifyReservationRequestAdapter.test.ts",
+    "test:vapi-menu-info-adapter": "tsx src/tests/vapiMenuInfoAdapter.test.ts",
+    "test:vapi-item-details-adapter": "tsx src/tests/vapiItemDetailsAdapter.test.ts",
     "test:reservation-request-query": "tsx src/tests/reservationRequestQuery.test.ts",
     "test:customer-query": "tsx src/tests/customerQuery.test.ts",
     "test:conversation-query": "tsx src/tests/conversationQuery.test.ts",
@@ -51,7 +53,8 @@
     "test:dashboard-integration": "tsx src/tests/dashboard.integration.test.ts",
     "test:restaurant-availability": "tsx src/tests/restaurantAvailability.integration.test.ts",
     "test:availability-slots": "tsx src/tests/availabilitySlots.integration.test.ts",
-    "test:menu": "tsx src/tests/menu.integration.test.ts"
+    "test:menu": "tsx src/tests/menu.integration.test.ts",
+    "test:vapi-menu": "tsx src/tests/vapiMenu.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

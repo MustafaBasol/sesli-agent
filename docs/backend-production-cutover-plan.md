@@ -358,6 +358,33 @@ or backfill strategy). That phase is out of scope here.
   this is independent of, and does not block, cutover of any other
   already-implemented Vapi tool.
 
+### Vapi menu adapters exist, but cutover still requires real data migration (Phase 38 update)
+
+- Phase 38 implemented both backend Vapi menu adapters —
+  `backend/src/utils/vapi/menuInfoAdapter.ts` /
+  `backend/src/utils/vapi/itemDetailsAdapter.ts`, wired into
+  `POST /api/webhooks/vapi/:publicWebhookKey/get-menu-info` and
+  `.../get-item-details` in `backend/src/routes/webhooks/vapi.ts`. See
+  `docs/backend-vapi-webhook-parity-assessment.md` Section 21 for the full
+  behavior summary. **This is a real, tested adapter, not a placeholder** —
+  covered by pure-adapter unit tests and a DB-backed integration test
+  (`vapiMenu.integration.test.ts`).
+- **This still does not lift the cutover blocker above.** No Supabase
+  `menu_items`/`menu_categories` data was migrated as part of this phase —
+  the backend menu tables only contain whatever a future migration or an
+  admin enters by hand through `/backend-admin/menu`. Pointing the live Vapi
+  assistant at this adapter today, before that migration, would mean guests
+  hear an empty or incomplete menu instead of the real one — a regression,
+  not a parity improvement.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details`
+  remains blocked** until a real Supabase → backend menu data migration
+  (importing existing `menu_items`/`menu_categories` rows, assigning the
+  single existing restaurant's `restaurantId`) has run and the adapter has
+  passed the same real-payload parity comparison required of every other
+  tool. No Vapi dashboard URL was changed by this phase. As before, this is
+  independent of, and does not block, cutover of any other already-
+  implemented Vapi tool.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

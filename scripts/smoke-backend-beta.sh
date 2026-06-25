@@ -170,6 +170,38 @@ else
   log_fail "POST /api/webhooks/vapi/$vapi_key/get-opening-hours -> $vapi_get_opening_hours_code"
 fi
 
+# --- Vapi get-menu-info webhook (Phase 38) ---
+# Public, publicWebhookKey-authenticated route, read-only: never writes
+# anything beyond its own ToolLog row. The test DB may have no MenuCategory/
+# MenuItem rows configured at all, so this only checks for HTTP 200 + a
+# `success` field — not menu_available:true or any specific item content.
+vapi_get_menu_info_file="$TMP_DIR/vapi-get-menu-info.json"
+vapi_get_menu_info_code=$(curl -s -o "$vapi_get_menu_info_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/get-menu-info" \
+  -H "Content-Type: application/json" \
+  -d '{}')
+if [ "$vapi_get_menu_info_code" = "200" ] && grep -q '"success"' "$vapi_get_menu_info_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/get-menu-info -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/get-menu-info -> $vapi_get_menu_info_code"
+fi
+
+# --- Vapi get-item-details webhook (Phase 38) ---
+# Public, publicWebhookKey-authenticated route, read-only: never writes
+# anything beyond its own ToolLog row. Uses a fake item name on purpose so a
+# real menu item is never required for this check to pass — HTTP 200 with a
+# `success` field is the only requirement, not item_found:true.
+vapi_get_item_details_file="$TMP_DIR/vapi-get-item-details.json"
+vapi_get_item_details_code=$(curl -s -o "$vapi_get_item_details_file" -w "%{http_code}" \
+  -X POST "$api/api/webhooks/vapi/$vapi_key/get-item-details" \
+  -H "Content-Type: application/json" \
+  -d '{"item_name":"SMOKE_TEST_DO_NOT_USE_no_such_item"}')
+if [ "$vapi_get_item_details_code" = "200" ] && grep -q '"success"' "$vapi_get_item_details_file"; then
+  log_pass "POST /api/webhooks/vapi/$vapi_key/get-item-details -> 200 (success field present)"
+else
+  log_fail "POST /api/webhooks/vapi/$vapi_key/get-item-details -> $vapi_get_item_details_code"
+fi
+
 # --- sensitive field leak check across all captured responses ---
 sensitive_patterns=(
   passwordHash resetToken session refreshToken jwt JWT credentials

@@ -94,6 +94,37 @@ import { lookupVapiCustomer, upsertVapiCustomer } from "../../services/vapiCusto
 import { getOrCreateAvailabilitySettings } from "../../services/restaurantAvailabilityService";
 import { getNowPartsInTimezone, getWeekdayFromLocalDate, isValidOpeningHoursJson } from "../../services/availabilitySlotHelpers";
 import type { OpeningHoursJson } from "../../services/availabilitySlotTypes";
+import {
+  countActiveMenuItemsForVoice,
+  findActiveMenuCategoryByName,
+  findActiveMenuItemByIdForVoice,
+  findActiveMenuItemsByNameForVoice,
+  getMenuCategoryNamesByIds,
+  listActiveAvailableMenuItemsForVoice,
+  listActiveMenuCategoriesForVoice,
+} from "../../services/menuService";
+import {
+  buildFilteredMenuItemsResponse,
+  buildMenuSummaryResponse,
+  buildNoMatchingMenuItemsResponse,
+  buildNoMenuConfiguredResponse,
+  extractGetMenuInfoArgs,
+  MAX_MENU_ITEMS_LIMIT,
+  toVoiceMenuCategorySummary,
+  toVoiceMenuItemSummary,
+} from "../../utils/vapi/menuInfoAdapter";
+import {
+  buildItemAmbiguousResponse,
+  buildItemDetailsMissingFieldsResponse,
+  buildItemFoundResponse,
+  buildItemNotFoundResponse,
+  computeGetItemDetailsMissingFields,
+  extractGetItemDetailsArgs,
+  resolveItemSearchName,
+  toVoiceMenuItemCandidate,
+  toVoiceMenuItemDetail,
+  MAX_CANDIDATES,
+} from "../../utils/vapi/itemDetailsAdapter";
 
 export const vapiWebhookRouter = express.Router();
 
@@ -1376,6 +1407,277 @@ vapiWebhookRouter.post(
         });
 
       sendVapiToolErrorResponse(res, rawBody, "Internal error while processing modification request");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/get-menu-info
+//
+// Phase 38: read-only adapter over the Phase 37 MenuCategory/MenuItem
+// models. Only active categories and active+available items are ever
+// considered, capped to a voice-friendly count (see
+// utils/vapi/menuInfoAdapter.ts's MAX_MENU_ITEMS_LIMIT) — never an unbounded
+// dump of the whole menu. The old Next.js/Supabase route
+// (src/app/api/vapi/get-menu-info) is untouched and keeps serving the
+// production Vapi assistant; menu tool cutover remains blocked pending a
+// real Supabase -> backend menu data migration (see
+// docs/vapi-menu-routes-decision-pack.md Section 7).
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/get-menu-info",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractGetMenuInfoArgs(allSources, rawBody);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "get_menu_info",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    try {
+      const totalActiveItems = await countActiveMenuItemsForVoice(restaurantId);
+      const activeCategories = await listActiveMenuCategoriesForVoice(restaurantId);
+
+      if (totalActiveItems === 0 && activeCategories.length === 0) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { menuAvailable: false } },
+        });
+        sendVapiToolResponse(res, rawBody, buildNoMenuConfiguredResponse());
+        return;
+      }
+
+      let categoryId: string | null = null;
+      if (args.category) {
+        const matchedCategory = await findActiveMenuCategoryByName(restaurantId, args.category);
+        if (!matchedCategory) {
+          await prisma.toolLog.update({
+            where: { id: toolLog.id },
+            data: { status: "success", responsePayload: { itemsFound: false, category: args.category } },
+          });
+          sendVapiToolResponse(res, rawBody, buildNoMatchingMenuItemsResponse({ category: args.category }));
+          return;
+        }
+        categoryId = matchedCategory.id;
+      }
+
+      const isFiltered = Boolean(categoryId || args.search);
+      const items = await listActiveAvailableMenuItemsForVoice(restaurantId, {
+        categoryId,
+        search: args.search,
+        limit: args.limit,
+      });
+
+      if (isFiltered && items.length === 0) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { itemsFound: false, category: args.category, search: args.search } },
+        });
+        sendVapiToolResponse(
+          res,
+          rawBody,
+          buildNoMatchingMenuItemsResponse({ category: args.category, search: args.search })
+        );
+        return;
+      }
+
+      const categoryIdsOnItems = Array.from(
+        new Set(items.map((item) => item.categoryId).filter((id): id is string => Boolean(id)))
+      );
+      const categoryNameById = await getMenuCategoryNamesByIds(restaurantId, categoryIdsOnItems);
+      const itemSummaries = items.map((item) =>
+        toVoiceMenuItemSummary(item, item.categoryId ? categoryNameById.get(item.categoryId) ?? null : null)
+      );
+
+      const response = isFiltered
+        ? buildFilteredMenuItemsResponse(itemSummaries, { category: args.category, search: args.search })
+        : buildMenuSummaryResponse(
+            activeCategories.slice(0, MAX_MENU_ITEMS_LIMIT).map(toVoiceMenuCategorySummary),
+            itemSummaries
+          );
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: {
+          status: "success",
+          responsePayload: {
+            menuAvailable: true,
+            itemsFound: itemSummaries.length > 0,
+            categoryCount: activeCategories.length,
+            itemCount: itemSummaries.length,
+          },
+        },
+      });
+
+      sendVapiToolResponse(res, rawBody, response);
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi get-menu-info failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while getting menu info");
+    }
+  })
+);
+
+// POST /api/webhooks/vapi/:publicWebhookKey/get-item-details
+//
+// Phase 38: read-only adapter over the Phase 37 MenuItem model. Tiered,
+// restaurant-scoped name search (exact -> alias -> substring, see
+// findActiveMenuItemsByNameForVoice) — never silently picks a "first match"
+// the way the old Supabase ILIKE route did, and never returns the raw
+// Prisma row (see toVoiceMenuItemDetail). The old Next.js/Supabase route
+// (src/app/api/vapi/get-item-details) is untouched and keeps serving the
+// production Vapi assistant; menu tool cutover remains blocked pending a
+// real Supabase -> backend menu data migration (see
+// docs/vapi-menu-routes-decision-pack.md Section 7).
+vapiWebhookRouter.post(
+  "/:publicWebhookKey/get-item-details",
+  asyncHandler(async (req: Request, res: Response) => {
+    const rawBody = req.body ?? {};
+    const { publicWebhookKey } = req.params;
+
+    const connection = await resolveVapiIntegrationConnection(publicWebhookKey);
+    if (!connection || connection.status !== "active") {
+      sendVapiToolErrorResponse(res, rawBody, "Unknown or inactive webhook key", 401);
+      return;
+    }
+    const { restaurantId } = connection;
+
+    const body = parseVapiPayload(rawBody);
+    const allSources = [body, rawBody];
+    const args = extractGetItemDetailsArgs(allSources, rawBody);
+
+    const toolLog = await prisma.toolLog.create({
+      data: {
+        restaurantId,
+        channel: "voice",
+        provider: "vapi",
+        toolName: "get_item_details",
+        externalCallId: args.callId,
+        requestPayload: rawBody,
+        status: "processing",
+      },
+    });
+
+    const missingFields = computeGetItemDetailsMissingFields(args);
+    if (missingFields.length > 0) {
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: { status: "failure", errorMessage: `Missing required fields: ${missingFields.join(", ")}` },
+      });
+      sendVapiToolResponse(res, rawBody, buildItemDetailsMissingFieldsResponse(missingFields));
+      return;
+    }
+
+    try {
+      let matchedItem: Awaited<ReturnType<typeof findActiveMenuItemByIdForVoice>> = null;
+      let candidates: Awaited<ReturnType<typeof findActiveMenuItemsByNameForVoice>>["matches"] = [];
+      let ambiguous = false;
+
+      if (args.itemId) {
+        matchedItem = await findActiveMenuItemByIdForVoice(restaurantId, args.itemId);
+      } else {
+        let categoryId: string | null = null;
+        if (args.category) {
+          const matchedCategory = await findActiveMenuCategoryByName(restaurantId, args.category);
+          categoryId = matchedCategory?.id ?? null;
+        }
+
+        const searchName = resolveItemSearchName(args)!;
+        const { matches } = await findActiveMenuItemsByNameForVoice(restaurantId, searchName, {
+          categoryId,
+          limit: MAX_CANDIDATES,
+        });
+
+        if (matches.length === 1) {
+          matchedItem = matches[0];
+        } else if (matches.length > 1) {
+          ambiguous = true;
+          candidates = matches;
+        }
+      }
+
+      if (ambiguous) {
+        const categoryIds = Array.from(
+          new Set(candidates.map((c) => c.categoryId).filter((id): id is string => Boolean(id)))
+        );
+        const categoryNameById = await getMenuCategoryNamesByIds(restaurantId, categoryIds);
+        const candidateSummaries = candidates
+          .slice(0, MAX_CANDIDATES)
+          .map((c) => toVoiceMenuItemCandidate(c, c.categoryId ? categoryNameById.get(c.categoryId) ?? null : null));
+
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: {
+            status: "success",
+            responsePayload: { itemFound: false, ambiguous: true, candidateCount: candidateSummaries.length },
+          },
+        });
+        sendVapiToolResponse(res, rawBody, buildItemAmbiguousResponse(candidateSummaries));
+        return;
+      }
+
+      if (!matchedItem) {
+        await prisma.toolLog.update({
+          where: { id: toolLog.id },
+          data: { status: "success", responsePayload: { itemFound: false } },
+        });
+        sendVapiToolResponse(res, rawBody, buildItemNotFoundResponse());
+        return;
+      }
+
+      const categoryName = matchedItem.categoryId
+        ? (await getMenuCategoryNamesByIds(restaurantId, [matchedItem.categoryId])).get(matchedItem.categoryId) ?? null
+        : null;
+      const itemDetail = toVoiceMenuItemDetail(matchedItem, categoryName);
+
+      await prisma.toolLog.update({
+        where: { id: toolLog.id },
+        data: {
+          status: "success",
+          responsePayload: { itemFound: true, itemId: matchedItem.id, available: matchedItem.isAvailable },
+        },
+      });
+
+      sendVapiToolResponse(res, rawBody, buildItemFoundResponse(itemDetail));
+    } catch (error) {
+      logger.error({ err: error, restaurantId, callId: args.callId }, "vapi get-item-details failed");
+
+      await prisma.toolLog
+        .update({
+          where: { id: toolLog.id },
+          data: { status: "failure", errorMessage: error instanceof Error ? error.message : "Unknown error" },
+        })
+        .catch(() => {
+          // Logging the failure must never mask the original error response below.
+        });
+
+      sendVapiToolErrorResponse(res, rawBody, "Internal error while getting item details");
     }
   })
 );

@@ -247,3 +247,108 @@ export async function updateMenuItem(restaurantId: string, itemId: string, patch
   const updated = await prisma.menuItem.update({ where: { id: itemId, restaurantId }, data });
   return toSafeItem(updated);
 }
+
+// --- Phase 38 Vapi read helpers --------------------------------------------
+//
+// Read-only, restaurant-scoped helpers for the get-menu-info/get-item-details
+// Vapi adapters. Kept separate from the CRUD functions above because the
+// Vapi contract only ever needs active/available rows, never the full
+// paginated admin shape — but they live in this file (not the route) so all
+// Prisma access for menu data stays centralized in one service module.
+
+export async function listActiveMenuCategoriesForVoice(restaurantId: string, limit?: number) {
+  return prisma.menuCategory.findMany({
+    where: { restaurantId, status: "active" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    ...(limit !== undefined ? { take: limit } : {}),
+  });
+}
+
+/** Case-insensitive exact name match against active categories only — used to resolve a caller-supplied category name to an id. */
+export async function findActiveMenuCategoryByName(restaurantId: string, name: string) {
+  return prisma.menuCategory.findFirst({
+    where: { restaurantId, status: "active", name: { equals: name, mode: "insensitive" } },
+  });
+}
+
+export async function listActiveAvailableMenuItemsForVoice(
+  restaurantId: string,
+  opts: { categoryId?: string | null; search?: string | null; limit: number }
+) {
+  const where: Prisma.MenuItemWhereInput = { restaurantId, status: "active", isAvailable: true };
+
+  if (opts.categoryId) where.categoryId = opts.categoryId;
+
+  if (opts.search) {
+    where.OR = [
+      { name: { contains: opts.search, mode: "insensitive" } },
+      { description: { contains: opts.search, mode: "insensitive" } },
+      { aliasesJson: { array_contains: [opts.search] } },
+    ];
+  }
+
+  return prisma.menuItem.findMany({
+    where,
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    take: opts.limit,
+  });
+}
+
+export async function countActiveMenuItemsForVoice(restaurantId: string) {
+  return prisma.menuItem.count({ where: { restaurantId, status: "active" } });
+}
+
+/** Scoped to restaurantId + active status — an inactive/cross-tenant id is treated as "not found" by the caller. */
+export async function findActiveMenuItemByIdForVoice(restaurantId: string, itemId: string) {
+  return prisma.menuItem.findFirst({ where: { id: itemId, restaurantId, status: "active" } });
+}
+
+export type VapiMenuItemMatchType = "exact" | "alias" | "contains" | "none";
+
+/**
+ * Tiered, restaurant-scoped name search for get-item-details: exact name
+ * match first, then alias match, then a substring fallback — never picks a
+ * "first match" silently the way the old Supabase ILIKE route did.
+ */
+export async function findActiveMenuItemsByNameForVoice(
+  restaurantId: string,
+  name: string,
+  opts: { categoryId?: string | null; limit?: number } = {}
+): Promise<{ matches: MenuItemRow[]; matchType: VapiMenuItemMatchType }> {
+  const limit = opts.limit ?? 5;
+  const baseWhere: Prisma.MenuItemWhereInput = { restaurantId, status: "active" };
+  if (opts.categoryId) baseWhere.categoryId = opts.categoryId;
+
+  const exact = await prisma.menuItem.findMany({
+    where: { ...baseWhere, name: { equals: name, mode: "insensitive" } },
+    take: limit,
+  });
+  if (exact.length > 0) return { matches: exact, matchType: "exact" };
+
+  const alias = await prisma.menuItem.findMany({
+    where: { ...baseWhere, aliasesJson: { array_contains: [name] } },
+    take: limit,
+  });
+  if (alias.length > 0) return { matches: alias, matchType: "alias" };
+
+  const contains = await prisma.menuItem.findMany({
+    where: { ...baseWhere, name: { contains: name, mode: "insensitive" } },
+    take: limit,
+  });
+  return { matches: contains, matchType: contains.length > 0 ? "contains" : "none" };
+}
+
+/** Cheap id->name lookup for labeling items with their category in a Vapi response — never exposes the category row itself. */
+export async function getMenuCategoryNamesByIds(
+  restaurantId: string,
+  categoryIds: string[]
+): Promise<Map<string, string>> {
+  if (categoryIds.length === 0) return new Map();
+  const rows = await prisma.menuCategory.findMany({
+    where: { restaurantId, id: { in: categoryIds } },
+    select: { id: true, name: true },
+  });
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+export type { MenuCategoryRow, MenuItemRow };

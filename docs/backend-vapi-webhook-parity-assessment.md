@@ -1261,3 +1261,43 @@ instructions, and explicitly did not implement either Vapi route or migrate
 any Supabase `menu_items`/`menu_categories` data. The still-pending Phase 38
 (Vapi menu adapters + data migration) is what would actually change these
 two rows' status in Sections 5/6 above.
+
+## 21. Phase 38 status update
+
+Phase 38 (Backend Vapi Menu Adapters) implemented both routes:
+
+- `POST /api/webhooks/vapi/:publicWebhookKey/get-menu-info` —
+  `backend/src/utils/vapi/menuInfoAdapter.ts` + the route in
+  `backend/src/routes/webhooks/vapi.ts`. Read-only over active
+  `MenuCategory`/active+available `MenuItem` rows; returns a capped,
+  voice-friendly summary (no filter), a category-filtered list, or a
+  search-filtered list, with `menu_available:false`/`items_found:false`
+  safe fallbacks. Never dumps the full menu unbounded (capped at
+  `MAX_MENU_ITEMS_LIMIT` = 12).
+- `POST /api/webhooks/vapi/:publicWebhookKey/get-item-details` —
+  `backend/src/utils/vapi/itemDetailsAdapter.ts` + the same route file.
+  Tiered restaurant-scoped name search (exact -> alias -> substring contains,
+  see `findActiveMenuItemsByNameForVoice` in `menuService.ts`) — explicitly
+  never picks a "first match" the way the old Supabase ILIKE route did
+  (Section 2.11's documented limitation). Supports an explicit `itemId`
+  lookup. An unavailable item is found but never presented as available; an
+  inactive item or cross-tenant id is treated as not found.
+
+This **updates the status for both rows** in Sections 5/6 above from
+**Missing (no Vapi adapter implemented)** to **Implemented (backend
+adapter), not yet cut over** — the distinction matters: a real backend
+adapter now exists and is covered by pure-adapter unit tests
+(`vapiMenuInfoAdapter.test.ts`, `vapiItemDetailsAdapter.test.ts`) and a
+DB-backed integration test (`vapiMenu.integration.test.ts`), but:
+
+- No Supabase `menu_items`/`menu_categories` data was migrated — the new
+  backend tables only contain whatever a future migration or an admin
+  creates through `/backend-admin/menu`.
+- No Vapi dashboard URL was changed — the old
+  `src/app/api/vapi/get-menu-info`/`get-item-details` routes are untouched
+  and still serve the production Vapi assistant.
+- Per `docs/vapi-menu-routes-decision-pack.md` Section 7, menu tool cutover
+  remains explicitly blocked until a real Supabase -> backend menu data
+  migration happens — implementing the adapter is a precondition for
+  cutover, not cutover itself. See
+  `docs/backend-production-cutover-plan.md` for the updated blocker note.

@@ -272,6 +272,56 @@ model Message {
 }
 
 // ---------------------------------------------------------------------------
+// Menu models (Phase 37 — schema/admin foundation only, no Vapi adapter yet)
+// ---------------------------------------------------------------------------
+
+model MenuCategory {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  sortOrder    Int      @default(0)
+  status       String   @default("active") // active, inactive
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, status])
+  @@index([restaurantId, sortOrder])
+  @@map("menu_categories")
+}
+
+// price is stored as priceCents (Int) rather than a float to avoid binary
+// rounding on money; it is nullable because old/incoming menu data may not
+// always have a clean price yet (see AGENTS.md non-negotiable rule 3 + this
+// phase's instructions). categoryId is a plain string, not an enforced FK —
+// same convention as every other tenant-scoped model in this schema
+// (RestaurantTable, Customer, etc. carry restaurantId without a relation).
+model MenuItem {
+  id               String   @id @default(uuid())
+  restaurantId     String
+  categoryId       String?
+  name             String
+  description      String?
+  priceCents       Int?
+  currency         String   @default("EUR")
+  allergensJson    Json?
+  dietaryTagsJson  Json?
+  aliasesJson      Json?
+  isAvailable      Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  status           String   @default("active") // active, inactive
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([restaurantId, categoryId])
+  @@index([restaurantId, status])
+  @@index([restaurantId, isAvailable])
+  @@index([restaurantId, sortOrder])
+  @@map("menu_items")
+}
+
+// ---------------------------------------------------------------------------
 // Integration and outbound models
 // ---------------------------------------------------------------------------
 

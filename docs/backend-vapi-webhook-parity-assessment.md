@@ -1247,3 +1247,17 @@ records the resulting status change.
 - `docs/backend-production-cutover-plan.md` has been updated with an
   explicit menu-route cutover blocker, independent of (and not blocking)
   the cutover status of every other already-implemented Vapi tool.
+
+## 20. Phase 37 status update
+
+Phase 37 (Backend Menu Schema + Admin/API Foundation) implemented the
+`MenuCategory`/`MenuItem` Prisma models, tenant-scoped CRUD routes/services,
+and a `/backend-admin/menu` beta UI recommended above — see
+`docs/backend-menu-foundation.md`. This closes the **model gap** itself (a
+real schema now exists), but **does not change the route status**:
+`get-menu-info`/`get-item-details` remain **Missing (no Vapi adapter
+implemented)** — Phase 37 was schema/admin scope only, per its own
+instructions, and explicitly did not implement either Vapi route or migrate
+any Supabase `menu_items`/`menu_categories` data. The still-pending Phase 38
+(Vapi menu adapters + data migration) is what would actually change these
+two rows' status in Sections 5/6 above.

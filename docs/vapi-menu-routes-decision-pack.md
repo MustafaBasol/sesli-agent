@@ -670,3 +670,17 @@ requiring explanation and review before proceeding — none did.
   data, or Vapi dashboard URL was touched.
 
 Do not start Phase 37 until this Phase 36 decision pack is accepted.
+
+## 11. Phase 37 status update
+
+Phase 37 (Backend Menu Schema + Admin/API Foundation) has landed: real
+`MenuCategory`/`MenuItem` Prisma models, tenant-scoped CRUD routes/services,
+and a `/backend-admin/menu` beta UI now exist — see
+`docs/backend-menu-foundation.md` for the implementation summary. This
+**does not change any conclusion in this document**: `get-menu-info`/
+`get-item-details` are still served entirely by the old Next.js/Supabase
+routes, no Vapi adapter was implemented in Phase 37, and no
+`menu_items`/`menu_categories` Supabase data was migrated. Section 7's
+cutover-blocked status for these two tools remains unchanged and is
+expected to be resolved by the still-pending Phase 38 (Vapi menu adapters +
+data migration).

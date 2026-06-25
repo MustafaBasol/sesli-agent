@@ -338,6 +338,26 @@ or backfill strategy). That phase is out of scope here.
   a separate architectural decision not bundled with this phase or with the
   menu data-source decision above.
 
+### Menu backend foundation exists, but Vapi menu cutover remains blocked (Phase 37 update)
+
+- Phase 37 implemented the `MenuCategory`/`MenuItem` Prisma models,
+  tenant-scoped CRUD routes/services, and a `/backend-admin/menu` beta UI —
+  see `docs/backend-menu-foundation.md`. **A real backend menu data store
+  now exists**, which did not before.
+- **This does not lift the cutover blocker above.** No Vapi adapter
+  (`get-menu-info`/`get-item-details`) was implemented against these models
+  in Phase 37, and no Supabase `menu_items`/`menu_categories` data was
+  migrated into them — the new tables start empty besides whatever an admin
+  creates by hand through the new UI. Cutting Vapi traffic over to an empty
+  or hand-entered backend menu before a real data migration would be a
+  guest-facing regression, not a parity improvement.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details`
+  remains blocked** until the still-pending Phase 38 (Vapi menu adapters +
+  Supabase → backend data migration) lands and passes the same
+  real-payload parity comparison required of every other tool. As before,
+  this is independent of, and does not block, cutover of any other
+  already-implemented Vapi tool.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

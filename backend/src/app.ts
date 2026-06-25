@@ -11,6 +11,7 @@ import { customersRouter } from "./routes/customers";
 import { dashboardRouter } from "./routes/dashboard";
 import { healthRouter } from "./routes/health";
 import { integrationsRouter } from "./routes/integrations";
+import { menuRouter } from "./routes/menu";
 import { reservationRequestsRouter } from "./routes/reservationRequests";
 import { reservationsRouter } from "./routes/reservations";
 import { restaurantAvailabilityRouter } from "./routes/restaurantAvailability";
@@ -52,6 +53,7 @@ export function createApp(): express.Express {
   app.use("/api/restaurants", teamRouter);
   app.use("/api/restaurants", restaurantSettingsRouter);
   app.use("/api/restaurants", restaurantAvailabilityRouter);
+  app.use("/api/restaurants", menuRouter);
   app.use("/api/webhooks/vapi", vapiWebhookRouter);
 
   app.use(notFoundHandler);

@@ -50,7 +50,8 @@
     "test:integrations-integration": "tsx src/tests/integrations.integration.test.ts",
     "test:dashboard-integration": "tsx src/tests/dashboard.integration.test.ts",
     "test:restaurant-availability": "tsx src/tests/restaurantAvailability.integration.test.ts",
-    "test:availability-slots": "tsx src/tests/availabilitySlots.integration.test.ts"
+    "test:availability-slots": "tsx src/tests/availabilitySlots.integration.test.ts",
+    "test:menu": "tsx src/tests/menu.integration.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

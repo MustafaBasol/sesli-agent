@@ -9,7 +9,11 @@
     "lint": "eslint",
     "smoke:backend-beta": "bash scripts/smoke-backend-beta.sh",
     "migration:dry-run": "tsx scripts/migration/supabase-to-backend-dry-run.ts",
-    "migration:test": "tsx scripts/migration/supabase-to-backend-dry-run.test.ts"
+    "migration:test": "tsx scripts/migration/supabase-to-backend-dry-run.test.ts",
+    "migration:menu:dry-run": "tsx scripts/migration/menu-import-dry-run.ts",
+    "migration:menu:write": "tsx scripts/migration/menu-import-dry-run.ts",
+    "test:menu-import-dry-run": "tsx scripts/migration/menu-import-dry-run.test.ts",
+    "test:menu-import-write": "tsx scripts/migration/menu-import-write.integration.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

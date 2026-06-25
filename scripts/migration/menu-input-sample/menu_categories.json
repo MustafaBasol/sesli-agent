@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "Cold Starters", "display_order": 1 },
+  { "id": 2, "name": "Grilled Meats", "display_order": 2 },
+  { "id": 3, "name": "Desserts", "display_order": 3 }
+]

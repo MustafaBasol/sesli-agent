@@ -197,3 +197,15 @@ curl -I http://127.0.0.1:3000/en/admin/menu
 `npm start` (`next start`) is not the right restart command for this
 project's `output: 'standalone'` build — it works for local checks but
 Next.js itself warns it is unsupported for this config.
+
+## 10. Phase 39 status update
+
+A read-only menu data migration/import **dry-run** tool now exists —
+`scripts/migration/menu-import-dry-run.ts`, see
+`docs/menu-data-migration-plan.md` for the full field mapping, price-parsing,
+and duplicate policy. It reads local JSON exports of the old Supabase
+`menu_categories`/`menu_items` tables and reports what a future write import
+*would* create against these `MenuCategory`/`MenuItem` models — it does not
+write to any database yet. The real write import (Phase 40) is still
+pending; the backend menu tables remain populated only by whatever an admin
+enters by hand through `/backend-admin/menu` until that phase lands.

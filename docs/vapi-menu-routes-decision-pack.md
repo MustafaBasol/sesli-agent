@@ -710,3 +710,54 @@ comparison required of every other tool. No Vapi dashboard URL was changed
 by this phase.
 
 Do not start Phase 39 until this Phase 38 update is accepted.
+
+## 13. Phase 39 status update
+
+Phase 39 (Menu Data Migration / Import Dry-Run) has landed: a read-only,
+non-destructive dry-run tool (`scripts/migration/menu-import-dry-run.ts`,
+full plan in `docs/menu-data-migration-plan.md`) reads local JSON exports of
+the old Supabase `menu_categories`/`menu_items` tables, normalizes/validates/
+maps them against the Phase 37 `MenuCategory`/`MenuItem` models, and produces
+a JSON report (duplicate names, invalid/missing prices, orphan category
+references, proposed mappings) — it never connects to Supabase and never
+writes to any database.
+
+**This does not change Section 7's cutover-blocked conclusion.** No real
+data was imported by this phase; the dry-run report is a planning artifact,
+not migrated data. Vapi dashboard cutover for `get-menu-info`/
+`get-item-details` remains blocked until a real write import (Phase 40,
+not yet built — see `docs/menu-data-migration-plan.md` Section 9) actually
+populates the backend menu tables and the adapter passes the same
+real-payload parity comparison required of every other tool. No Vapi
+dashboard URL, Prisma schema, `src/app/api/vapi/*` route, or old `/admin/*`
+page was touched by this phase.
+
+Do not start Phase 40 until this Phase 39 update is accepted.
+
+## 14. Phase 40 status update
+
+Phase 40 added a gated **write mode** to the Phase 39 dry-run tool (full
+design in `docs/menu-data-migration-plan.md` Section 9/11, status update in
+`docs/backend-vapi-webhook-parity-assessment.md` Section 23 and
+`docs/backend-production-cutover-plan.md`'s Phase 40 update). Write mode
+performs real Prisma writes to the Phase 37 `MenuCategory`/`MenuItem`
+models from the same mapped records the dry-run already reports, gated
+behind four required environment variables together
+(`MENU_IMPORT_WRITE_ENABLED`, `MENU_IMPORT_RESTAURANT_ID`, a matching
+`MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID`, `DATABASE_URL`); dry-run remains
+the default. Idempotent by normalized name (categories) and normalized
+name + resolved category (items) — never by a persisted old Supabase id.
+
+**This does not change Section 7's cutover-blocked conclusion.** No real
+Supabase export has been imported through write mode as of this update —
+it has only been exercised conceptually against the tool's own pure tests
+and a DB-backed integration test using synthetic sample data, never a real
+export or production data. The intended next step is to run write mode
+against a VPS/test database. No Vapi dashboard URL, Prisma schema,
+`src/app/api/vapi/*` route, or old `/admin/*` page was touched by this
+phase. Vapi dashboard cutover for `get-menu-info`/`get-item-details`
+remains blocked until a real write-mode import populates the backend menu
+tables and the adapter passes the same real-payload parity comparison
+required of every other tool.
+
+Do not start Phase 41 until this Phase 40 update is accepted.

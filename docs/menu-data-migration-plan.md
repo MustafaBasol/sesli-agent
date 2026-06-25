@@ -395,3 +395,30 @@ is a precondition for considering a future write-mode run, never an approval to 
 remains a separate, explicit decision gated by §11 and reviewed by a human. The Vapi dashboard
 cutover for `get-menu-info`/`get-item-details` remains blocked per §10 regardless of this review's
 outcome — reviewing a real export dry-run report does not by itself lift that blocker.
+
+## 13. Test-database import and Vapi menu preview (Phase 42)
+
+Phase 42 exercises the existing Phase 40 write-mode mechanism (§9/§11) against a **VPS/test
+database only** — `postgresql://.../sesliagent_test`, never production, never live Supabase — using
+the real export reviewed in Phase 41. No code change was required for the write path itself; the
+existing `MENU_IMPORT_WRITE_ENABLED` + `MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID` + `DATABASE_URL`
+gate combination (§11) is sufficient. The only addition is a read-only preview helper,
+`scripts/migration/menu-test-db-preview.ts` (`npm run migration:menu:preview`), which connects only
+to `DATABASE_URL` and prints `MenuCategory`/`MenuItem` counts, the category list with per-category
+item counts, and a few sample items per category for `MENU_IMPORT_RESTAURANT_ID` — it never writes,
+updates, or deletes anything.
+
+This phase also previews the backend Vapi `get-menu-info`/`get-item-details` webhook responses
+against the imported test-database data, by calling the existing
+`POST /api/webhooks/vapi/:publicWebhookKey/get-menu-info` and `.../get-item-details` routes on a
+backend instance pointed at the test database. This is a local/VPS-test smoke check only — it does
+not touch the Vapi dashboard configuration and does not change which environment the production
+Vapi assistant actually calls (see §10; still blocked).
+
+**This does not change §10's cutover-blocked conclusion, and production import is still not
+approved.** A successful test-database import and a clean Vapi preview are necessary steps toward a
+real cutover decision, never the decision itself. The agent that authored this section has no
+VPS/live-environment access — all verification commands below must be run manually by a human with
+VPS access, and Phase 42 is only accepted once that human reports actual command output (see
+`docs/backend-production-cutover-plan.md`'s Phase 42 update for the acceptance report format). Do
+not start Phase 43 until that report is reviewed and the Phase 42 update is accepted.

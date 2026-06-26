@@ -482,6 +482,24 @@ or backfill strategy). That phase is out of scope here.
   cutover for `get-menu-info`/`get-item-details` remains blocked, and **Phase 43 must not start**
   until the Phase 42 verification report above is reviewed and accepted.
 
+### Production menu import safety strategy prepared (Phase 43 update)
+
+- Phase 43 adds three tools for safe production import preparation, addressing the 46-vs-42-item
+  discrepancy found in Phase 42: upsert-only mode silently leaves DB-only (demo/seed) records
+  active alongside the real menu. No production DB, live Supabase, or Vapi dashboard was touched.
+- **`npm run migration:menu:snapshot`** (`scripts/migration/menu-db-snapshot.ts`) — read-only,
+  takes a timestamped JSON + markdown snapshot of current `MenuCategory`/`MenuItem` rows.
+- **`npm run migration:menu:diff-preview`** (`scripts/migration/menu-import-db-diff-preview.ts`)
+  — read-only, compares source input files against DB rows, shows categories/items to
+  create/update/unchanged, DB-only categories and items, and whether replace mode is recommended.
+- **Replace mode** added to `backend/src/scripts/menuImportWrite.ts` (disabled by default):
+  `MENU_IMPORT_REPLACE_EXISTING=true` + exact confirmation phrase soft-disables DB-only records
+  (`status→inactive`, `isAvailable→false` for items) after upserts complete. Never hard-deletes.
+  Gated by all existing write gates plus the new replace confirmation phrase.
+- No code under `src/app/api/vapi/*`, `/admin/*`, or any Prisma schema/migration was changed.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains blocked.** Phase 44
+  will be the controlled production import phase. Do not start Phase 44 until Phase 43 is accepted.
+
 ### Vapi dashboard cutover not performed (Phase 31)
 
 - A backend `log-call-summary` adapter now exists (see

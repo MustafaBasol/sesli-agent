@@ -14,7 +14,12 @@
     "migration:menu:write": "tsx scripts/migration/menu-import-dry-run.ts",
     "test:menu-import-dry-run": "tsx scripts/migration/menu-import-dry-run.test.ts",
     "test:menu-import-write": "tsx scripts/migration/menu-import-write.integration.test.ts",
-    "migration:menu:preview": "tsx scripts/migration/menu-test-db-preview.ts"
+    "migration:menu:preview": "tsx scripts/migration/menu-test-db-preview.ts",
+    "migration:menu:snapshot": "tsx scripts/migration/menu-db-snapshot.ts",
+    "migration:menu:diff-preview": "tsx scripts/migration/menu-import-db-diff-preview.ts",
+    "test:menu-db-snapshot": "tsx scripts/migration/menu-db-snapshot.test.ts",
+    "test:menu-import-db-diff-preview": "tsx scripts/migration/menu-import-db-diff-preview.test.ts",
+    "test:menu-import-replace": "tsx scripts/migration/menu-import-replace.integration.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

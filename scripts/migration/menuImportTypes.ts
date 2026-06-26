@@ -100,4 +100,21 @@ export type MenuImportReport = {
     productionAllowed: boolean;
     productionConfirmationProvided: boolean;
   };
+  /** Phase 43 — replace mode outcome. All fields are false/0/[] in upsert-only mode. */
+  replaceMode: {
+    /** Whether replace mode ran (write gates + replace gates both passed). */
+    enabled: boolean;
+    /** Whether the exact replace confirmation phrase was provided. */
+    confirmationProvided: boolean;
+    /** Count of DB categories that had no matching source category. */
+    dbOnlyCategoryCount: number;
+    /** Count of DB items that had no matching source item. */
+    dbOnlyItemCount: number;
+    /** Names of DB-only categories that were soft-disabled (status→inactive). */
+    disabledDbOnlyCategories: string[];
+    /** Names of DB-only items that were soft-disabled (status→inactive, isAvailable→false). */
+    disabledDbOnlyItems: string[];
+    /** DB-only records that were already inactive/unavailable and skipped. */
+    skippedReplaceActions: number;
+  };
 };

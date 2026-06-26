@@ -805,3 +805,25 @@ cutover for `get-menu-info`/`get-item-details` remains blocked until a
 human runs the prepared VPS commands and reports real PASS/FAIL results.
 
 Do not start Phase 43 until this Phase 42 update is accepted.
+
+## 17. Phase 43 status update
+
+Phase 43 adds production menu import safety tooling:
+- `scripts/migration/menu-db-snapshot.ts` (`npm run migration:menu:snapshot`) — read-only DB
+  snapshot helper, writes timestamped JSON + markdown.
+- `scripts/migration/menu-import-db-diff-preview.ts` (`npm run migration:menu:diff-preview`) —
+  read-only diff between source files and DB; reports DB-only categories/items and recommends
+  replace mode if needed.
+- Replace mode (`MENU_IMPORT_REPLACE_EXISTING=true` + confirmation phrase) added to the write
+  path — soft-disables DB-only records after upserts; never hard-deletes. Disabled by default,
+  requires explicit two-gate confirmation (write mode gates + replace confirmation phrase).
+
+No route, Prisma schema, Vapi dashboard, or production DB was changed. The only modified files
+are the import scripts and `menuImportWrite.ts` (backend scripts only, not a backend route).
+
+**Section 7's cutover-blocked conclusion is unchanged.** Vapi dashboard cutover for
+`get-menu-info`/`get-item-details` remains blocked. Phase 44 will be the controlled production
+import phase (snapshot → diff preview → human review → replace-mode import → post-import
+preview → Vapi cutover decision).
+
+Do not start Phase 44 until Phase 43 is accepted.

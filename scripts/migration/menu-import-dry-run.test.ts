@@ -294,6 +294,71 @@ async function main() {
     assert.equal(gates.canWrite, true);
   }
 
+  // Phase 43 — replace mode gate checks (pure, no DB).
+
+  // Replace mode not requested by default.
+  {
+    const gates = evaluateWriteModeGates(baseWriteEnv);
+    assert.equal(gates.replace.requested, false);
+    assert.equal(gates.replace.allowed, false);
+    assert.deepEqual(gates.replace.abortReasons, []);
+  }
+
+  // Replace mode requested but no confirmation -> not allowed.
+  {
+    const gates = evaluateWriteModeGates({ ...baseWriteEnv, MENU_IMPORT_REPLACE_EXISTING: "true" });
+    assert.equal(gates.replace.requested, true);
+    assert.equal(gates.replace.allowed, false);
+    assert.ok(gates.replace.abortReasons.some((r) => r.includes("MENU_IMPORT_REPLACE_CONFIRMATION")));
+  }
+
+  // Replace mode with wrong phrase -> not allowed.
+  {
+    const gates = evaluateWriteModeGates({
+      ...baseWriteEnv,
+      MENU_IMPORT_REPLACE_EXISTING: "true",
+      MENU_IMPORT_REPLACE_CONFIRMATION: "not-the-right-phrase",
+    });
+    assert.equal(gates.replace.allowed, false);
+    assert.equal(gates.replace.confirmationMatched, false);
+  }
+
+  // Replace mode with exact phrase and all write gates -> allowed.
+  {
+    const gates = evaluateWriteModeGates({
+      ...baseWriteEnv,
+      MENU_IMPORT_REPLACE_EXISTING: "true",
+      MENU_IMPORT_REPLACE_CONFIRMATION: "I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE",
+    });
+    assert.equal(gates.replace.requested, true);
+    assert.equal(gates.replace.confirmationMatched, true);
+    assert.equal(gates.replace.allowed, true);
+    assert.deepEqual(gates.replace.abortReasons, []);
+  }
+
+  // Replace mode cannot run without write mode enabled.
+  {
+    const gates = evaluateWriteModeGates({
+      MENU_IMPORT_REPLACE_EXISTING: "true",
+      MENU_IMPORT_REPLACE_CONFIRMATION: "I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE",
+    });
+    assert.equal(gates.canWrite, false);
+    assert.equal(gates.replace.allowed, false);
+    assert.ok(gates.replace.abortReasons.some((r) => r.includes("MENU_IMPORT_WRITE_ENABLED")));
+  }
+
+  // Replace mode not allowed when write gate fails (restaurant id mismatch).
+  {
+    const gates = evaluateWriteModeGates({
+      ...baseWriteEnv,
+      MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID: "wrong-id",
+      MENU_IMPORT_REPLACE_EXISTING: "true",
+      MENU_IMPORT_REPLACE_CONFIRMATION: "I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE",
+    });
+    assert.equal(gates.canWrite, false);
+    assert.equal(gates.replace.allowed, false, "replace must be blocked when write gate fails");
+  }
+
   console.log("menu-import-dry-run.test.ts: all checks passed");
 }
 

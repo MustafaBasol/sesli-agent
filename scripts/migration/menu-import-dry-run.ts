@@ -7,6 +7,10 @@
  * against the backend MenuCategory/MenuItem shape, and produces a JSON
  * report describing what a future write import *would* do.
  *
+ * Phase 43 adds optional replace mode (MENU_IMPORT_REPLACE_EXISTING=true +
+ * MENU_IMPORT_REPLACE_CONFIRMATION phrase): DB-only records not present in
+ * the source are soft-disabled after all upserts. Disabled by default.
+ *
  * Policy reference: docs/menu-data-migration-plan.md
  * Run:
  *   MENU_IMPORT_RESTAURANT_ID=<id> npx tsx scripts/migration/menu-import-dry-run.ts
@@ -224,6 +228,15 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     thresholdWarnings: [],
     recommendedNextActions: [],
     writeModeSafety: { writeEnabled: false, confirmationMatched: false, productionAllowed: false, productionConfirmationProvided: false },
+    replaceMode: {
+      enabled: false,
+      confirmationProvided: false,
+      dbOnlyCategoryCount: 0,
+      dbOnlyItemCount: 0,
+      disabledDbOnlyCategories: [],
+      disabledDbOnlyItems: [],
+      skippedReplaceActions: 0,
+    },
   };
 
   const categoriesPath = path.join(inputDir, "menu_categories.json");
@@ -286,7 +299,8 @@ function buildReport(inputDir: string, targetRestaurantId: string): MenuImportRe
     "review duplicateCategoryNamesList/duplicateItemKeysList before any write import is attempted",
     "review orphanCategoryReferences and missingCategory items before any write import is attempted",
     "review invalidPrice/missingPrice items — these would import with a null priceCents and must be fixed by hand",
-    "to write for real, set MENU_IMPORT_WRITE_ENABLED=true plus MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID and DATABASE_URL — see docs/menu-data-migration-plan.md §11; prefer a VPS/test database first"
+    "to write for real, set MENU_IMPORT_WRITE_ENABLED=true plus MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID and DATABASE_URL — see docs/menu-data-migration-plan.md §11; prefer a VPS/test database first",
+    "to replace-clean the DB after import, add MENU_IMPORT_REPLACE_EXISTING=true and MENU_IMPORT_REPLACE_CONFIRMATION phrase — see docs/menu-data-migration-plan.md §12"
   );
 
   return report;
@@ -339,6 +353,7 @@ async function main() {
   const gates = evaluateWriteModeGates(process.env);
 
   report.writeModeSafety = gates.safety;
+  report.replaceMode.confirmationProvided = gates.replace.confirmationMatched;
 
   if (!gates.writeRequested) {
     // Default dry-run path — unchanged from Phase 39 behavior.
@@ -358,12 +373,20 @@ async function main() {
     return;
   }
 
+  // Warn if replace was requested but blocked (confirmation missing/wrong).
+  if (gates.replace.requested && !gates.replace.allowed) {
+    for (const reason of gates.replace.abortReasons) {
+      report.warnings.push(`replace mode requested but blocked: ${reason}`);
+    }
+  }
+
   try {
     const { writeMenuImport } = await import("../../backend/src/scripts/menuImportWrite");
     const writeResult = await writeMenuImport({
       restaurantId: targetRestaurantId as string,
       categories: report.proposedCategoryMappings,
       items: report.proposedItemMappings,
+      replaceMode: gates.replace.allowed,
     });
 
     report.dryRun = false;
@@ -377,6 +400,14 @@ async function main() {
     report.items.importedWithNullCategory = writeResult.items.importedWithNullCategory;
     report.items.autoCreatedCategoryFromItemLabel = writeResult.items.autoCreatedCategoryFromItemLabel;
     report.warnings.push(...writeResult.warnings);
+
+    // Phase 43 — map replace mode result back into the report.
+    report.replaceMode.enabled = writeResult.replace.enabled;
+    report.replaceMode.dbOnlyCategoryCount = writeResult.replace.dbOnlyCategoryCount;
+    report.replaceMode.dbOnlyItemCount = writeResult.replace.dbOnlyItemCount;
+    report.replaceMode.disabledDbOnlyCategories = writeResult.replace.disabledCategoryNames;
+    report.replaceMode.disabledDbOnlyItems = writeResult.replace.disabledItemNames;
+    report.replaceMode.skippedReplaceActions = writeResult.replace.skippedActions;
 
     writeReportFile(report);
   } catch (err) {

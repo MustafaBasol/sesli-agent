@@ -422,3 +422,90 @@ VPS/live-environment access — all verification commands below must be run manu
 VPS access, and Phase 42 is only accepted once that human reports actual command output (see
 `docs/backend-production-cutover-plan.md`'s Phase 42 update for the acceptance report format). Do
 not start Phase 43 until that report is reviewed and the Phase 42 update is accepted.
+
+## 14. Production import safety: snapshot, diff preview, and replace mode (Phase 43)
+
+Phase 43 addresses the root cause of the 46-vs-42-item discrepancy found in the Phase 42 test-DB
+import: upsert-only mode creates/updates source records but **never removes or disables** DB-only
+records (old seed or demo rows). Three tools are added to make a safe production import possible.
+No production database, live Supabase, or Vapi dashboard was touched. Write mode is still
+not enabled against production. Phase 44 will be the controlled production import phase.
+
+### 14.1 Why upsert-only is insufficient when demo data exists
+
+The Phase 40/42 write path is an idempotent upsert: categories are matched by
+`restaurantId + normalizedName`, items by `restaurantId + normalizedName + resolvedCategoryId`.
+Records in the DB but absent from the source are silently left alone. This is safe during
+development (demo/seed rows stay until explicitly cleaned up), but means a production import
+over a DB that contains seed/demo rows would leave those old rows **active alongside the real
+menu**, confusing Vapi's `get-menu-info` and `get-item-details` responses.
+
+### 14.2 Read-only DB snapshot
+
+```sh
+# Take a timestamped read-only snapshot of the current DB menu state.
+DATABASE_URL=<db-url> \
+MENU_IMPORT_RESTAURANT_ID=<restaurant-id> \
+npm run migration:menu:snapshot
+```
+
+Writes `scripts/migration/output/menu-db-snapshot-{YYYYMMDD-HHmmss}.json` and a companion
+`.md` — counts, category list (with per-category item counts), first 50 items, active/inactive
+counts. **Never mutates any row.**
+
+### 14.3 Source-vs-DB diff preview
+
+```sh
+# Compare source files against DB — read-only.
+DATABASE_URL=<db-url> \
+MENU_IMPORT_RESTAURANT_ID=<restaurant-id> \
+MENU_IMPORT_INPUT_DIR=scripts/migration/menu-input-real \
+npm run migration:menu:diff-preview
+```
+
+Writes `scripts/migration/output/menu-import-db-diff-preview.json` and a companion `.md`.
+Shows: source counts, DB counts, categories/items to create / would update / unchanged, DB-only
+categories and items (those that would remain if replace mode is not used), and a replace-mode
+recommendation if DB-only records exist. **Never mutates any row.**
+
+### 14.4 Replace mode (safe soft-disable)
+
+Replace mode extends the write path: after upserting all source records, DB-only records (those
+in the DB but absent from the source) are **soft-disabled** — never hard-deleted. Replace mode
+is disabled by default and requires an explicit second confirmation phrase.
+
+**Soft-disable rules:**
+- DB-only `MenuItem` rows: `status → "inactive"`, `isAvailable → false`.
+- DB-only `MenuCategory` rows: `status → "inactive"`.
+- Records already fully disabled are counted as skipped (idempotent).
+- No row is ever deleted.
+
+**Replace mode safety gates (all required, in addition to the existing write gates §11):**
+
+```sh
+MENU_IMPORT_REPLACE_EXISTING=true
+MENU_IMPORT_REPLACE_CONFIRMATION="I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE"
+```
+
+Full replace-mode command (VPS/test DB only — do not run against production yet):
+
+```sh
+MENU_IMPORT_WRITE_ENABLED=true \
+MENU_IMPORT_RESTAURANT_ID=<restaurant-id> \
+MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID=<restaurant-id> \
+DATABASE_URL=postgresql://sesliagent:sesliagentpass@127.0.0.1:5433/sesliagent_test \
+MENU_IMPORT_REPLACE_EXISTING=true \
+MENU_IMPORT_REPLACE_CONFIRMATION="I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE" \
+npm run migration:menu:write
+```
+
+The report gains a `replaceMode` block: `enabled`, `confirmationProvided`,
+`dbOnlyCategoryCount`, `dbOnlyItemCount`, `disabledDbOnlyCategories`, `disabledDbOnlyItems`,
+`skippedReplaceActions`. A clear warning in all replace-mode logs states:
+**replace mode soft-disables only and never hard-deletes.**
+
+### 14.5 Vapi dashboard cutover remains blocked (see §10)
+
+Phase 43 does not lift the cutover blocker. Phase 44 will be the controlled production import
+phase (snapshot → diff preview → human review → replace-mode write → post-import preview →
+Vapi cutover decision). Do not start Phase 44 until Phase 43 is accepted.

@@ -11,6 +11,11 @@
  * duplicates — it finds the same rows by name and reports them unchanged
  * (or updated, if a safe field actually differs).
  *
+ * Phase 43 — replace mode (replaceMode: true): after upserting all source
+ * records, DB-only records (present in DB but not in source) are
+ * soft-disabled (status→inactive, isAvailable→false for items). No row is
+ * ever hard-deleted. Replace mode is disabled by default.
+ *
  * No old Supabase source id is ever persisted. Never writes raw source
  * objects, debug metadata, or rawPayload.
  *
@@ -51,6 +56,8 @@ export type WriteMenuImportInput = {
   restaurantId: string;
   categories: WriteMenuCategoryInput[];
   items: WriteMenuItemInput[];
+  /** Phase 43 — when true, DB-only records not present in source are soft-disabled. Default: false. */
+  replaceMode?: boolean;
 };
 
 export type WriteMenuImportResult = {
@@ -61,6 +68,17 @@ export type WriteMenuImportResult = {
     unchanged: number;
     importedWithNullCategory: number;
     autoCreatedCategoryFromItemLabel: number;
+  };
+  /** Phase 43 — replace mode counters. All zero when replaceMode is false. */
+  replace: {
+    enabled: boolean;
+    dbOnlyCategoryCount: number;
+    dbOnlyItemCount: number;
+    disabledCategories: number;
+    disabledItems: number;
+    skippedActions: number;
+    disabledCategoryNames: string[];
+    disabledItemNames: string[];
   };
   warnings: string[];
 };
@@ -78,11 +96,21 @@ function jsonArraysEqual(a: Prisma.JsonValue, b: string[] | undefined): boolean 
 }
 
 export async function writeMenuImport(input: WriteMenuImportInput): Promise<WriteMenuImportResult> {
-  const { restaurantId, categories, items } = input;
+  const { restaurantId, categories, items, replaceMode = false } = input;
   const warnings: string[] = [];
   const result: WriteMenuImportResult = {
     categories: { created: 0, updated: 0, unchanged: 0 },
     items: { created: 0, updated: 0, unchanged: 0, importedWithNullCategory: 0, autoCreatedCategoryFromItemLabel: 0 },
+    replace: {
+      enabled: replaceMode,
+      dbOnlyCategoryCount: 0,
+      dbOnlyItemCount: 0,
+      disabledCategories: 0,
+      disabledItems: 0,
+      skippedActions: 0,
+      disabledCategoryNames: [],
+      disabledItemNames: [],
+    },
     warnings,
   };
 
@@ -95,7 +123,11 @@ export async function writeMenuImport(input: WriteMenuImportInput): Promise<Writ
       categoryRowById.set(category.id, category);
     }
 
+    // Track which normalized category names are covered by the source batch.
+    const sourceCoveredCategoryNorms = new Set<string>();
+
     for (const category of categories) {
+      sourceCoveredCategoryNorms.add(category.normalizedName);
       const existingId = categoryIdByNormalizedName.get(category.normalizedName);
       if (existingId) {
         const existing = categoryRowById.get(existingId)!;
@@ -132,6 +164,9 @@ export async function writeMenuImport(input: WriteMenuImportInput): Promise<Writ
       itemRowByKey.set(itemKey(normalizeMenuName(row.name), row.categoryId), row);
     }
 
+    // Track which item keys are covered by the source batch (resolved categoryId).
+    const sourceCoveredItemKeys = new Set<string>();
+
     for (const item of items) {
       let categoryId: string | null = null;
 
@@ -152,6 +187,8 @@ export async function writeMenuImport(input: WriteMenuImportInput): Promise<Writ
           result.items.autoCreatedCategoryFromItemLabel += 1;
           warnings.push(`auto-created category "${label}" from item "${item.name}"'s unmatched category reference`);
         }
+        // Auto-created categories are implied by the source; mark covered so replace mode skips them.
+        sourceCoveredCategoryNorms.add(normalizedLabel);
         categoryId = autoCategoryId;
       }
 
@@ -160,6 +197,7 @@ export async function writeMenuImport(input: WriteMenuImportInput): Promise<Writ
       }
 
       const key = itemKey(item.normalizedName, categoryId);
+      sourceCoveredItemKeys.add(key);
       const existing = itemRowByKey.get(key);
 
       if (existing) {
@@ -199,6 +237,44 @@ export async function writeMenuImport(input: WriteMenuImportInput): Promise<Writ
         });
         itemRowByKey.set(key, created);
         result.items.created += 1;
+      }
+    }
+
+    // Phase 43 — replace mode: soft-disable DB-only records after upserts complete.
+    // Never hard-deletes. Records already fully disabled are counted as skipped.
+    if (replaceMode) {
+      for (const dbCat of existingCategories) {
+        const dbNorm = normalizeMenuName(dbCat.name);
+        if (!sourceCoveredCategoryNorms.has(dbNorm)) {
+          result.replace.dbOnlyCategoryCount += 1;
+          if (dbCat.status !== "inactive") {
+            await tx.menuCategory.update({ where: { id: dbCat.id }, data: { status: "inactive" } });
+            result.replace.disabledCategories += 1;
+            result.replace.disabledCategoryNames.push(dbCat.name);
+            warnings.push(`replace mode: soft-disabled DB-only category "${dbCat.name}"`);
+          } else {
+            result.replace.skippedActions += 1;
+          }
+        }
+      }
+
+      for (const dbItem of existingItems) {
+        const key = itemKey(normalizeMenuName(dbItem.name), dbItem.categoryId);
+        if (!sourceCoveredItemKeys.has(key)) {
+          result.replace.dbOnlyItemCount += 1;
+          const alreadyDisabled = dbItem.status === "inactive" && dbItem.isAvailable === false;
+          if (!alreadyDisabled) {
+            const updateData: Prisma.MenuItemUpdateInput = {};
+            if (dbItem.status !== "inactive") updateData.status = "inactive";
+            if (dbItem.isAvailable !== false) updateData.isAvailable = false;
+            await tx.menuItem.update({ where: { id: dbItem.id }, data: updateData });
+            result.replace.disabledItems += 1;
+            result.replace.disabledItemNames.push(dbItem.name);
+            warnings.push(`replace mode: soft-disabled DB-only item "${dbItem.name}"`);
+          } else {
+            result.replace.skippedActions += 1;
+          }
+        }
       }
     }
   });

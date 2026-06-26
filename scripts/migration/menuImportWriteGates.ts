@@ -1,8 +1,8 @@
 /**
  * menuImportWriteGates.ts — pure safety-gate evaluation for the Phase 40
- * menu import write mode. No I/O, no database access, no Supabase access.
- * Takes an explicit env object (never reads `process.env` itself) so it can
- * be unit tested without mutating global state.
+ * menu import write mode (and Phase 43 replace mode). No I/O, no database
+ * access, no Supabase access. Takes an explicit env object (never reads
+ * `process.env` itself) so it can be unit tested without mutating global state.
  *
  * Policy reference: docs/menu-data-migration-plan.md
  */
@@ -10,7 +10,7 @@
 export type WriteModeGateResult = {
   /** Whether write mode was requested at all (MENU_IMPORT_WRITE_ENABLED=true). */
   writeRequested: boolean;
-  /** Whether every required gate passed and the write may proceed. */
+  /** Whether every required write gate passed and the write may proceed. */
   canWrite: boolean;
   /** Human-readable reasons writing is blocked (empty when canWrite is true). */
   abortReasons: string[];
@@ -22,9 +22,21 @@ export type WriteModeGateResult = {
     productionAllowed: boolean;
     productionConfirmationProvided: boolean;
   };
+  /** Phase 43 — replace mode gate result, evaluated alongside write gates. */
+  replace: {
+    /** Whether replace mode was requested (MENU_IMPORT_REPLACE_EXISTING=true). */
+    requested: boolean;
+    /** Whether replace mode is fully allowed (all write gates + replace gates passed). */
+    allowed: boolean;
+    /** Whether the exact replace confirmation phrase was provided. */
+    confirmationMatched: boolean;
+    /** Human-readable reasons replace is blocked even when write is allowed. */
+    abortReasons: string[];
+  };
 };
 
 const PRODUCTION_CONFIRMATION_PHRASE = "I_UNDERSTAND_THIS_WRITES_MENU_DATA";
+export const REPLACE_CONFIRMATION_PHRASE = "I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE";
 
 export function evaluateWriteModeGates(env: NodeJS.ProcessEnv): WriteModeGateResult {
   const writeRequested = env.MENU_IMPORT_WRITE_ENABLED === "true";
@@ -37,6 +49,22 @@ export function evaluateWriteModeGates(env: NodeJS.ProcessEnv): WriteModeGateRes
 
   const confirmationMatched = Boolean(restaurantId) && Boolean(confirmRestaurantId) && restaurantId === confirmRestaurantId;
 
+  // Phase 43 — replace mode gates
+  const replaceRequested = env.MENU_IMPORT_REPLACE_EXISTING === "true";
+  const replaceConfirmationMatched = env.MENU_IMPORT_REPLACE_CONFIRMATION === REPLACE_CONFIRMATION_PHRASE;
+  const replaceAbortReasons: string[] = [];
+
+  if (replaceRequested) {
+    if (!writeRequested) {
+      replaceAbortReasons.push("MENU_IMPORT_REPLACE_EXISTING=true requires MENU_IMPORT_WRITE_ENABLED=true");
+    }
+    if (!replaceConfirmationMatched) {
+      replaceAbortReasons.push(
+        `MENU_IMPORT_REPLACE_CONFIRMATION must equal "${REPLACE_CONFIRMATION_PHRASE}" exactly`
+      );
+    }
+  }
+
   const abortReasons: string[] = [];
 
   if (!writeRequested) {
@@ -47,6 +75,12 @@ export function evaluateWriteModeGates(env: NodeJS.ProcessEnv): WriteModeGateRes
       databaseUrl,
       restaurantId,
       safety: { writeEnabled: false, confirmationMatched, productionAllowed, productionConfirmationProvided },
+      replace: {
+        requested: replaceRequested,
+        allowed: false,
+        confirmationMatched: replaceConfirmationMatched,
+        abortReasons: replaceAbortReasons,
+      },
     };
   }
 
@@ -68,12 +102,21 @@ export function evaluateWriteModeGates(env: NodeJS.ProcessEnv): WriteModeGateRes
     );
   }
 
+  const canWrite = abortReasons.length === 0;
+  const replaceAllowed = canWrite && replaceRequested && replaceAbortReasons.length === 0;
+
   return {
     writeRequested: true,
-    canWrite: abortReasons.length === 0,
+    canWrite,
     abortReasons,
     databaseUrl,
     restaurantId,
     safety: { writeEnabled: true, confirmationMatched, productionAllowed, productionConfirmationProvided },
+    replace: {
+      requested: replaceRequested,
+      allowed: replaceAllowed,
+      confirmationMatched: replaceConfirmationMatched,
+      abortReasons: replaceAbortReasons,
+    },
   };
 }

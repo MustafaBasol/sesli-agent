@@ -33,6 +33,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # prod-only install above has the package skeleton but not the generated
 # runtime, so layer it in from the builder stage.
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/.prisma        ./node_modules/.prisma
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
 

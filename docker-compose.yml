@@ -62,16 +62,18 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - traefik
+      - traefik-net
+      - deploy_internal
     labels:
       # Traefik v2/v3 — routes api.voice.autoviseo.com to this container.
       # Verify the cert resolver name on VPS: docker inspect <traefik-container> | grep -i certresolver
       # Common names: le, letsencrypt, leresolver
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-net"
       - "traefik.http.routers.sesli-agent-backend.rule=Host(`api.voice.autoviseo.com`)"
       - "traefik.http.routers.sesli-agent-backend.entrypoints=websecure"
       - "traefik.http.routers.sesli-agent-backend.tls=true"
-      - "traefik.http.routers.sesli-agent-backend.tls.certresolver=le"
+      - "traefik.http.routers.sesli-agent-backend.tls.certresolver=httpresolver"
       - "traefik.http.services.sesli-agent-backend.loadbalancer.server.port=4000"
 
 networks:
@@ -79,5 +81,7 @@ networks:
   #   docker network ls | grep -Ei 'traefik|web|proxy'
   # If the name differs from "traefik", update here AND in the service's
   # networks list above before deploying.
-  traefik:
+  traefik-net:
+    external: true
+  deploy_internal:
     external: true

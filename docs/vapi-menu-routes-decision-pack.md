@@ -1,6 +1,11 @@
 # Phase 36 — Vapi Menu Routes (`get-menu-info` / `get-item-details`) Decision Pack
 
-Status: decision/design only. No `src/app/api/vapi/*`, no `/admin/*`, no
+Status (Phase 44 update): controlled production import runbook prepared — see
+`docs/menu-data-migration-plan.md` Section 15 and `docs/backend-production-cutover-plan.md`
+Phase 44 update. Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains blocked
+until Phase 44 VPS commands are run and accepted by a human. Phase 45 must not start before then.
+
+Status (Phase 36 original): decision/design only. No `src/app/api/vapi/*`, no `/admin/*`, no
 Prisma schema/migration, no Supabase connection, and no production data were
 touched while producing this document. See "Checks performed" (Section 9)
 at the end.

@@ -482,6 +482,28 @@ or backfill strategy). That phase is out of scope here.
   cutover for `get-menu-info`/`get-item-details` remains blocked, and **Phase 43 must not start**
   until the Phase 42 verification report above is reviewed and accepted.
 
+### Controlled production import runbook prepared (Phase 44 update)
+
+- Phase 44 prepares (does not itself perform) the final controlled production import runbook for
+  the cleaned real menu into the **production backend database**. No production DB, live Supabase,
+  or Vapi dashboard was touched by the agent. All commands must be run manually by a human with
+  VPS access — see `docs/menu-data-migration-plan.md` Section 15 for the full runbook.
+- The runbook covers: (A) repo update, (B) source file confirmation, (C) safety reset of all
+  dangerous flags, (D) production env setup, (E) read-only snapshot before, (F) read-only diff
+  preview before, (G) pre-write dry-run, (H) production write with replace mode, (I) idempotency
+  rerun, (J) post-import snapshot + diff + preview, (K) backend health + menu route smoke check.
+  Each step has exact expected output and explicit stop conditions.
+- **Production prerequisites confirmed**: snapshot and diff preview are read-only (verified from
+  code); write import requires all Phase 40 gates; production write requires both
+  `MENU_IMPORT_ALLOW_PRODUCTION=true` and exact `MENU_IMPORT_PRODUCTION_CONFIRMATION` phrase;
+  replace mode soft-disables only (no DELETE); no hard delete exists anywhere in
+  `menuImportWrite.ts`; Vapi dashboard unchanged.
+- **The Vapi dashboard cutover for `get-menu-info`/`get-item-details` remains blocked.** Phase 45
+  may only start after a human runs all Phase 44 VPS commands, reports actual output, the
+  post-import snapshot confirms `activeItems: 42` and expected spot-check items (Hibiscus Ice Tea,
+  Mojito Classic, Ali Nazik Kebab at 21.90 EUR) are present, and the Phase 44 verification report
+  is reviewed and accepted. Do not start Phase 45 until then.
+
 ### Production menu import safety strategy prepared (Phase 43 update)
 
 - Phase 43 adds three tools for safe production import preparation, addressing the 46-vs-42-item

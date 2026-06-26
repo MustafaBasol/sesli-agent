@@ -509,3 +509,293 @@ The report gains a `replaceMode` block: `enabled`, `confirmationProvided`,
 Phase 43 does not lift the cutover blocker. Phase 44 will be the controlled production import
 phase (snapshot → diff preview → human review → replace-mode write → post-import preview →
 Vapi cutover decision). Do not start Phase 44 until Phase 43 is accepted.
+
+## 15. Controlled production import runbook (Phase 44)
+
+Phase 44 provides the final manual runbook for importing the cleaned real menu into the
+**production backend database**. No production DB, live Supabase, or Vapi dashboard is touched by
+the agent. All commands below must be run manually by a human with VPS access. Phase 45
+(Vapi dashboard cutover) remains blocked until this phase is verified and accepted.
+
+### 15.1 Production import prerequisites
+
+Before running any production command, verify all of the following from code:
+
+| Prerequisite | Where enforced |
+|---|---|
+| Snapshot helper is read-only (never writes DB rows) | `scripts/migration/menu-db-snapshot.ts` — only `SELECT`, writes only to `scripts/migration/output/` |
+| Diff preview helper is read-only | `scripts/migration/menu-import-db-diff-preview.ts` — only `SELECT`, writes only to `scripts/migration/output/` |
+| Write import requires all Phase 40 gates | `scripts/migration/menuImportWriteGates.ts` `evaluateWriteModeGates()` — `MENU_IMPORT_WRITE_ENABLED`, matching restaurant id confirmation, `DATABASE_URL` all required |
+| Production write requires explicit production confirmation | `MENU_IMPORT_ALLOW_PRODUCTION=true` + `MENU_IMPORT_PRODUCTION_CONFIRMATION="I_UNDERSTAND_THIS_WRITES_MENU_DATA"` both required when `NODE_ENV=production` |
+| Replace mode requires exact replace confirmation | `MENU_IMPORT_REPLACE_CONFIRMATION="I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE"` (exact phrase) |
+| Replace mode soft-disables only | `backend/src/scripts/menuImportWrite.ts` — sets `status→inactive`, `isAvailable→false`; no DELETE statement exists |
+| No hard delete exists | Grep `menuImportWrite.ts`: only `menuCategory.update` / `menuItem.update` in replace block; no `delete` or `deleteMany` |
+| Vapi dashboard unchanged | No `src/app/api/vapi/*` file is touched; no Vapi dashboard URL is changed by this phase |
+
+### 15.2 Take a normal DB backup before write
+
+Before running the production write, take a standard PostgreSQL backup outside this tool:
+
+```bash
+# On VPS — replace <DB_USER>, <DB_NAME>, and output path as appropriate
+pg_dump -U <DB_USER> <DB_NAME> > /tmp/phase44-production-pg-dump-before.sql
+```
+
+This is independent of the snapshot tool. The snapshot JSON provides a structured record for
+rollback reference; the `pg_dump` is the actual recovery artifact.
+
+### 15.3 Exact manual VPS production commands
+
+Run these commands in order. **Stop at any step that fails or produces unexpected output.**
+
+#### A. Update repo
+
+```bash
+cd /docker/sesli-agent/app
+git pull origin main
+```
+
+#### B. Confirm source export files exist
+
+```bash
+ls -lah scripts/migration/menu-input-real/
+test -s scripts/migration/menu-input-real/menu_categories.json
+test -s scripts/migration/menu-input-real/menu_items.json
+```
+
+Stop if either `test -s` fails (file missing or empty).
+
+#### C. Safety reset — unset all dangerous flags first
+
+```bash
+unset MENU_IMPORT_WRITE_ENABLED
+unset MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID
+unset MENU_IMPORT_REPLACE_EXISTING
+unset MENU_IMPORT_REPLACE_CONFIRMATION
+unset MENU_IMPORT_ALLOW_PRODUCTION
+unset MENU_IMPORT_PRODUCTION_CONFIRMATION
+```
+
+#### D. Set production target env
+
+```bash
+export MENU_IMPORT_RESTAURANT_ID="94581a20-a09a-4c9c-8ccb-88ab4e6df19f"
+export MENU_IMPORT_INPUT_DIR="scripts/migration/menu-input-real"
+export DATABASE_URL="<PRODUCTION_DATABASE_URL>"
+```
+
+`<PRODUCTION_DATABASE_URL>` must be filled from the production backend's `.env` or Docker secrets.
+Do not print or commit this value.
+
+#### E. Production snapshot before import
+
+```bash
+npm run migration:menu:snapshot | tee /tmp/phase44-production-snapshot-before.txt
+```
+
+Expected output:
+- `counts.categories`: current production category count
+- `counts.items`: current production item count
+- active/inactive/available/unavailable counts printed
+- JSON + markdown written to `scripts/migration/output/menu-db-snapshot-{ts}.json|.md`
+- Script is **read-only** — no row is mutated
+
+Stop if the database is unreachable or the snapshot count looks wrong (e.g. 0 categories when
+production has real data — indicates `DATABASE_URL` may be pointing at the wrong DB).
+
+#### F. Production diff preview before import
+
+```bash
+npm run migration:menu:diff-preview | tee /tmp/phase44-production-diff-preview-before.txt
+```
+
+Expected output:
+- `sourceCategoryCount: 11`
+- `sourceItemCount: 42`
+- categories / items to create / update / unchanged shown
+- DB-only categories and items listed if any exist
+- `replaceRecommended: true` if production has demo/seed DB-only rows
+- Script is **read-only** — no row is mutated
+
+Stop if unexpected DB-only records appear that look like real customer-created data that should
+not be disabled. Review the list before proceeding to the write step.
+
+#### G. Production pre-write dry-run (no write flags set)
+
+```bash
+npm run migration:menu:dry-run | tee /tmp/phase44-production-prewrite-dryrun.txt
+```
+
+Expected output (all of these must be clean before proceeding):
+- `dryRun: true`
+- `writeEnabled: false`
+- source files found: true for both
+- `categoriesRead: 11`
+- `itemsRead: 42`
+- `errors: []`
+- `thresholdWarnings: []`
+- `orphanCategoryReferences: 0`
+- `duplicateCategoryNames: 0`
+- `duplicateItemNames: 0`
+- `missingPrice: 0`
+- `invalidPrice: 0`
+
+Stop immediately if any of the above are not clean.
+
+#### H. Production write import with replace mode
+
+Only run after E, F, and G are all clean:
+
+```bash
+export MENU_IMPORT_WRITE_ENABLED=true
+export MENU_IMPORT_CONFIRM_TARGET_RESTAURANT_ID="94581a20-a09a-4c9c-8ccb-88ab4e6df19f"
+export MENU_IMPORT_REPLACE_EXISTING=true
+export MENU_IMPORT_REPLACE_CONFIRMATION="I_UNDERSTAND_THIS_WILL_DISABLE_MENU_RECORDS_NOT_IN_SOURCE"
+export MENU_IMPORT_ALLOW_PRODUCTION=true
+export MENU_IMPORT_PRODUCTION_CONFIRMATION="I_UNDERSTAND_THIS_WRITES_MENU_DATA"
+
+npm run migration:menu:dry-run | tee /tmp/phase44-production-write-replace-run-1.txt
+```
+
+Expected output:
+- `dryRun: false`
+- `writeEnabled: true`
+- `replaceMode.enabled: true`
+- `productionAllowed: true`
+- `categories.created`/`updated`/`unchanged` consistent with diff preview
+- `items.created`/`updated`/`unchanged` consistent with diff preview
+- `errors: []`
+- `replaceMode.disabledDbOnlyItems` — list of any soft-disabled DB-only items (demo/seed rows)
+- `replaceMode.disabledDbOnlyCategories` — list of any soft-disabled DB-only categories
+- No hard delete
+
+Stop if `errors` is non-empty.
+
+#### I. Production idempotency rerun
+
+```bash
+npm run migration:menu:dry-run | tee /tmp/phase44-production-write-replace-run-2.txt
+```
+
+Expected output (idempotency check):
+- No new categories created (all `unchanged` or 0 `created`)
+- No new items created (all `unchanged` or 0 `created`)
+- `replaceMode.skippedReplaceActions` equals previous run's `disabledDbOnlyItems` +
+  `disabledDbOnlyCategories` count (already disabled, so skip rather than re-disable)
+
+Stop if new records are created that were not created in run 1 — indicates a key collision or
+schema inconsistency.
+
+#### J. Production snapshot and preview after import
+
+```bash
+npm run migration:menu:snapshot | tee /tmp/phase44-production-snapshot-after.txt
+npm run migration:menu:diff-preview | tee /tmp/phase44-production-diff-preview-after.txt
+npx tsx scripts/migration/menu-test-db-preview.ts | tee /tmp/phase44-production-menu-preview-after.txt
+```
+
+Expected:
+- Snapshot counts include all 11 real categories
+- `activeItems: 42` / `availableItems: 42`
+- If demo/seed rows existed: `inactiveItems` ≥ 0, `unavailableItems` ≥ 0 (those soft-disabled)
+- Diff preview after import: `dbOnlyItemCount: 0` for non-disabled items; DB-only items from
+  pre-import diff are now shown with `status: inactive`
+- Menu preview includes:
+  - Mocktails category → Hibiscus Ice Tea
+  - Mojitos category → Mojito Classic
+  - Kebabs category → Ali Nazik Kebab at 21.90 EUR
+
+Stop if the expected spot-check items are missing or shown as inactive/unavailable.
+
+#### K. Backend production safety check (do not change Vapi dashboard yet)
+
+If the backend is running, perform a health + menu route smoke check:
+
+```bash
+# Health check — adjust host/port to match production backend
+curl -s http://127.0.0.1:4000/api/health
+
+# Or using the production domain placeholder (fill in the actual domain):
+# curl -s https://<BACKEND_DOMAIN>/api/health
+```
+
+For Vapi menu route preview (requires a valid `publicWebhookKey` from the production
+`IntegrationConnection` — do NOT change the Vapi dashboard URL):
+
+```bash
+# get-menu-info — preview only, no dashboard change
+curl -s -X POST http://127.0.0.1:4000/api/webhooks/vapi/<PUBLIC_WEBHOOK_KEY>/get-menu-info \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"type":"tool-calls","toolCallList":[]}}' | jq .
+
+# get-item-details for Hibiscus Ice Tea
+curl -s -X POST http://127.0.0.1:4000/api/webhooks/vapi/<PUBLIC_WEBHOOK_KEY>/get-item-details \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"type":"tool-calls","toolCallList":[{"function":{"name":"get-item-details","parameters":{"item_name":"Hibiscus Ice Tea"}}}]}}' | jq .
+
+# get-item-details for Mojito Classic
+curl -s -X POST http://127.0.0.1:4000/api/webhooks/vapi/<PUBLIC_WEBHOOK_KEY>/get-item-details \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"type":"tool-calls","toolCallList":[{"function":{"name":"get-item-details","parameters":{"item_name":"Mojito Classic"}}}]}}' | jq .
+
+# get-item-details for Ali Nazik Kebab
+curl -s -X POST http://127.0.0.1:4000/api/webhooks/vapi/<PUBLIC_WEBHOOK_KEY>/get-item-details \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"type":"tool-calls","toolCallList":[{"function":{"name":"get-item-details","parameters":{"item_name":"Ali Nazik Kebab"}}}]}}' | jq .
+```
+
+Replace `127.0.0.1:4000` with the actual production backend host/port if different.
+`<PUBLIC_WEBHOOK_KEY>` must be the real value from the production `IntegrationConnection` row —
+do not invent or hardcode it here.
+
+Expected: all three items returned with `status: active`, `isAvailable: true`, correct prices.
+
+**Do not change the Vapi dashboard URL after this check.** Phase 45 (Vapi cutover) is a
+separate decision that remains blocked until this phase is fully accepted.
+
+### 15.4 Stop conditions
+
+Stop immediately if any of the following occur:
+
+- `DATABASE_URL` appears to point at the test DB (`sesliagent_test`) — check `\l` in psql before write
+- Source files are missing or empty (`test -s` fails in step B)
+- Pre-write dry-run (step G) has any errors, threshold warnings, orphan references, duplicate
+  names, or missing/invalid prices
+- Snapshot output (step E) shows 0 categories or 0 items when production has real data
+- Diff preview (step F) shows unexpected real customer-created records in `dbOnlyItems` that
+  should not be soft-disabled — do not proceed to write without reviewing and deciding on those
+- Write report (step H) has non-empty `errors`
+- Post-import snapshot (step J) shows `activeItems` ≠ 42 or expected spot-check items
+  (Hibiscus Ice Tea, Mojito Classic, Ali Nazik Kebab) are missing or inactive
+- Vapi preview (step K) returns empty menu or demo items as active/available
+
+### 15.5 Rollback notes
+
+Because Phase 43's replace mode uses soft-disable and no hard delete:
+
+- **No rows are deleted.** DB-only rows are set `status=inactive, isAvailable=false` only.
+- **Rollback from snapshot**: the pre-import JSON snapshot in `scripts/migration/output/` records
+  every row's exact status/isAvailable/price/name before the import. To restore a previously
+  active DB-only row, use the snapshot's `id` field and run an `UPDATE` directly.
+- **Rollback from pg_dump**: the `pg_dump` taken in §15.2 is the definitive recovery artifact —
+  a full restore (`pg_restore` or `psql < dump.sql`) will return the database to its exact
+  pre-import state if the import results are unacceptable.
+- **Source-imported rows** (created/updated by the import) can be rolled back manually by
+  restoring previous `status`/`isAvailable`/`priceCents`/`name` values from the snapshot JSON
+  or from the `pg_dump`.
+- Recommended recovery order: attempt targeted SQL corrections from the snapshot first; fall
+  back to full `pg_dump` restore only if the import caused widespread unexpected data issues.
+
+### 15.6 Phase 45 Vapi dashboard cutover remains blocked
+
+Phase 44 (this phase) does **not** lift the Vapi dashboard cutover blocker for
+`get-menu-info`/`get-item-details`. Phase 45 is the next phase; it may only start after:
+
+1. A human has run all Phase 44 VPS commands above and reported actual output.
+2. The post-import snapshot confirms `activeItems: 42` and the spot-check items are present.
+3. The backend Vapi route preview (step K) returns the correct menu and item details.
+4. The Phase 44 verification report is reviewed and accepted.
+
+Until all four conditions are met, the live Vapi dashboard continues pointing at
+`src/app/api/vapi/get-menu-info` and `src/app/api/vapi/get-item-details` (the existing
+Next.js/Supabase routes), and no dashboard URL is changed.

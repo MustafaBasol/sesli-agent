@@ -31,6 +31,8 @@ function toSafeSettings(row: RestaurantSettings) {
     minPartySize: row.minPartySize,
     maxPartySize: row.maxPartySize,
     maxReservationsPerSlot: row.maxReservationsPerSlot,
+    manualApprovalThreshold: row.manualApprovalThreshold,
+    autoConfirm: row.autoConfirm,
     notes: row.notes,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -90,6 +92,8 @@ export async function updateAvailabilitySettings(restaurantId: string, patch: Up
   if (patch.minPartySize !== undefined) data.minPartySize = patch.minPartySize;
   if (patch.maxPartySize !== undefined) data.maxPartySize = patch.maxPartySize;
   if (patch.maxReservationsPerSlot !== undefined) data.maxReservationsPerSlot = patch.maxReservationsPerSlot;
+  if (patch.manualApprovalThreshold !== undefined) data.manualApprovalThreshold = patch.manualApprovalThreshold;
+  if (patch.autoConfirm !== undefined) data.autoConfirm = patch.autoConfirm;
   if (patch.notes !== undefined) data.notes = patch.notes;
 
   const updated = await prisma.restaurantSettings.update({ where: { restaurantId }, data });

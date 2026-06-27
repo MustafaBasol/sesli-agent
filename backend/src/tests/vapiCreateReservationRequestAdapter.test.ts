@@ -205,6 +205,23 @@ async function main() {
     assert.match(blocked.message, /closed/i);
   }
 
+  // Phase 46C: manual review — large party creates request but signals needs_approval.
+  // The adapter itself doesn't compute this (the route does after calculateAvailabilitySlots),
+  // but we verify that the blocking-reasons set does NOT include manual-review, so a
+  // large-party request is never blocked at the adapter layer — it gets created and the
+  // assistant informs the caller that manual confirmation is needed.
+  {
+    assert.ok(
+      !CREATE_BLOCKING_AVAILABILITY_REASONS.has("manual_approval_required"),
+      "manual approval threshold must NEVER block creation — request is created, needs_approval flag is returned"
+    );
+    // Also verify that party_size_out_of_range (hard max exceeded) still blocks.
+    assert.ok(
+      CREATE_BLOCKING_AVAILABILITY_REASONS.has("party_size_out_of_range"),
+      "exceeding hard maxPartySize must block creation"
+    );
+  }
+
   console.log("vapiCreateReservationRequestAdapter.test.ts: all checks passed");
 }
 

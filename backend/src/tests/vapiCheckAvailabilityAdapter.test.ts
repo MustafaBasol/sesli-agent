@@ -115,6 +115,53 @@ async function main() {
   // Response never leaks internal slot objects (table IDs).
   assert.ok(!JSON.stringify(noPreferred).includes("t1"), "available_slots must be plain time strings, not table IDs");
 
+  // Phase 46C: needs_approval propagation — large party triggers manual review flag.
+  const needsApprovalResult = mapAvailabilityResultToVapiResponse(
+    baseResult({
+      partySize: 8,
+      availableSlots: [{ time: "19:00", available: true, availableTableIds: ["t3"], capacity: 10 }],
+      needsManualApproval: true,
+      manualApprovalThreshold: 8,
+    }),
+    null
+  );
+  assert.equal(needsApprovalResult.available, true, "large party: still available");
+  assert.equal(needsApprovalResult.needs_approval, true, "large party: needs_approval must be true");
+  assert.ok(
+    needsApprovalResult.message.includes("manual confirmation"),
+    "large party: message must mention manual confirmation"
+  );
+
+  // Small party below threshold must NOT set needs_approval.
+  const noApprovalResult = mapAvailabilityResultToVapiResponse(
+    baseResult({
+      partySize: 2,
+      availableSlots: [{ time: "19:00", available: true, availableTableIds: ["t4"], capacity: 4 }],
+      needsManualApproval: false,
+      manualApprovalThreshold: 8,
+    }),
+    null
+  );
+  assert.equal(noApprovalResult.needs_approval, undefined, "small party: needs_approval must not be set");
+
+  // needs_approval with preferred time also propagates correctly.
+  const needsApprovalWithPreferred = mapAvailabilityResultToVapiResponse(
+    baseResult({
+      partySize: 10,
+      availableSlots: [{ time: "20:00", available: true, availableTableIds: ["t5"], capacity: 12 }],
+      preferredTime: { time: "20:00", available: true },
+      needsManualApproval: true,
+      manualApprovalThreshold: 8,
+    }),
+    "20:00"
+  );
+  assert.equal(needsApprovalWithPreferred.available, true, "preferred+approval: available");
+  assert.equal(needsApprovalWithPreferred.needs_approval, true, "preferred+approval: needs_approval");
+  assert.ok(
+    needsApprovalWithPreferred.message.includes("manual confirmation"),
+    "preferred+approval: message must mention manual confirmation"
+  );
+
   console.log("vapiCheckAvailabilityAdapter.test.ts: all checks passed");
 }
 

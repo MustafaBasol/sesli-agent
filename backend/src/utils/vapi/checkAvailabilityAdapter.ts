@@ -50,6 +50,7 @@ export interface VapiCheckAvailabilityResponse {
   available_slots?: string[];
   suggested_times?: string[];
   blocked_reason?: string;
+  needs_approval?: boolean;
 }
 
 export function buildMissingArgsResponse(missingFields: string[]): VapiCheckAvailabilityResponse {
@@ -97,11 +98,15 @@ export function mapAvailabilityResultToVapiResponse(
 
   const availableSlotTimes = result.availableSlots.filter((slot) => slot.available).map((slot) => slot.time);
   const suggestedTimes = availableSlotTimes.slice(0, MAX_SUGGESTED_TIMES);
+  const needsApproval = result.needsManualApproval ?? false;
 
   if (preferredTime) {
     const isAvailable = result.preferredTime?.available ?? false;
+    const approvalNote = needsApproval
+      ? " A party this size will require manual confirmation from our team."
+      : "";
     const message = isAvailable
-      ? `Yes, ${preferredTime} on ${localDate} is available for ${partySize} guests.`
+      ? `Yes, ${preferredTime} on ${localDate} is available for ${partySize} guests.${approvalNote}`
       : availableSlotTimes.length > 0
         ? `Sorry, ${preferredTime} is not available. Other available times: ${suggestedTimes.join(", ")}.`
         : `Sorry, ${preferredTime} is not available and there are no other open times on ${localDate}.`;
@@ -114,13 +119,17 @@ export function mapAvailabilityResultToVapiResponse(
       time: preferredTime,
       partySize,
       available_slots: availableSlotTimes,
+      ...(needsApproval ? { needs_approval: true } : {}),
       ...(isAvailable ? {} : { suggested_times: suggestedTimes }),
     };
   }
 
   const hasAvailability = availableSlotTimes.length > 0;
+  const approvalNote = needsApproval
+    ? " A party this size will require manual confirmation from our team."
+    : "";
   const message = hasAvailability
-    ? `We have availability on ${localDate} for ${partySize} guests. Some available times: ${suggestedTimes.join(", ")}.`
+    ? `We have availability on ${localDate} for ${partySize} guests. Some available times: ${suggestedTimes.join(", ")}.${approvalNote}`
     : `Sorry, there are no available times on ${localDate} for ${partySize} guests.`;
 
   return {
@@ -130,6 +139,7 @@ export function mapAvailabilityResultToVapiResponse(
     date: localDate,
     partySize,
     available_slots: availableSlotTimes,
+    ...(needsApproval ? { needs_approval: true } : {}),
     ...(hasAvailability ? { suggested_times: suggestedTimes } : {}),
   };
 }

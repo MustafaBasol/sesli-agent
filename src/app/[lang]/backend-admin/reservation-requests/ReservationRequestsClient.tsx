@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 import {
   confirmReservationRequest,
   getReservationRequestDetail,
@@ -36,12 +37,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function ReservationRequestsClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).reservationRequests;
+
   return (
-    <BackendAdminShell
-      label="Operations"
-      title="Reservation Requests"
-      subtitle="Review and manage incoming reservation requests."
-    >
+    <BackendAdminShell label={t.label} title={t.title} subtitle={t.subtitle}>
       {({ session, restaurantId }) => (
         <ReservationRequestsContent session={session} restaurantId={restaurantId} />
       )}
@@ -58,6 +58,8 @@ function ReservationRequestsContent({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -200,6 +202,7 @@ function ReservationRequestsContent({
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
       <div className="lg:col-span-3 space-y-4">
         <Filters
+          t={t}
           statusFilter={statusFilter}
           onStatusFilterChange={(value) => {
             setStatusFilter(value);
@@ -218,6 +221,7 @@ function ReservationRequestsContent({
           onRefresh={loadList}
         />
         <ListPanel
+          t={t}
           status={listStatus}
           error={listError}
           result={listResult}
@@ -229,6 +233,7 @@ function ReservationRequestsContent({
       <div className="lg:col-span-2">
         {selectedRequestId ? (
           <DetailPanel
+            t={t}
             status={detailStatus}
             error={detailError}
             detail={detail}
@@ -251,9 +256,15 @@ function ReservationRequestsContent({
             onSaveEdits={handleSaveEdits}
           />
         ) : (
-          <div className="card p-8 text-center">
-            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-              Select a reservation request to view details.
+          <div className="card ba-empty">
+            <div className="ba-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                <rect x="9" y="3" width="6" height="4" rx="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="13" y2="16" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>
+              {t.reservationRequests.selectPrompt}
             </p>
           </div>
         )}
@@ -263,6 +274,7 @@ function ReservationRequestsContent({
 }
 
 function Filters({
+  t,
   statusFilter,
   onStatusFilterChange,
   searchInput,
@@ -274,6 +286,7 @@ function Filters({
   onApply,
   onRefresh,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
   searchInput: string;
@@ -295,7 +308,7 @@ function Filters({
     <div className="card p-4 flex flex-wrap items-end gap-3">
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Status
+          {t.common.status}
         </label>
         <select
           value={statusFilter}
@@ -303,7 +316,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {RESERVATION_REQUEST_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s.replace('_', ' ')}
@@ -313,7 +326,7 @@ function Filters({
       </div>
       <div className="flex-1 min-w-[160px]">
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Search
+          {t.common.search}
         </label>
         <input
           type="text"
@@ -327,7 +340,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          From
+          {t.common.from}
         </label>
         <input
           type="date"
@@ -339,7 +352,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          To
+          {t.common.to}
         </label>
         <input
           type="date"
@@ -350,16 +363,17 @@ function Filters({
         />
       </div>
       <button onClick={onApply} className="btn-primary">
-        Apply
+        {t.common.apply}
       </button>
       <button onClick={onRefresh} className="btn-ghost">
-        Refresh
+        {t.common.refresh}
       </button>
     </div>
   );
 }
 
 function ListPanel({
+  t,
   status,
   error,
   result,
@@ -367,6 +381,7 @@ function ListPanel({
   onSelect,
   onPageChange,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   result: ReservationRequestListResponse | null;
@@ -401,18 +416,23 @@ function ListPanel({
 
   if (!result || result.data.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No reservation requests found.</p>
-        <p className="text-xs mt-1" style={{ color: 'var(--p-text-5)' }}>Try adjusting the filters above.</p>
+      <div className="card ba-empty">
+        <div className="ba-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.reservationRequests.emptyTitle}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.reservationRequests.emptyHint}</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {result.data.map((item) => (
-          <ListRow key={item.id} item={item} isSelected={item.id === selectedRequestId} onSelect={onSelect} />
+          <ListRow key={item.id} t={t} item={item} isSelected={item.id === selectedRequestId} onSelect={onSelect} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
@@ -426,7 +446,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Prev
+            {t.common.prev}
           </button>
           <button
             disabled={result.pagination.page >= result.pagination.totalPages}
@@ -434,7 +454,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Next
+            {t.common.next}
           </button>
         </div>
       </div>
@@ -443,29 +463,28 @@ function ListPanel({
 }
 
 function ListRow({
+  t,
   item,
   isSelected,
   onSelect,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   item: ReservationRequestListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
-  const customerLabel = item.customer?.fullName || item.customerName || item.phoneNumber || 'Guest';
+  const customerLabel = item.customer?.fullName || item.customerName || item.phoneNumber || t.common.guest;
 
   return (
     <button
       onClick={() => onSelect(item.id)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors"
-      style={{ background: isSelected ? 'var(--p-subtle)' : undefined }}
-      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--p-subtle)'; }}
-      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
+      className={`ba-row text-left ${isSelected ? 'ba-row-selected' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{customerLabel}</p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
           {item.reservationDate ? item.reservationDate.slice(0, 10) : '—'} · {item.reservationTime ?? '—'} ·{' '}
-          {item.partySize ?? '—'} pax · {item.channel}
+          {item.partySize ?? '—'} {t.common.pax} · {item.channel}
           {item.provider ? ` (${item.provider})` : ''}
         </p>
         {item.specialRequest && (
@@ -483,6 +502,7 @@ function ListRow({
 }
 
 function DetailPanel({
+  t,
   status,
   error,
   detail,
@@ -504,6 +524,7 @@ function DetailPanel({
   onEditSpecialRequestChange,
   onSaveEdits,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   detail: ReservationRequestDetail | null;
@@ -550,7 +571,7 @@ function DetailPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
     );
@@ -568,7 +589,7 @@ function DetailPanel({
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.status} />
           <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-            Close
+            {t.common.close}
           </button>
         </div>
       </div>
@@ -601,7 +622,7 @@ function DetailPanel({
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Edit safe fields
+            {t.common.editSafeFields}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -662,21 +683,21 @@ function DetailPanel({
             disabled={actionStatus === 'loading'}
             className="btn-ghost"
           >
-            Save changes
+            {t.common.save}
           </button>
         </div>
 
         {!isTerminal && (
           <div className="flex gap-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
             <button onClick={onConfirm} disabled={actionStatus === 'loading'} className="btn-primary flex-1 justify-center">
-              Confirm
+              {t.common.confirm}
             </button>
             <button
               onClick={onReject}
               disabled={actionStatus === 'loading'}
               className="btn-danger flex-1 justify-center"
             >
-              Reject
+              {t.common.reject}
             </button>
           </div>
         )}

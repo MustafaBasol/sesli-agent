@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 import {
   createBlackoutDate,
   deactivateBlackoutDate,
@@ -61,12 +63,15 @@ function toSettingsForm(settings: AvailabilitySettings): SettingsFormState {
 }
 
 export default function AvailabilityClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).availability;
+
   return (
     <BackendAdminShell
-      label="Settings"
-      title="Availability"
-      subtitle="Reservation availability settings, opening hours, and blackout dates."
-      contentClass="max-w-5xl mx-auto space-y-6"
+      label={t.label}
+      title={t.title}
+      subtitle={t.subtitle}
+      contentClass="max-w-6xl mx-auto space-y-6"
     >
       {({ session, restaurantId }) => (
         <AvailabilityContent session={session} restaurantId={restaurantId} />
@@ -82,6 +87,9 @@ function AvailabilityContent({
   session: BackendLoginResponse;
   restaurantId: string;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
+
   const [loadStatus, setLoadStatus] = useState<Status>('idle');
   const [loadError, setLoadError] = useState('');
   const [settings, setSettings] = useState<AvailabilitySettings | null>(null);
@@ -323,20 +331,21 @@ function AvailabilityContent({
               </div>
             )}
 
-            <SettingsSection form={form} onChange={setForm} readOnly={readOnly} />
+            <SettingsSection t={t} form={form} onChange={setForm} readOnly={readOnly} />
 
             {!readOnly && (
               <div className="flex items-center gap-3">
                 <button onClick={handleSaveSettings} disabled={saveStatus === 'loading'} className="btn-primary">
-                  {saveStatus === 'loading' ? 'Saving…' : 'Save changes'}
+                  {saveStatus === 'loading' ? t.common.saving : t.common.save}
                 </button>
                 <button onClick={loadSettings} className="btn-ghost">
-                  Refresh
+                  {t.common.refresh}
                 </button>
               </div>
             )}
 
             <BlackoutSection
+              t={t}
               statusFilter={blackoutStatusFilter}
               onStatusFilterChange={setBlackoutStatusFilter}
               listStatus={blackoutListStatus}
@@ -366,6 +375,7 @@ function AvailabilityContent({
             />
 
             <SlotPreviewSection
+              t={t}
               date={slotDate}
               onDateChange={setSlotDate}
               partySize={slotPartySize}
@@ -382,10 +392,12 @@ function AvailabilityContent({
 }
 
 function SettingsSection({
+  t,
   form,
   onChange,
   readOnly,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   form: SettingsFormState;
   onChange: (updater: (prev: SettingsFormState | null) => SettingsFormState | null) => void;
   readOnly: boolean;
@@ -394,38 +406,60 @@ function SettingsSection({
     onChange((prev) => (prev ? { ...prev, [key]: value } : prev));
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h3 className="card-header-title">Reservation availability</h3>
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-header-title">{t.availability.sections.reservationRules}</h3>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.reservationsEnabled}
+                disabled={readOnly}
+                onChange={(e) => set('reservationsEnabled', e.target.checked)}
+              />
+              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Reservations enabled</label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Slot interval (minutes)" value={form.slotIntervalMinutes} readOnly={readOnly} onChange={(v) => set('slotIntervalMinutes', v)} />
+              <NumberField label="Default duration (minutes)" value={form.defaultReservationDurationMinutes} readOnly={readOnly} onChange={(v) => set('defaultReservationDurationMinutes', v)} />
+              <NumberField label="Minimum advance (minutes)" value={form.minAdvanceMinutes} readOnly={readOnly} onChange={(v) => set('minAdvanceMinutes', v)} />
+              <NumberField label="Booking window (days)" value={form.bookingWindowDays} readOnly={readOnly} onChange={(v) => set('bookingWindowDays', v)} />
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-header-title">{t.availability.sections.bookingLimits}</h3>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Minimum party size" value={form.minPartySize} readOnly={readOnly} onChange={(v) => set('minPartySize', v)} />
+              <NumberField label="Maximum party size" value={form.maxPartySize} readOnly={readOnly} onChange={(v) => set('maxPartySize', v)} />
+              <NumberField label="Max per slot (optional)" value={form.maxReservationsPerSlot} readOnly={readOnly} onChange={(v) => set('maxReservationsPerSlot', v)} />
+              <NumberField label="Manual approval ≥ party size" value={form.manualApprovalThreshold} readOnly={readOnly} onChange={(v) => set('manualApprovalThreshold', v)} />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                checked={form.autoConfirm}
+                disabled={readOnly}
+                onChange={(e) => set('autoConfirm', e.target.checked)}
+              />
+              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Auto-confirm reservations (skip manual review)</label>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2 flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={form.reservationsEnabled}
-            disabled={readOnly}
-            onChange={(e) => set('reservationsEnabled', e.target.checked)}
-          />
-          <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Reservations enabled</label>
+
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-header-title">{t.availability.sections.openingHours}</h3>
         </div>
-        <NumberField label="Slot interval (minutes)" value={form.slotIntervalMinutes} readOnly={readOnly} onChange={(v) => set('slotIntervalMinutes', v)} />
-        <NumberField label="Default reservation duration (minutes)" value={form.defaultReservationDurationMinutes} readOnly={readOnly} onChange={(v) => set('defaultReservationDurationMinutes', v)} />
-        <NumberField label="Minimum advance (minutes)" value={form.minAdvanceMinutes} readOnly={readOnly} onChange={(v) => set('minAdvanceMinutes', v)} />
-        <NumberField label="Booking window (days)" value={form.bookingWindowDays} readOnly={readOnly} onChange={(v) => set('bookingWindowDays', v)} />
-        <NumberField label="Minimum party size" value={form.minPartySize} readOnly={readOnly} onChange={(v) => set('minPartySize', v)} />
-        <NumberField label="Maximum party size" value={form.maxPartySize} readOnly={readOnly} onChange={(v) => set('maxPartySize', v)} />
-        <NumberField label="Max reservations per slot (optional)" value={form.maxReservationsPerSlot} readOnly={readOnly} onChange={(v) => set('maxReservationsPerSlot', v)} />
-        <NumberField label="Manual approval threshold (optional, party size ≥ this requires staff confirmation)" value={form.manualApprovalThreshold} readOnly={readOnly} onChange={(v) => set('manualApprovalThreshold', v)} />
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={form.autoConfirm}
-            disabled={readOnly}
-            onChange={(e) => set('autoConfirm', e.target.checked)}
-          />
-          <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Auto-confirm reservations (skip manual review)</label>
-        </div>
-        <div className="md:col-span-2">
+        <div className="p-5">
           <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
             Opening hours (JSON)
           </label>
@@ -438,16 +472,19 @@ function SettingsSection({
             style={inputStyle}
           />
         </div>
-        <div className="md:col-span-2">
-          <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Notes
-          </label>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-header-title">{t.availability.sections.notes}</h3>
+        </div>
+        <div className="p-5">
           <textarea
             value={form.notes}
             disabled={readOnly}
             onChange={(e) => set('notes', e.target.value)}
             rows={3}
-            className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1 disabled:opacity-60"
+            className="block w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-60"
             style={inputStyle}
           />
         </div>
@@ -490,6 +527,7 @@ function BlackoutStatusBadge({ status }: { status: BlackoutDateStatus }) {
 }
 
 function BlackoutSection({
+  t,
   statusFilter,
   onStatusFilterChange,
   listStatus,
@@ -517,6 +555,7 @@ function BlackoutSection({
   actionStatus,
   actionError,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   statusFilter: BlackoutDateStatus | '';
   onStatusFilterChange: (value: BlackoutDateStatus | '') => void;
   listStatus: Status;
@@ -547,13 +586,9 @@ function BlackoutSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Blackout dates</h3>
+        <h3 className="card-header-title">{t.availability.blackoutDates}</h3>
         {!readOnly && (
-          <button
-            onClick={onToggleCreateForm}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg"
-            style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
-          >
+          <button onClick={onToggleCreateForm} className="btn-primary" style={{ padding: '0.4375rem 0.875rem', fontSize: '0.75rem' }}>
             Add blackout date
           </button>
         )}
@@ -563,7 +598,7 @@ function BlackoutSection({
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Status
+              {t.common.status}
             </label>
             <select
               value={statusFilter}
@@ -571,13 +606,13 @@ function BlackoutSection({
               className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
               style={inputStyle}
             >
-              <option value="">All</option>
+              <option value="">{t.common.all}</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
           </div>
           <button onClick={onRefresh} className="btn-ghost">
-            Refresh
+            {t.common.refresh}
           </button>
         </div>
 
@@ -667,9 +702,16 @@ function BlackoutSection({
         ) : listStatus === 'error' ? (
           <p className="text-xs" style={{ color: 'var(--p-text-4)' }}>{listError}</p>
         ) : !list || list.data.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No blackout dates found.</p>
+          <div className="ba-empty py-8">
+            <div className="ba-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><line x1="8" y1="8" x2="16" y2="16" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>No blackout dates found.</p>
+          </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+          <div className="ba-divide">
             {list.data.map((item) => (
               <BlackoutRow key={item.id} item={item} readOnly={readOnly} onDeactivate={onDeactivate} onReactivate={onReactivate} />
             ))}
@@ -681,6 +723,7 @@ function BlackoutSection({
 }
 
 function SlotPreviewSection({
+  t,
   date,
   onDateChange,
   partySize,
@@ -692,6 +735,7 @@ function SlotPreviewSection({
   error,
   result,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   date: string;
   onDateChange: (value: string) => void;
   partySize: string;
@@ -706,7 +750,7 @@ function SlotPreviewSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Slot preview</h3>
+        <h3 className="card-header-title">{t.availability.slotPreview}</h3>
       </div>
       <div className="p-5 space-y-4">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>

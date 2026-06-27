@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import type { ReactElement } from 'react';
+import { getBackendAdminDict } from './locale';
 
 const icons: Record<string, ReactElement> = {
   dashboard: (
@@ -74,48 +75,49 @@ const icons: Record<string, ReactElement> = {
   ),
 };
 
-const NAV_GROUPS = [
-  {
-    label: 'Overview',
-    items: [{ key: 'dashboard', label: 'Dashboard', path: '' }],
-  },
-  {
-    label: 'Reservations',
-    items: [
-      { key: 'requests', label: 'Requests', path: 'reservation-requests' },
-      { key: 'reservations', label: 'Reservations', path: 'reservations' },
-      { key: 'availability', label: 'Availability', path: 'availability' },
-    ],
-  },
-  {
-    label: 'Restaurant',
-    items: [
-      { key: 'tables', label: 'Tables', path: 'tables' },
-      { key: 'menu', label: 'Menu', path: 'menu' },
-    ],
-  },
-  {
-    label: 'Engagement',
-    items: [
-      { key: 'customers', label: 'Customers', path: 'customers' },
-      { key: 'conversations', label: 'Conversations', path: 'conversations' },
-    ],
-  },
-  {
-    label: 'Platform',
-    items: [
-      { key: 'integrations', label: 'Integrations', path: 'integrations' },
-      { key: 'team', label: 'Team', path: 'team' },
-      { key: 'settings', label: 'Settings', path: 'settings' },
-    ],
-  },
-];
-
 export default function BackendAdminNav({ onLogout }: { onLogout: () => void }) {
   const params = useParams();
   const pathname = usePathname();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
   const base = `/${lang}/backend-admin`;
+  const t = getBackendAdminDict(params.lang);
+
+  const NAV_GROUPS = [
+    {
+      label: t.nav.groups.overview,
+      items: [{ key: 'dashboard', label: t.nav.items.dashboard, path: '' }],
+    },
+    {
+      label: t.nav.groups.reservationsGroup,
+      items: [
+        { key: 'requests', label: t.nav.items.requests, path: 'reservation-requests' },
+        { key: 'reservations', label: t.nav.items.reservations, path: 'reservations' },
+        { key: 'availability', label: t.nav.items.availability, path: 'availability' },
+      ],
+    },
+    {
+      label: t.nav.groups.restaurantGroup,
+      items: [
+        { key: 'tables', label: t.nav.items.tables, path: 'tables' },
+        { key: 'menu', label: t.nav.items.menu, path: 'menu' },
+      ],
+    },
+    {
+      label: t.nav.groups.engagement,
+      items: [
+        { key: 'customers', label: t.nav.items.customers, path: 'customers' },
+        { key: 'conversations', label: t.nav.items.conversations, path: 'conversations' },
+      ],
+    },
+    {
+      label: t.nav.groups.platform,
+      items: [
+        { key: 'integrations', label: t.nav.items.integrations, path: 'integrations' },
+        { key: 'team', label: t.nav.items.team, path: 'team' },
+        { key: 'settings', label: t.nav.items.settings, path: 'settings' },
+      ],
+    },
+  ];
 
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
@@ -144,7 +146,7 @@ export default function BackendAdminNav({ onLogout }: { onLogout: () => void }) 
       <div className="pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
         <button onClick={onLogout} className="ba-nav-link w-full" style={{ color: 'var(--p-text-4)' }}>
           {icons.logout}
-          <span>Logout</span>
+          <span>{t.nav.items.logout}</span>
         </button>
       </div>
     </nav>

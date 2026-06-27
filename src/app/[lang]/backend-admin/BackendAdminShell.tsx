@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import { type BackendLoginResponse } from '@/lib/backend-endpoints';
 import BackendAdminNav from './BackendAdminNav';
+import { getBackendAdminDict } from './locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -31,10 +33,13 @@ export function LoginCard({
   status: Status;
   error: string;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).shell;
+
   return (
     <div className="card p-8 max-w-sm">
       <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--p-text-1)' }}>
-        Backend login
+        {t.backendLogin}
       </h3>
       <div className="space-y-3">
         <input
@@ -60,7 +65,7 @@ export function LoginCard({
           </p>
         )}
         <button onClick={onSubmit} disabled={status === 'loading'} className="btn-primary w-full justify-center">
-          {status === 'loading' ? 'Signing in...' : 'Sign in'}
+          {status === 'loading' ? t.signingIn : t.signIn}
         </button>
       </div>
     </div>
@@ -74,18 +79,21 @@ export function RestaurantPicker({
   session: BackendLoginResponse;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).shell;
+
   return (
     <div className="card p-6 max-w-lg">
       <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--p-text-1)' }}>
-        Select a restaurant
+        {t.selectRestaurant}
       </h3>
       <p className="text-xs mb-4" style={{ color: 'var(--p-text-4)' }}>
-        Signed in as {session.user.email} ({session.user.globalRole ?? 'no role'})
+        {t.signedInAs} {session.user.email} ({session.user.globalRole ?? 'no role'})
       </p>
 
       {session.accessibleRestaurantIds.length === 0 ? (
         <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-          No accessible restaurants for this account.
+          {t.noAccessibleRestaurants}
         </p>
       ) : (
         <div className="space-y-2">
@@ -97,7 +105,7 @@ export function RestaurantPicker({
               style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border-2)', color: 'var(--p-text-2)' }}
             >
               <span className="text-sm font-medium truncate">{id}</span>
-              <span className="badge badge-gray shrink-0">Select</span>
+              <span className="badge badge-gray shrink-0">{t.select}</span>
             </button>
           ))}
         </div>
@@ -138,6 +146,9 @@ export default function BackendAdminShell({
   contentClass?: string;
   children: (ctx: BackendAdminShellCtx) => React.ReactNode;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).shell;
+
   const [session, setSession] = useState<BackendLoginResponse | null>(null);
   const [restaurantId, setRestaurantId] = useState('');
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -256,16 +267,23 @@ export default function BackendAdminShell({
         <BackendAdminNav onLogout={handleLogout} />
 
         <div className="px-3 py-3" style={{ borderTop: '1px solid var(--p-border)' }}>
-          <div className="px-3 py-2.5 rounded-lg" style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>Restaurant</p>
-            <p className="text-xs font-semibold truncate mt-0.5" style={{ color: 'var(--p-text-2)' }}>{restaurantId}</p>
-            <button
-              onClick={() => setRestaurantId('')}
-              className="text-[11px] font-semibold mt-1.5"
-              style={{ color: 'var(--p-accent-text)' }}
-            >
-              Change restaurant
-            </button>
+          <div className="ba-restaurant-card">
+            <div className="ba-restaurant-avatar">{restaurantId.charAt(0).toUpperCase()}</div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+                {t.activeRestaurant}
+              </p>
+              <p className="text-xs font-mono truncate mt-0.5" style={{ color: 'var(--p-text-2)' }}>
+                {restaurantId.length > 13 ? `${restaurantId.slice(0, 8)}…${restaurantId.slice(-5)}` : restaurantId}
+              </p>
+              <button
+                onClick={() => setRestaurantId('')}
+                className="text-[11px] font-semibold mt-1"
+                style={{ color: 'var(--p-accent-text)' }}
+              >
+                {t.changeRestaurant}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -289,7 +307,7 @@ export default function BackendAdminShell({
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search…"
+                    placeholder={t.searchPlaceholder}
                     disabled
                     className="w-56 rounded-lg pl-9 pr-3 py-2 text-sm outline-none"
                     style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border)', color: 'var(--p-text-3)' }}

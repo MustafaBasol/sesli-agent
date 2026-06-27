@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from './BackendAdminShell';
+import { getBackendAdminDict } from './locale';
 import {
   getDashboardCounts,
   getDashboardRecent,
@@ -36,11 +37,14 @@ const CONVERSATION_STATUS_BADGE: Record<string, string> = {
 };
 
 export default function BackendAdminBetaClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).dashboard;
+
   return (
     <BackendAdminShell
-      label="Admin"
-      title="Dashboard"
-      subtitle="Backend platform overview."
+      label={t.label}
+      title={t.title}
+      subtitle={t.subtitle}
       contentClass="max-w-7xl mx-auto space-y-4"
     >
       {({ session, restaurantId, onChangeRestaurant }) => (
@@ -228,6 +232,7 @@ function DashboardView({
 }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const t = getBackendAdminDict(params.lang).dashboard;
 
   return (
     <div className="space-y-6">
@@ -239,7 +244,7 @@ function DashboardView({
               style={{ borderColor: 'var(--p-border)', borderTopColor: 'var(--p-accent)' }}
             />
             <p className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--p-text-5)' }}>
-              Loading...
+              {t.loading}
             </p>
           </div>
         </div>
@@ -248,7 +253,7 @@ function DashboardView({
       {status === 'error' && (
         <div className="card p-8 max-w-sm text-center">
           <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--p-text-1)' }}>
-            Dashboard fetch failed
+            {t.fetchFailed}
           </h3>
           <p className="text-xs" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         </div>
@@ -257,44 +262,44 @@ function DashboardView({
       {status === 'idle' && summary && counts && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryCard label="New requests" value={summary.reservationRequests.new} icon="inbox" tile="blue" />
-            <SummaryCard label="Pending info" value={summary.reservationRequests.pendingInfo} icon="clock" tile="amber" />
-            <SummaryCard label="Confirmed requests" value={summary.reservationRequests.confirmed} icon="check" tile="green" />
-            <SummaryCard label="Total customers" value={summary.customers.total} icon="users" tile="purple" />
-            <SummaryCard label="Open conversations" value={summary.conversations.open} icon="chat" tile="blue" />
-            <SummaryCard label="Active integrations" value={summary.integrations.active} icon="plug" tile="green" />
-            <SummaryCard label="Integration errors" value={summary.integrations.error} icon="alert" tile={summary.integrations.error > 0 ? 'red' : 'gray'} />
-            <SummaryCard label="Today's messages" value={summary.conversations.todayMessagesCount} icon="bolt" tile="amber" />
+            <SummaryCard label={t.stats.newRequests} value={summary.reservationRequests.new} icon="inbox" tile="blue" />
+            <SummaryCard label={t.stats.pendingInfo} value={summary.reservationRequests.pendingInfo} icon="clock" tile="amber" />
+            <SummaryCard label={t.stats.confirmedRequests} value={summary.reservationRequests.confirmed} icon="check" tile="green" />
+            <SummaryCard label={t.stats.totalCustomers} value={summary.customers.total} icon="users" tile="purple" />
+            <SummaryCard label={t.stats.openConversations} value={summary.conversations.open} icon="chat" tile="blue" />
+            <SummaryCard label={t.stats.activeIntegrations} value={summary.integrations.active} icon="plug" tile="green" />
+            <SummaryCard label={t.stats.integrationErrors} value={summary.integrations.error} icon="alert" tile={summary.integrations.error > 0 ? 'red' : 'gray'} />
+            <SummaryCard label={t.stats.todaysMessages} value={summary.conversations.todayMessagesCount} icon="bolt" tile="amber" />
           </div>
 
           <div>
-            <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--p-text-1)' }}>Quick actions</h3>
+            <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--p-text-1)' }}>{t.quickActions}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <QuickActionCard
                 href={`/${lang}/backend-admin/reservation-requests`}
-                title="Review requests"
-                subtitle="Triage new reservation requests"
+                title={t.actions.reviewRequests.title}
+                subtitle={t.actions.reviewRequests.subtitle}
                 icon="inbox"
                 color="blue"
               />
               <QuickActionCard
                 href={`/${lang}/backend-admin/availability`}
-                title="Manage availability"
-                subtitle="Hours, slots & blackout dates"
+                title={t.actions.manageAvailability.title}
+                subtitle={t.actions.manageAvailability.subtitle}
                 icon="clock"
                 color="green"
               />
               <QuickActionCard
                 href={`/${lang}/backend-admin/customers`}
-                title="View customers"
-                subtitle="Browse guest profiles"
+                title={t.actions.viewCustomers.title}
+                subtitle={t.actions.viewCustomers.subtitle}
                 icon="users"
                 color="purple"
               />
               <QuickActionCard
                 href={`/${lang}/backend-admin/conversations`}
-                title="Open conversations"
-                subtitle="Reply across channels"
+                title={t.actions.openConversations.title}
+                subtitle={t.actions.openConversations.subtitle}
                 icon="chat"
                 color="amber"
               />
@@ -303,24 +308,26 @@ function DashboardView({
 
           <div className="card">
             <div className="card-header">
-              <h3 className="card-header-title">Live counts</h3>
+              <h3 className="card-header-title">{t.liveCounts}</h3>
               <span className="badge badge-green">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 status-online" />
-                Live
+                {t.live}
               </span>
             </div>
             <div className="p-5 grid grid-cols-2 sm:grid-cols-5 gap-4">
-              <CountBadge label="New requests" value={counts.newReservationRequests} />
-              <CountBadge label="Pending info" value={counts.pendingInfoReservationRequests} />
-              <CountBadge label="Open conversations" value={counts.openConversations} />
-              <CountBadge label="Integration errors" value={counts.integrationErrors} urgent={counts.integrationErrors > 0} />
-              <CountBadge label="Today's messages" value={counts.todayMessages} />
+              <CountBadge label={t.stats.newRequests} value={counts.newReservationRequests} />
+              <CountBadge label={t.stats.pendingInfo} value={counts.pendingInfoReservationRequests} />
+              <CountBadge label={t.stats.openConversations} value={counts.openConversations} />
+              <CountBadge label={t.stats.integrationErrors} value={counts.integrationErrors} urgent={counts.integrationErrors > 0} />
+              <CountBadge label={t.stats.todaysMessages} value={counts.todayMessages} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
             <RecentListCard
-              title="Recent requests"
+              title={t.recentRequests}
+              viewAllLabel={t.viewAll}
+              emptyLabel={t.noDataYet}
               viewAllHref={`/${lang}/backend-admin/reservation-requests`}
               items={recent?.recentReservationRequests ?? []}
               renderItem={(item) => (
@@ -338,7 +345,9 @@ function DashboardView({
               href={(item) => `/${lang}/backend-admin/reservation-requests?requestId=${item.id}`}
             />
             <RecentListCard
-              title="Recent customers"
+              title={t.recentCustomers}
+              viewAllLabel={t.viewAll}
+              emptyLabel={t.noDataYet}
               viewAllHref={`/${lang}/backend-admin/customers`}
               items={recent?.recentCustomers ?? []}
               renderItem={(item) => (
@@ -351,7 +360,9 @@ function DashboardView({
               )}
             />
             <RecentListCard
-              title="Recent conversations"
+              title={t.recentConversations}
+              viewAllLabel={t.viewAll}
+              emptyLabel={t.noDataYet}
               viewAllHref={`/${lang}/backend-admin/conversations`}
               items={recent?.recentConversations ?? []}
               renderItem={(item) => (
@@ -391,6 +402,8 @@ function CountBadge({ label, value, urgent = false }: { label: string; value: nu
 function RecentListCard<T extends { id: string }>({
   title,
   viewAllHref,
+  viewAllLabel = 'View all →',
+  emptyLabel = 'No data yet',
   items,
   renderItem,
   badge,
@@ -399,6 +412,8 @@ function RecentListCard<T extends { id: string }>({
 }: {
   title: string;
   viewAllHref?: string;
+  viewAllLabel?: string;
+  emptyLabel?: string;
   items: T[];
   renderItem: (item: T) => React.ReactNode;
   badge?: (item: T) => string;
@@ -415,11 +430,11 @@ function RecentListCard<T extends { id: string }>({
             className="text-[10px] font-semibold"
             style={{ color: 'var(--p-accent-text)' }}
           >
-            View all →
+            {viewAllLabel}
           </Link>
         )}
       </div>
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {items.length > 0 ? (
           items.map((item) => {
             const cls = badge && badgeClass ? badgeClass(item) : 'badge-gray';
@@ -430,25 +445,18 @@ function RecentListCard<T extends { id: string }>({
               </div>
             );
             return href ? (
-              <Link
-                key={item.id}
-                href={href(item)}
-                className="flex items-center px-5 py-3.5 transition-colors"
-                style={{ color: 'inherit' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--p-subtle)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-              >
+              <Link key={item.id} href={href(item)} className="ba-row" style={{ color: 'inherit' }}>
                 {row}
               </Link>
             ) : (
-              <div key={item.id} className="flex items-center px-5 py-3.5">
+              <div key={item.id} className="ba-row">
                 {row}
               </div>
             );
           })
         ) : (
           <div className="flex flex-col items-center justify-center py-10 gap-2">
-            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No data yet</p>
+            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>{emptyLabel}</p>
           </div>
         )}
       </div>

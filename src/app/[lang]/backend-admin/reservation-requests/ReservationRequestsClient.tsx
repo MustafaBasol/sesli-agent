@@ -234,13 +234,13 @@ export default function ReservationRequestsClient() {
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Reservation Requests (Beta)</h2>
-            <p className="page-subtitle">
-              Reservation requests from the new backend API. Separate from the production Supabase admin.
-            </p>
+        <header className="space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="page-label">Operations</p>
+              <h2 className="page-title">Reservation Requests</h2>
+              <p className="page-subtitle">Review and manage incoming reservation requests.</p>
+            </div>
           </div>
           {session && <BackendAdminNav onLogout={handleLogout} />}
         </header>
@@ -416,11 +416,7 @@ function Filters({
       <button onClick={onApply} className="btn-primary">
         Apply
       </button>
-      <button
-        onClick={onRefresh}
-        className="text-xs font-semibold px-3 py-2 rounded-lg"
-        style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
-      >
+      <button onClick={onRefresh} className="btn-ghost">
         Refresh
       </button>
     </div>
@@ -444,11 +440,14 @@ function ListPanel({
 }) {
   if (status === 'loading') {
     return (
-      <div className="card p-10 flex items-center justify-center">
+      <div className="card p-10 flex flex-col items-center justify-center gap-3">
         <div
           className="w-8 h-8 border-2 rounded-full animate-spin"
           style={{ borderColor: 'var(--p-border)', borderTopColor: 'var(--p-accent)' }}
         />
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--p-text-5)' }}>
+          Loading…
+        </p>
       </div>
     );
   }
@@ -468,6 +467,7 @@ function ListPanel({
     return (
       <div className="card p-10 text-center">
         <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No reservation requests found.</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--p-text-5)' }}>Try adjusting the filters above.</p>
       </div>
     );
   }
@@ -520,8 +520,10 @@ function ListRow({
   return (
     <button
       onClick={() => onSelect(item.id)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-      style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
+      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors"
+      style={{ background: isSelected ? 'var(--p-subtle)' : undefined }}
+      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--p-subtle)'; }}
+      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = ''; }}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{customerLabel}</p>
@@ -722,8 +724,7 @@ function DetailPanel({
           <button
             onClick={onSaveEdits}
             disabled={actionStatus === 'loading'}
-            className="text-xs font-semibold px-3 py-2 rounded-lg"
-            style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
+            className="btn-ghost"
           >
             Save changes
           </button>
@@ -737,8 +738,7 @@ function DetailPanel({
             <button
               onClick={onReject}
               disabled={actionStatus === 'loading'}
-              className="flex-1 justify-center text-xs font-semibold px-3 py-2 rounded-lg"
-              style={{ border: '1px solid var(--p-border)', color: '#b91c1c' }}
+              className="btn-danger flex-1 justify-center"
             >
               Reject
             </button>

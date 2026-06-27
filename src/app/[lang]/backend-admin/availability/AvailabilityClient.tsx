@@ -327,14 +327,13 @@ export default function AvailabilityClient() {
   return (
     <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
       <div className="max-w-5xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Availability (Beta)</h2>
-            <p className="page-subtitle">
-              Reservation availability settings and blackout dates from the new backend API. Separate from the
-              production Supabase admin.
-            </p>
+        <header className="space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="page-label">Settings</p>
+              <h2 className="page-title">Availability</h2>
+              <p className="page-subtitle">Reservation availability settings, opening hours, and blackout dates.</p>
+            </div>
           </div>
           {session && <BackendAdminNav onLogout={handleLogout} />}
         </header>
@@ -375,12 +374,12 @@ export default function AvailabilityClient() {
               </div>
             )}
             {saveMessage && (
-              <div className="card p-4">
+              <div className="card p-4" style={{ borderColor: '#16a34a' }}>
                 <p className="text-sm font-medium" style={{ color: '#15803d' }}>{saveMessage}</p>
               </div>
             )}
             {saveStatus === 'error' && (
-              <div className="card p-4">
+              <div className="card p-4" style={{ borderColor: '#ef4444' }}>
                 <p className="text-sm font-medium" style={{ color: '#ef4444' }}>{saveError}</p>
               </div>
             )}
@@ -392,11 +391,7 @@ export default function AvailabilityClient() {
                 <button onClick={handleSaveSettings} disabled={saveStatus === 'loading'} className="btn-primary">
                   {saveStatus === 'loading' ? 'Saving…' : 'Save changes'}
                 </button>
-                <button
-                  onClick={loadSettings}
-                  className="text-xs font-semibold px-3 py-2 rounded-lg"
-                  style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
-                >
+                <button onClick={loadSettings} className="btn-ghost">
                   Refresh
                 </button>
               </div>
@@ -645,11 +640,7 @@ function BlackoutSection({
               <option value="inactive">Inactive</option>
             </select>
           </div>
-          <button
-            onClick={onRefresh}
-            className="text-xs font-semibold px-3 py-2 rounded-lg"
-            style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
-          >
+          <button onClick={onRefresh} className="btn-ghost">
             Refresh
           </button>
         </div>
@@ -719,10 +710,9 @@ function BlackoutSection({
             <button
               onClick={onCreateSave}
               disabled={createStatus === 'loading' || !createLocalDate}
-              className="text-xs font-semibold px-3 py-2 rounded-lg"
-              style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
+              className="btn-primary"
             >
-              Save blackout date
+              {createStatus === 'loading' ? 'Saving…' : 'Save blackout date'}
             </button>
           </div>
         )}
@@ -790,11 +780,10 @@ function SlotPreviewSection({
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Date (YYYY-MM-DD)
+              Date
             </label>
             <input
-              type="text"
-              placeholder="2026-07-01"
+              type="date"
               value={date}
               onChange={(e) => onDateChange(e.target.value)}
               className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
@@ -830,8 +819,7 @@ function SlotPreviewSection({
           <button
             onClick={onCheck}
             disabled={status === 'loading' || !date || !partySize}
-            className="text-xs font-semibold px-3 py-2 rounded-lg"
-            style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
+            className="btn-primary"
           >
             {status === 'loading' ? 'Checking…' : 'Check availability'}
           </button>
@@ -903,19 +891,11 @@ function BlackoutRow({
         <BlackoutStatusBadge status={item.status} />
         {!readOnly && (
           item.status === 'active' ? (
-            <button
-              onClick={() => onDeactivate(item.id)}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg"
-              style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
-            >
+            <button onClick={() => onDeactivate(item.id)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>
               Deactivate
             </button>
           ) : (
-            <button
-              onClick={() => onReactivate(item.id)}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg"
-              style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
-            >
+            <button onClick={() => onReactivate(item.id)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>
               Reactivate
             </button>
           )

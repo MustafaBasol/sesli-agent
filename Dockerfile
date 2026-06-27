@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --ignore-scripts
 
 # ============================================================
 # Stage 2: Build the application
@@ -23,6 +23,9 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+ARG NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA
+ENV NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA=$NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA
 
 ENV NODE_ENV=production
 RUN npm run build

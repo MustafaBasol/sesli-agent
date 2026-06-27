@@ -20,7 +20,7 @@ import { restaurantsRouter } from "./routes/restaurants";
 import { tablesRouter } from "./routes/tables";
 import { teamRouter } from "./routes/team";
 import { vapiWebhookRouter } from "./routes/webhooks/vapi";
-import { logger } from "./utils/logger";
+import { logger, maskSensitiveHeaders } from "./utils/logger";
 
 export function createApp(): express.Express {
   const app = express();
@@ -40,6 +40,15 @@ export function createApp(): express.Express {
     pinoHttp({
       logger,
       genReqId: (req) => req.requestId,
+      serializers: {
+        req: (req) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          remoteAddress: req.socket?.remoteAddress,
+          headers: maskSensitiveHeaders(req.headers),
+        }),
+      },
     })
   );
 

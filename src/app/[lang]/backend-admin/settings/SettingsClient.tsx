@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import {
   getRestaurantSettings,
@@ -10,6 +11,7 @@ import {
   type UpdateRestaurantSettingsPayload,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -34,11 +36,14 @@ function toFormState(settings: RestaurantSettings): FormState {
 }
 
 export default function SettingsClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).settingsPage;
+
   return (
     <BackendAdminShell
-      label="Settings"
-      title="Settings"
-      subtitle="Restaurant profile and organization summary from the new backend API."
+      label={t.label}
+      title={t.title}
+      subtitle={t.subtitle}
       contentClass="max-w-5xl mx-auto space-y-6"
     >
       {(ctx) => <SettingsContent {...ctx} />}
@@ -47,6 +52,8 @@ export default function SettingsClient() {
 }
 
 function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
   const [loadStatus, setLoadStatus] = useState<Status>('idle');
   const [loadError, setLoadError] = useState('');
   const [settings, setSettings] = useState<RestaurantSettings | null>(null);
@@ -132,7 +139,7 @@ function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
             {readOnly && (
               <div className="card p-4" style={{ borderColor: '#f59e0b' }}>
                 <p className="text-sm font-medium" style={{ color: '#b45309' }}>
-                  Your role only allows viewing these settings. Updates are restricted to owners and managers.
+                  {t.settingsPage.readOnlyNotice}
                 </p>
               </div>
             )}
@@ -147,22 +154,22 @@ function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
               </div>
             )}
 
-            <ProfileSection settings={settings} form={form} onChange={setForm} readOnly={readOnly} />
-            <ContactSection form={form} onChange={setForm} readOnly={readOnly} />
-            <LocalizationSection form={form} onChange={setForm} readOnly={readOnly} />
-            <OrganizationSection settings={settings} />
+            <ProfileSection t={t} settings={settings} form={form} onChange={setForm} readOnly={readOnly} />
+            <ContactSection t={t} form={form} onChange={setForm} readOnly={readOnly} />
+            <LocalizationSection t={t} form={form} onChange={setForm} readOnly={readOnly} />
+            <OrganizationSection t={t} settings={settings} />
 
             {!readOnly && (
               <div className="flex items-center gap-3">
                 <button onClick={handleSave} disabled={saveStatus === 'loading'} className="btn-primary">
-                  {saveStatus === 'loading' ? 'Saving…' : 'Save changes'}
+                  {saveStatus === 'loading' ? t.common.saving : t.common.save}
                 </button>
                 <button
                   onClick={loadSettings}
                   className="text-xs font-semibold px-3 py-2 rounded-lg"
                   style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                 >
-                  Refresh
+                  {t.common.refresh}
                 </button>
               </div>
             )}
@@ -217,11 +224,13 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 }
 
 function ProfileSection({
+  t,
   settings,
   form,
   onChange,
   readOnly,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   settings: RestaurantSettings;
   form: FormState;
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
@@ -230,7 +239,7 @@ function ProfileSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Restaurant profile</h3>
+        <h3 className="card-header-title">{t.settingsPage.restaurantProfile}</h3>
         <span className="badge badge-gray">{settings.status}</span>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -243,17 +252,19 @@ function ProfileSection({
         <ReadOnlyField label="Slug" value={settings.slug} />
       </div>
       <p className="px-5 pb-4 text-[10px]" style={{ color: 'var(--p-text-5)' }}>
-        Slug editing will be added later.
+        {t.settingsPage.slugHint}
       </p>
     </div>
   );
 }
 
 function ContactSection({
+  t,
   form,
   onChange,
   readOnly,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   form: FormState;
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
   readOnly: boolean;
@@ -261,7 +272,7 @@ function ContactSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Contact details</h3>
+        <h3 className="card-header-title">{t.settingsPage.contactDetails}</h3>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldInput
@@ -291,10 +302,12 @@ function ContactSection({
 }
 
 function LocalizationSection({
+  t,
   form,
   onChange,
   readOnly,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   form: FormState;
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
   readOnly: boolean;
@@ -302,7 +315,7 @@ function LocalizationSection({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Localization</h3>
+        <h3 className="card-header-title">{t.settingsPage.localization}</h3>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldInput
@@ -322,11 +335,17 @@ function LocalizationSection({
   );
 }
 
-function OrganizationSection({ settings }: { settings: RestaurantSettings }) {
+function OrganizationSection({
+  t,
+  settings,
+}: {
+  t: ReturnType<typeof getBackendAdminDict>;
+  settings: RestaurantSettings;
+}) {
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">Organization</h3>
+        <h3 className="card-header-title">{t.settingsPage.organization}</h3>
         <span className="badge badge-gray">{settings.organization.status}</span>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">

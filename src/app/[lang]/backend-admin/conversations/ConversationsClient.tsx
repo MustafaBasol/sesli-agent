@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 import {
   CONVERSATION_STATUSES,
   getConversationDetail,
@@ -21,12 +22,16 @@ import {
 type Status = 'idle' | 'loading' | 'error';
 
 function StatusBadge({ status }: { status: string }) {
-  return <span className="badge badge-gray">{status}</span>;
+  const cls = status === 'open' ? 'badge-blue' : status === 'pending' ? 'badge-amber' : 'badge-gray';
+  return <span className={`badge ${cls}`}>{status}</span>;
 }
 
 export default function ConversationsClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).conversations;
+
   return (
-    <BackendAdminShell label="Inbox" title="Conversations" subtitle="Conversations and messages from the backend API.">
+    <BackendAdminShell label={t.label} title={t.title} subtitle={t.subtitle}>
       {({ session, restaurantId }) => <ConversationsContent session={session} restaurantId={restaurantId} />}
     </BackendAdminShell>
   );
@@ -35,6 +40,8 @@ export default function ConversationsClient() {
 function ConversationsContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -162,6 +169,7 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-2 space-y-4">
               <Filters
+                t={t}
                 statusFilter={statusFilter}
                 onStatusFilterChange={(value) => {
                   setStatusFilter(value);
@@ -186,6 +194,7 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
                 onRefresh={loadList}
               />
               <ListPanel
+                t={t}
                 status={listStatus}
                 error={listError}
                 result={listResult}
@@ -197,6 +206,7 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
             <div className="lg:col-span-3">
               {selectedConversationId ? (
                 <DetailPanel
+                  t={t}
                   status={detailStatus}
                   error={detailError}
                   detail={detail}
@@ -209,9 +219,14 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
                   onLoadMore={() => loadMessages(messagesPage + 1, true)}
                 />
               ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select a conversation to view messages.
+                <div className="card ba-empty">
+                  <div className="ba-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>
+                    {t.conversations.selectPrompt}
                   </p>
                 </div>
               )}
@@ -221,6 +236,7 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
 }
 
 function Filters({
+  t,
   statusFilter,
   onStatusFilterChange,
   channelFilter,
@@ -232,6 +248,7 @@ function Filters({
   onApply,
   onRefresh,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
   channelFilter: string;
@@ -253,7 +270,7 @@ function Filters({
     <div className="card p-4 flex flex-wrap items-end gap-3">
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Status
+          {t.common.status}
         </label>
         <select
           value={statusFilter}
@@ -261,7 +278,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {CONVERSATION_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -299,7 +316,7 @@ function Filters({
       </div>
       <div className="flex-1 min-w-[160px]">
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Search
+          {t.common.search}
         </label>
         <input
           type="text"
@@ -312,20 +329,21 @@ function Filters({
         />
       </div>
       <button onClick={onApply} className="btn-primary">
-        Apply
+        {t.common.apply}
       </button>
       <button
         onClick={onRefresh}
         className="text-xs font-semibold px-3 py-2 rounded-lg"
         style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
       >
-        Refresh
+        {t.common.refresh}
       </button>
     </div>
   );
 }
 
 function ListPanel({
+  t,
   status,
   error,
   result,
@@ -333,6 +351,7 @@ function ListPanel({
   onSelect,
   onPageChange,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   result: ConversationListResponse | null;
@@ -364,15 +383,21 @@ function ListPanel({
 
   if (!result || result.data.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No conversations found.</p>
+      <div className="card ba-empty">
+        <div className="ba-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.conversations.emptyTitle}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.conversations.emptyHint}</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {result.data.map((item) => (
           <ListRow key={item.id} item={item} isSelected={item.id === selectedConversationId} onSelect={onSelect} />
         ))}
@@ -388,7 +413,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Prev
+            {t.common.prev}
           </button>
           <button
             disabled={result.pagination.page >= result.pagination.totalPages}
@@ -396,7 +421,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Next
+            {t.common.next}
           </button>
         </div>
       </div>
@@ -420,8 +445,7 @@ function ListRow({
   return (
     <button
       onClick={() => onSelect(item.id)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-      style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
+      className={`ba-row text-left ${isSelected ? 'ba-row-selected' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{label}</p>
@@ -448,6 +472,7 @@ function ListRow({
 }
 
 function DetailPanel({
+  t,
   status,
   error,
   detail,
@@ -459,6 +484,7 @@ function DetailPanel({
   messagesPagination,
   onLoadMore,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   detail: ConversationDetail | null;
@@ -489,7 +515,7 @@ function DetailPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
     );
@@ -508,10 +534,10 @@ function DetailPanel({
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.status} />
           <button onClick={onRefresh} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-            Refresh
+            {t.common.refresh}
           </button>
           <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-            Close
+            {t.common.close}
           </button>
         </div>
       </div>
@@ -529,7 +555,7 @@ function DetailPanel({
         <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Messages
+              {t.conversations.messages}
             </p>
             {messagesStatus === 'loading' && (
               <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Loading...</span>
@@ -541,7 +567,7 @@ function DetailPanel({
           )}
 
           {messages.length === 0 && messagesStatus !== 'loading' ? (
-            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No messages yet.</p>
+            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>{t.conversations.noMessages}</p>
           ) : (
             <div className="space-y-2 max-h-[480px] overflow-y-auto">
               {messages.map((message) => (
@@ -557,7 +583,7 @@ function DetailPanel({
               className="text-xs font-semibold px-3 py-2 rounded-lg w-full"
               style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
             >
-              Load more
+              {t.conversations.loadMore}
             </button>
           )}
         </div>
@@ -565,11 +591,11 @@ function DetailPanel({
         <div className="pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <button
             disabled
-            title="Reply coming later"
+            title={t.conversations.replyComingLater}
             className="text-xs font-semibold px-3 py-2 rounded-lg w-full opacity-50 cursor-not-allowed"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-4)' }}
           >
-            Reply coming later
+            {t.conversations.replyComingLater}
           </button>
         </div>
       </div>

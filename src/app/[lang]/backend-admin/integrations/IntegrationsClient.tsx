@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 import {
   INTEGRATION_CHANNELS,
   INTEGRATION_PROVIDERS,
@@ -34,8 +35,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function IntegrationsClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).integrations;
+
   return (
-    <BackendAdminShell label="Integrations" title="Integrations" subtitle="Integration connections managed from the backend API.">
+    <BackendAdminShell label={t.label} title={t.title} subtitle={t.subtitle}>
       {({ session, restaurantId }) => <IntegrationsContent session={session} restaurantId={restaurantId} />}
     </BackendAdminShell>
   );
@@ -44,6 +48,8 @@ export default function IntegrationsClient() {
 function IntegrationsContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
 
   const [channelFilter, setChannelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -137,18 +143,24 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
   });
 
   return forbidden ? (
-          <div className="card p-8 max-w-md text-center">
-            <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--p-text-1)' }}>
-              No permission
+          <div className="card ba-empty max-w-md">
+            <div className="ba-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--p-text-1)' }}>
+              {t.integrations.noPermissionTitle}
             </h3>
             <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-              You do not have permission to manage integrations. This area is restricted to owners and managers.
+              {t.integrations.noPermissionBody}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-2 space-y-4">
               <Filters
+                t={t}
                 channelFilter={channelFilter}
                 onChannelFilterChange={setChannelFilter}
                 statusFilter={statusFilter}
@@ -160,6 +172,7 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
                 }}
               />
               <ListPanel
+                t={t}
                 status={listStatus}
                 error={listError}
                 items={filteredItems}
@@ -181,6 +194,7 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
                 />
               ) : selectedIntegrationId ? (
                 <DetailPanel
+                  t={t}
                   restaurantId={restaurantId}
                   token={session.token}
                   status={detailStatus}
@@ -194,9 +208,15 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
                   setActionError={setActionError}
                 />
               ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select an integration to view details, or create a new one.
+                <div className="card ba-empty">
+                  <div className="ba-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>
+                    {t.integrations.selectPrompt}
                   </p>
                 </div>
               )}
@@ -206,6 +226,7 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
 }
 
 function Filters({
+  t,
   channelFilter,
   onChannelFilterChange,
   statusFilter,
@@ -213,6 +234,7 @@ function Filters({
   onRefresh,
   onCreate,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   channelFilter: string;
   onChannelFilterChange: (value: string) => void;
   statusFilter: string;
@@ -238,7 +260,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {INTEGRATION_CHANNELS.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -248,7 +270,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Status
+          {t.common.status}
         </label>
         <select
           value={statusFilter}
@@ -256,7 +278,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {INTEGRATION_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -265,26 +287,28 @@ function Filters({
         </select>
       </div>
       <button onClick={onCreate} className="btn-primary">
-        New integration
+        {t.integrations.newIntegration}
       </button>
       <button
         onClick={onRefresh}
         className="text-xs font-semibold px-3 py-2 rounded-lg"
         style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
       >
-        Refresh
+        {t.common.refresh}
       </button>
     </div>
   );
 }
 
 function ListPanel({
+  t,
   status,
   error,
   items,
   selectedIntegrationId,
   onSelect,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   items: IntegrationSummary[];
@@ -315,15 +339,22 @@ function ListPanel({
 
   if (items.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No integrations found.</p>
+      <div className="card ba-empty">
+        <div className="ba-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.integrations.emptyTitle}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.integrations.emptyHint}</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {items.map((item) => (
           <ListRow key={item.id} item={item} isSelected={item.id === selectedIntegrationId} onSelect={onSelect} />
         ))}
@@ -344,8 +375,7 @@ function ListRow({
   return (
     <button
       onClick={() => onSelect(item.id)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-      style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
+      className={`ba-row text-left ${isSelected ? 'ba-row-selected' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
@@ -535,6 +565,7 @@ function CreateForm({
 }
 
 function DetailPanel({
+  t,
   restaurantId,
   token,
   status,
@@ -547,6 +578,7 @@ function DetailPanel({
   setActionMessage,
   setActionError,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   restaurantId: string;
   token: string;
   status: Status;
@@ -598,7 +630,7 @@ function DetailPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
     );
@@ -682,10 +714,10 @@ function DetailPanel({
         <div className="flex items-center gap-2">
           <StatusBadge status={detail.status} />
           <button onClick={onRefresh} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-            Refresh
+            {t.common.refresh}
           </button>
           <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-            Close
+            {t.common.close}
           </button>
         </div>
       </div>

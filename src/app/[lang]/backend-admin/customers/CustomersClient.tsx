@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 import {
   getCustomerDetail,
   listCustomers,
@@ -18,8 +19,11 @@ import {
 type Status = 'idle' | 'loading' | 'error';
 
 export default function CustomersClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).customers;
+
   return (
-    <BackendAdminShell label="Customers" title="Customers" subtitle="Customer records from the backend API.">
+    <BackendAdminShell label={t.label} title={t.title} subtitle={t.subtitle}>
       {({ session, restaurantId }) => <CustomersContent session={session} restaurantId={restaurantId} />}
     </BackendAdminShell>
   );
@@ -28,6 +32,8 @@ export default function CustomersClient() {
 function CustomersContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
 
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
@@ -143,6 +149,7 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3 space-y-4">
               <Filters
+                t={t}
                 searchInput={searchInput}
                 onSearchInputChange={setSearchInput}
                 onApply={() => {
@@ -152,6 +159,7 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
                 onRefresh={loadList}
               />
               <ListPanel
+                t={t}
                 status={listStatus}
                 error={listError}
                 result={listResult}
@@ -163,6 +171,7 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
             <div className="lg:col-span-2">
               {selectedCustomerId ? (
                 <DetailPanel
+                  t={t}
                   status={detailStatus}
                   error={detailError}
                   detail={detail}
@@ -181,9 +190,15 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
                   onSaveEdits={handleSaveEdits}
                 />
               ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select a customer to view details.
+                <div className="card ba-empty">
+                  <div className="ba-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>
+                    {t.customers.selectPrompt}
                   </p>
                 </div>
               )}
@@ -193,11 +208,13 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
 }
 
 function Filters({
+  t,
   searchInput,
   onSearchInputChange,
   onApply,
   onRefresh,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   searchInput: string;
   onSearchInputChange: (value: string) => void;
   onApply: () => void;
@@ -213,11 +230,11 @@ function Filters({
     <div className="card p-4 flex flex-wrap items-end gap-3">
       <div className="flex-1 min-w-[160px]">
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Search
+          {t.common.search}
         </label>
         <input
           type="text"
-          placeholder="Name, phone, or email"
+          placeholder={t.customers.searchPlaceholder}
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
@@ -226,20 +243,21 @@ function Filters({
         />
       </div>
       <button onClick={onApply} className="btn-primary">
-        Apply
+        {t.common.apply}
       </button>
       <button
         onClick={onRefresh}
         className="text-xs font-semibold px-3 py-2 rounded-lg"
         style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
       >
-        Refresh
+        {t.common.refresh}
       </button>
     </div>
   );
 }
 
 function ListPanel({
+  t,
   status,
   error,
   result,
@@ -247,6 +265,7 @@ function ListPanel({
   onSelect,
   onPageChange,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   result: CustomerListResponse | null;
@@ -278,15 +297,22 @@ function ListPanel({
 
   if (!result || result.data.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No customers found.</p>
+      <div className="card ba-empty">
+        <div className="ba-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.customers.emptyTitle}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.customers.emptyHint}</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {result.data.map((item) => (
           <ListRow key={item.id} item={item} isSelected={item.id === selectedCustomerId} onSelect={onSelect} />
         ))}
@@ -302,7 +328,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Prev
+            {t.common.prev}
           </button>
           <button
             disabled={result.pagination.page >= result.pagination.totalPages}
@@ -310,7 +336,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Next
+            {t.common.next}
           </button>
         </div>
       </div>
@@ -333,8 +359,7 @@ function ListRow({
   return (
     <button
       onClick={() => onSelect(item.id)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-      style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
+      className={`ba-row text-left ${isSelected ? 'ba-row-selected' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{label}</p>
@@ -344,9 +369,7 @@ function ListRow({
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className="badge badge-gray">
-          {item.reservationRequestCount} request{item.reservationRequestCount === 1 ? '' : 's'}
-        </span>
+        <span className="badge badge-blue">{item.reservationRequestCount}</span>
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
           {lastActivity ? new Date(lastActivity).toLocaleString() : '—'}
         </span>
@@ -356,6 +379,7 @@ function ListRow({
 }
 
 function DetailPanel({
+  t,
   status,
   error,
   detail,
@@ -373,6 +397,7 @@ function DetailPanel({
   onEditNotesChange,
   onSaveEdits,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   detail: CustomerDetail | null;
@@ -415,7 +440,7 @@ function DetailPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
     );
@@ -425,11 +450,11 @@ function DetailPanel({
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Customer</h3>
+          <h3 className="card-header-title">{t.customers.detailTitle}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
 
@@ -450,7 +475,7 @@ function DetailPanel({
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Edit safe fields
+            {t.common.editSafeFields}
           </p>
           <div>
             <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Full name</label>
@@ -500,14 +525,14 @@ function DetailPanel({
             className="text-xs font-semibold px-3 py-2 rounded-lg"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Save changes
+            {t.common.save}
           </button>
         </div>
 
         {detail.reservationRequests.length > 0 && (
           <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Recent reservation requests
+              {t.customers.recentRequests}
             </p>
             <div className="space-y-1.5">
               {detail.reservationRequests.slice(0, 5).map((req) => (
@@ -524,21 +549,27 @@ function DetailPanel({
         )}
 
         {detail.conversations.length > 0 && (
-          <RecentConversations conversations={detail.conversations} />
+          <RecentConversations t={t} conversations={detail.conversations} />
         )}
       </div>
     </div>
   );
 }
 
-function RecentConversations({ conversations }: { conversations: CustomerDetail['conversations'] }) {
+function RecentConversations({
+  t,
+  conversations,
+}: {
+  t: ReturnType<typeof getBackendAdminDict>;
+  conversations: CustomerDetail['conversations'];
+}) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
 
   return (
     <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
       <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-        Recent conversations
+        {t.customers.recentConversations}
       </p>
       <div className="space-y-1.5">
         {conversations.slice(0, 5).map((conv) => (

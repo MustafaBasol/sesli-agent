@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import {
   addTeamMember,
@@ -20,15 +20,24 @@ import {
   type TeamMemberStatus,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
+function RoleBadge({ role }: { role: string }) {
+  const cls = role === 'OWNER' ? 'badge-purple' : role === 'MANAGER' ? 'badge-blue' : 'badge-gray';
+  return <span className={`badge ${cls}`}>{role}</span>;
+}
+
 export default function TeamClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).team;
+
   return (
     <BackendAdminShell
-      label="Team"
-      title="Team"
-      subtitle="Restaurant team members from the new backend API."
+      label={t.label}
+      title={t.title}
+      subtitle={t.subtitle}
       contentClass="max-w-7xl mx-auto space-y-6"
     >
       {(ctx) => <TeamContent {...ctx} />}
@@ -39,6 +48,8 @@ export default function TeamClient() {
 function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
 
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState<TeamRole | ''>('');
@@ -194,6 +205,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3 space-y-4">
               <AddMemberForm
+                t={t}
                 email={addEmail}
                 onEmailChange={setAddEmail}
                 role={addRole}
@@ -204,6 +216,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
                 message={addMessage}
               />
               <Filters
+                t={t}
                 searchInput={searchInput}
                 onSearchInputChange={setSearchInput}
                 roleFilter={roleFilter}
@@ -217,6 +230,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
                 onRefresh={loadList}
               />
               <ListPanel
+                t={t}
                 status={listStatus}
                 error={listError}
                 result={listResult}
@@ -228,6 +242,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
             <div className="lg:col-span-2">
               {selectedUserId ? (
                 <DetailPanel
+                  t={t}
                   status={detailStatus}
                   error={detailError}
                   detail={detail}
@@ -243,9 +258,14 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
                   onRemove={handleRemove}
                 />
               ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select a team member to view details.
+                <div className="card ba-empty">
+                  <div className="ba-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>
+                    {t.team.selectPrompt}
                   </p>
                 </div>
               )}
@@ -255,6 +275,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
 }
 
 function AddMemberForm({
+  t,
   email,
   onEmailChange,
   role,
@@ -264,6 +285,7 @@ function AddMemberForm({
   error,
   message,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   email: string;
   onEmailChange: (value: string) => void;
   role: TeamRole;
@@ -326,6 +348,7 @@ function AddMemberForm({
 }
 
 function Filters({
+  t,
   searchInput,
   onSearchInputChange,
   roleFilter,
@@ -335,6 +358,7 @@ function Filters({
   onApply,
   onRefresh,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   searchInput: string;
   onSearchInputChange: (value: string) => void;
   roleFilter: TeamRole | '';
@@ -354,7 +378,7 @@ function Filters({
     <div className="card p-4 flex flex-wrap items-end gap-3">
       <div className="flex-1 min-w-[160px]">
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Search
+          {t.common.search}
         </label>
         <input
           type="text"
@@ -376,7 +400,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {TEAM_ROLES.map((r) => (
             <option key={r} value={r}>
               {r}
@@ -386,7 +410,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Status
+          {t.common.status}
         </label>
         <select
           value={statusFilter}
@@ -394,7 +418,7 @@ function Filters({
           className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
           style={inputStyle}
         >
-          <option value="">All</option>
+          <option value="">{t.common.all}</option>
           {TEAM_MEMBER_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -403,20 +427,21 @@ function Filters({
         </select>
       </div>
       <button onClick={onApply} className="btn-primary">
-        Apply
+        {t.common.apply}
       </button>
       <button
         onClick={onRefresh}
         className="text-xs font-semibold px-3 py-2 rounded-lg"
         style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
       >
-        Refresh
+        {t.common.refresh}
       </button>
     </div>
   );
 }
 
 function ListPanel({
+  t,
   status,
   error,
   result,
@@ -424,6 +449,7 @@ function ListPanel({
   onSelect,
   onPageChange,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   result: TeamMemberListResponse | null;
@@ -455,15 +481,21 @@ function ListPanel({
 
   if (!result || result.data.length === 0) {
     return (
-      <div className="card p-10 text-center">
-        <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No team members found.</p>
+      <div className="card ba-empty">
+        <div className="ba-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.team.emptyTitle}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.team.emptyHint}</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+      <div className="ba-divide">
         {result.data.map((item) => (
           <ListRow key={item.userId} item={item} isSelected={item.userId === selectedUserId} onSelect={onSelect} />
         ))}
@@ -479,7 +511,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Prev
+            {t.common.prev}
           </button>
           <button
             disabled={result.pagination.page >= result.pagination.totalPages}
@@ -487,7 +519,7 @@ function ListPanel({
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            Next
+            {t.common.next}
           </button>
         </div>
       </div>
@@ -507,8 +539,7 @@ function ListRow({
   return (
     <button
       onClick={() => onSelect(item.userId)}
-      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-      style={isSelected ? { background: 'var(--p-subtle)' } : undefined}
+      className={`ba-row text-left ${isSelected ? 'ba-row-selected' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
@@ -517,7 +548,7 @@ function ListRow({
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>{item.email}</p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className="badge badge-gray">{item.restaurantRole}</span>
+        <RoleBadge role={item.restaurantRole} />
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{item.membershipStatus}</span>
       </div>
     </button>
@@ -525,6 +556,7 @@ function ListRow({
 }
 
 function DetailPanel({
+  t,
   status,
   error,
   detail,
@@ -539,6 +571,7 @@ function DetailPanel({
   onSaveRole,
   onRemove,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   status: Status;
   error: string;
   detail: TeamMemberDetail | null;
@@ -578,7 +611,7 @@ function DetailPanel({
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
     );
@@ -592,7 +625,7 @@ function DetailPanel({
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.userId}</p>
         </div>
         <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-          Close
+          {t.common.close}
         </button>
       </div>
 
@@ -615,7 +648,7 @@ function DetailPanel({
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Manage access
+            {t.team.manageAccess}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -656,7 +689,7 @@ function DetailPanel({
               className="text-xs font-semibold px-3 py-2 rounded-lg"
               style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
             >
-              Save changes
+              {t.common.save}
             </button>
             <button
               onClick={onRemove}
@@ -664,7 +697,7 @@ function DetailPanel({
               className="text-xs font-semibold px-3 py-2 rounded-lg"
               style={{ border: '1px solid var(--p-border)', color: '#ef4444' }}
             >
-              Remove from restaurant
+              {t.team.removeFromRestaurant}
             </button>
           </div>
         </div>

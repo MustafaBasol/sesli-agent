@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import {
   createMenuCategory,
@@ -18,6 +19,7 @@ import {
   type MenuStatus,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
+import { getBackendAdminDict } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 type Tab = 'categories' | 'items';
@@ -46,11 +48,14 @@ function parseCsv(value: string): string[] {
 }
 
 export default function MenuClient() {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).menu;
+
   return (
     <BackendAdminShell
-      label="Menu"
-      title="Menu"
-      subtitle="Menu categories and items from the new backend API."
+      label={t.label}
+      title={t.title}
+      subtitle={t.subtitle}
       contentClass="max-w-7xl mx-auto space-y-6"
     >
       {(ctx) => <MenuContent {...ctx} />}
@@ -59,6 +64,8 @@ export default function MenuClient() {
 }
 
 function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
   const [tab, setTab] = useState<Tab>('categories');
 
   // Categories
@@ -314,7 +321,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     : { border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }
                 }
               >
-                Categories
+                {t.menu.categoriesTab}
               </button>
               <button
                 onClick={() => setTab('items')}
@@ -325,7 +332,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     : { border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }
                 }
               >
-                Items
+                {t.menu.itemsTab}
               </button>
             </div>
 
@@ -335,7 +342,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   <div className="card p-4 flex flex-wrap items-end gap-3">
                     <div>
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Status
+                        {t.common.status}
                       </label>
                       <select
                         value={catStatusFilter}
@@ -346,7 +353,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
                         style={inputStyle}
                       >
-                        <option value="">All</option>
+                        <option value="">{t.common.all}</option>
                         {MENU_STATUSES.map((s) => (
                           <option key={s} value={s}>
                             {s}
@@ -356,7 +363,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     </div>
                     <div className="flex-1 min-w-[160px]">
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Search
+                        {t.common.search}
                       </label>
                       <input
                         type="text"
@@ -375,14 +382,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       }}
                       className="btn-primary"
                     >
-                      Apply
+                      {t.common.apply}
                     </button>
                     <button
                       onClick={() => setShowCreateCat((v) => !v)}
                       className="text-xs font-semibold px-3 py-2 rounded-lg ml-auto"
                       style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
                     >
-                      Add Category
+                      {t.menu.addCategory}
                     </button>
                   </div>
 
@@ -446,18 +453,24 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{catListError}</p>
                     </div>
                   ) : !catListResult || catListResult.data.length === 0 ? (
-                    <div className="card p-10 text-center">
-                      <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No categories found.</p>
+                    <div className="card ba-empty">
+                      <div className="ba-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                          <line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.menu.emptyCategories}</p>
+                      <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.menu.emptyCategoriesHint}</p>
                     </div>
                   ) : (
                     <div className="card">
-                      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+                      <div className="ba-divide">
                         {catListResult.data.map((category) => (
                           <button
                             key={category.id}
                             onClick={() => selectCategory(category)}
-                            className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-                            style={category.id === selectedCategoryId ? { background: 'var(--p-subtle)' } : undefined}
+                            className={`ba-row text-left ${category.id === selectedCategoryId ? 'ba-row-selected' : ''}`}
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{category.name}</p>
@@ -480,7 +493,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
                             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                           >
-                            Prev
+                            {t.common.prev}
                           </button>
                           <button
                             disabled={catListResult.pagination.page >= catListResult.pagination.totalPages}
@@ -488,7 +501,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
                             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                           >
-                            Next
+                            {t.common.next}
                           </button>
                         </div>
                       </div>
@@ -498,8 +511,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
 
                 <div className="lg:col-span-2">
                   {!selectedCategoryId ? (
-                    <div className="card p-8 text-center">
-                      <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>Select a category to edit.</p>
+                    <div className="card ba-empty">
+                      <div className="ba-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                          <line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>{t.menu.selectCategoryPrompt}</p>
                     </div>
                   ) : (
                     <div className="card">
@@ -560,7 +579,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                         >
-                          Save changes
+                          {t.common.save}
                         </button>
                       </div>
                     </div>
@@ -592,7 +611,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Status
+                        {t.common.status}
                       </label>
                       <select
                         value={itemStatusFilter}
@@ -603,7 +622,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
                         style={inputStyle}
                       >
-                        <option value="">All</option>
+                        <option value="">{t.common.all}</option>
                         {MENU_STATUSES.map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
@@ -622,14 +641,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
                         style={inputStyle}
                       >
-                        <option value="">All</option>
+                        <option value="">{t.common.all}</option>
                         <option value="true">Available</option>
                         <option value="false">Unavailable</option>
                       </select>
                     </div>
                     <div className="flex-1 min-w-[160px]">
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Search
+                        {t.common.search}
                       </label>
                       <input
                         type="text"
@@ -648,14 +667,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       }}
                       className="btn-primary"
                     >
-                      Apply
+                      {t.common.apply}
                     </button>
                     <button
                       onClick={() => setShowCreateItem((v) => !v)}
                       className="text-xs font-semibold px-3 py-2 rounded-lg ml-auto"
                       style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
                     >
-                      Add Item
+                      {t.menu.addItem}
                     </button>
                   </div>
 
@@ -736,18 +755,24 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{itemListError}</p>
                     </div>
                   ) : !itemListResult || itemListResult.data.length === 0 ? (
-                    <div className="card p-10 text-center">
-                      <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No items found.</p>
+                    <div className="card ba-empty">
+                      <div className="ba-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                          <line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--p-text-2)' }}>{t.menu.emptyItems}</p>
+                      <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{t.menu.emptyItemsHint}</p>
                     </div>
                   ) : (
                     <div className="card">
-                      <div className="divide-y" style={{ borderColor: 'var(--p-border-2)' }}>
+                      <div className="ba-divide">
                         {itemListResult.data.map((item) => (
                           <button
                             key={item.id}
                             onClick={() => selectItem(item)}
-                            className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left"
-                            style={item.id === selectedItemId ? { background: 'var(--p-subtle)' } : undefined}
+                            className={`ba-row text-left ${item.id === selectedItemId ? 'ba-row-selected' : ''}`}
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{item.name}</p>
@@ -771,7 +796,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
                             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                           >
-                            Prev
+                            {t.common.prev}
                           </button>
                           <button
                             disabled={itemListResult.pagination.page >= itemListResult.pagination.totalPages}
@@ -779,7 +804,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-40"
                             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                           >
-                            Next
+                            {t.common.next}
                           </button>
                         </div>
                       </div>
@@ -789,8 +814,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
 
                 <div className="lg:col-span-2">
                   {!selectedItemId ? (
-                    <div className="card p-8 text-center">
-                      <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>Select an item to edit.</p>
+                    <div className="card ba-empty">
+                      <div className="ba-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                          <line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>{t.menu.selectItemPrompt}</p>
                     </div>
                   ) : (
                     <div className="card">
@@ -916,7 +947,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                         >
-                          Save changes
+                          {t.common.save}
                         </button>
                       </div>
                     </div>

@@ -18,7 +18,12 @@ import {
   type RestaurantTableListItem,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import {
+  formatBackendAdminChannel,
+  formatBackendAdminStatus,
+  getBackendAdminDict,
+  getBackendAdminUi,
+} from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -30,9 +35,9 @@ const STATUS_BADGE: Record<ReservationStatus, string> = {
   completed: 'badge-purple',
 };
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, lang }: { status: string; lang: unknown }) {
   const cls = STATUS_BADGE[status as ReservationStatus] ?? 'badge-gray';
-  return <span className={`badge ${cls}`}>{status.replace('_', ' ')}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminStatus(lang, status)}</span>;
 }
 
 export default function ReservationsClient() {
@@ -56,6 +61,7 @@ function ReservationsContent({ session, restaurantId }: BackendAdminShellCtx) {
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -102,7 +108,7 @@ function ReservationsContent({ session, restaurantId }: BackendAdminShellCtx) {
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load reservations');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadReservations);
         setListStatus('error');
       });
   }, [session, restaurantId, statusFilter, searchInput, dateFrom, dateTo, page]);
@@ -142,7 +148,7 @@ function ReservationsContent({ session, restaurantId }: BackendAdminShellCtx) {
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load reservation');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadReservation);
         setDetailStatus('error');
       });
   }, [session, restaurantId, selectedReservationId]);
@@ -185,10 +191,10 @@ function ReservationsContent({ session, restaurantId }: BackendAdminShellCtx) {
         assignedTableId: editAssignedTableId || null,
       });
       setActionStatus('idle');
-      setActionMessage('Reservation updated.');
+      setActionMessage(ui.messages.reservationUpdated);
       refreshAll();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setActionStatus('error');
     }
   };
@@ -464,6 +470,7 @@ function ListRow({
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
   const customerLabel = item.customerName || item.phoneNumber || t.common.guest;
 
   return (
@@ -479,7 +486,7 @@ function ListRow({
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} lang={params.lang} />
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
           {new Date(item.createdAt).toLocaleString()}
         </span>
@@ -535,6 +542,8 @@ function DetailPanel({
   onEditAssignedTableIdChange: (value: string) => void;
   onSaveEdits: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -556,7 +565,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load reservation
+          {ui.messages.failedToLoadReservation}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -574,7 +583,7 @@ function DetailPanel({
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge status={detail.status} />
+          <StatusBadge status={detail.status} lang={params.lang} />
           <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
             {t.common.close}
           </button>

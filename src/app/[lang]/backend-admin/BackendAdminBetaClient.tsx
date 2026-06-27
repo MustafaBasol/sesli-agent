@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from './BackendAdminShell';
-import { getBackendAdminDict } from './locale';
+import { formatBackendAdminStatus, getBackendAdminDict } from './locale';
 import {
   getDashboardCounts,
   getDashboardRecent,
@@ -232,7 +232,8 @@ function DashboardView({
 }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
-  const t = getBackendAdminDict(params.lang).dashboard;
+  const dict = getBackendAdminDict(params.lang);
+  const t = dict.dashboard;
 
   return (
     <div className="space-y-6">
@@ -333,14 +334,14 @@ function DashboardView({
               renderItem={(item) => (
                 <>
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
-                    {item.customer.fullName || 'Guest'}
+                    {item.customer.fullName || dict.common.guest}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-                    {item.reservationDate} · {item.reservationTime} · {item.partySize} pax
+                    {item.reservationDate} · {item.reservationTime} · {item.partySize} {dict.common.pax}
                   </p>
                 </>
               )}
-              badge={(item) => item.status.replace('_', ' ')}
+              badge={(item) => formatBackendAdminStatus(lang, item.status)}
               badgeClass={(item) => REQUEST_STATUS_BADGE[item.status] ?? 'badge-gray'}
               href={(item) => `/${lang}/backend-admin/reservation-requests?requestId=${item.id}`}
             />
@@ -353,7 +354,7 @@ function DashboardView({
               renderItem={(item) => (
                 <>
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
-                    {item.fullName || 'Unnamed'}
+                    {item.fullName || dict.common.guest}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{item.phoneNumber || item.email || '—'}</p>
                 </>
@@ -368,14 +369,14 @@ function DashboardView({
               renderItem={(item) => (
                 <>
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
-                    {item.customer.fullName || 'Guest'}
+                    {item.customer.fullName || dict.common.guest}
                   </p>
                   <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
                     {item.lastMessageSummary || item.channel}
                   </p>
                 </>
               )}
-              badge={(item) => item.status}
+              badge={(item) => formatBackendAdminStatus(lang, item.status)}
               badgeClass={(item) => CONVERSATION_STATUS_BADGE[item.status] ?? 'badge-gray'}
             />
           </div>

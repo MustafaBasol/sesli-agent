@@ -111,22 +111,99 @@ function DashboardContent({
   );
 }
 
-function SummaryCard({ label, value, variant = 'default' }: { label: string; value: number; variant?: 'default' | 'accent' | 'warning' | 'error' }) {
-  const valueColor =
-    variant === 'error' ? '#ef4444' :
-    variant === 'warning' ? '#f59e0b' :
-    variant === 'accent' ? 'var(--p-accent-text)' :
-    'var(--p-text-1)';
+const STAT_ICONS: Record<string, React.ReactNode> = {
+  inbox: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" />
+    </svg>
+  ),
+  clock: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 16 14" />
+    </svg>
+  ),
+  check: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  users: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+    </svg>
+  ),
+  chat: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  ),
+  plug: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  ),
+  alert: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  bolt: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  ),
+};
 
+function SummaryCard({
+  label,
+  value,
+  icon,
+  tile = 'gray',
+}: {
+  label: string;
+  value: number;
+  icon: keyof typeof STAT_ICONS;
+  tile?: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'gray';
+}) {
   return (
-    <div className="card p-5">
-      <div className="text-3xl font-bold tabular-nums mb-0.5" style={{ color: valueColor }}>
-        {value}
+    <div className="stat-card">
+      <div>
+        <div className="text-2xl font-bold tabular-nums mb-0.5" style={{ color: 'var(--p-text-1)' }}>
+          {value}
+        </div>
+        <div className="text-xs font-medium" style={{ color: 'var(--p-text-4)' }}>
+          {label}
+        </div>
       </div>
-      <div className="text-xs font-medium" style={{ color: 'var(--p-text-4)' }}>
-        {label}
-      </div>
+      <div className={`icon-tile icon-tile-${tile}`}>{STAT_ICONS[icon]}</div>
     </div>
+  );
+}
+
+function QuickActionCard({
+  href,
+  title,
+  subtitle,
+  icon,
+  color,
+}: {
+  href: string;
+  title: string;
+  subtitle: string;
+  icon: keyof typeof STAT_ICONS;
+  color: 'blue' | 'green' | 'amber' | 'purple';
+}) {
+  return (
+    <Link href={href} className={`quick-action quick-action-${color}`}>
+      <span className="quick-action-icon">{STAT_ICONS[icon]}</span>
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs opacity-85 mt-0.5">{subtitle}</span>
+      </span>
+    </Link>
   );
 }
 
@@ -154,21 +231,6 @@ function DashboardView({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-xs" style={{ color: 'var(--p-text-4)' }}>
-          Restaurant <span className="font-semibold" style={{ color: 'var(--p-text-2)' }}>{restaurantId}</span>
-          {' · '}
-          {session.user.email}
-        </p>
-        <button
-          onClick={onChangeRestaurant}
-          className="text-xs font-semibold"
-          style={{ color: 'var(--p-accent-text)' }}
-        >
-          Change restaurant
-        </button>
-      </div>
-
       {status === 'loading' && (
         <div className="flex items-center justify-center py-24">
           <div className="text-center space-y-4">
@@ -195,14 +257,48 @@ function DashboardView({
       {status === 'idle' && summary && counts && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryCard label="New requests" value={summary.reservationRequests.new} variant="accent" />
-            <SummaryCard label="Pending info" value={summary.reservationRequests.pendingInfo} variant="warning" />
-            <SummaryCard label="Confirmed requests" value={summary.reservationRequests.confirmed} variant="default" />
-            <SummaryCard label="Total customers" value={summary.customers.total} />
-            <SummaryCard label="Open conversations" value={summary.conversations.open} />
-            <SummaryCard label="Active integrations" value={summary.integrations.active} />
-            <SummaryCard label="Integration errors" value={summary.integrations.error} variant={summary.integrations.error > 0 ? 'error' : 'default'} />
-            <SummaryCard label="Today's messages" value={summary.conversations.todayMessagesCount} />
+            <SummaryCard label="New requests" value={summary.reservationRequests.new} icon="inbox" tile="blue" />
+            <SummaryCard label="Pending info" value={summary.reservationRequests.pendingInfo} icon="clock" tile="amber" />
+            <SummaryCard label="Confirmed requests" value={summary.reservationRequests.confirmed} icon="check" tile="green" />
+            <SummaryCard label="Total customers" value={summary.customers.total} icon="users" tile="purple" />
+            <SummaryCard label="Open conversations" value={summary.conversations.open} icon="chat" tile="blue" />
+            <SummaryCard label="Active integrations" value={summary.integrations.active} icon="plug" tile="green" />
+            <SummaryCard label="Integration errors" value={summary.integrations.error} icon="alert" tile={summary.integrations.error > 0 ? 'red' : 'gray'} />
+            <SummaryCard label="Today's messages" value={summary.conversations.todayMessagesCount} icon="bolt" tile="amber" />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--p-text-1)' }}>Quick actions</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <QuickActionCard
+                href={`/${lang}/backend-admin/reservation-requests`}
+                title="Review requests"
+                subtitle="Triage new reservation requests"
+                icon="inbox"
+                color="blue"
+              />
+              <QuickActionCard
+                href={`/${lang}/backend-admin/availability`}
+                title="Manage availability"
+                subtitle="Hours, slots & blackout dates"
+                icon="clock"
+                color="green"
+              />
+              <QuickActionCard
+                href={`/${lang}/backend-admin/customers`}
+                title="View customers"
+                subtitle="Browse guest profiles"
+                icon="users"
+                color="purple"
+              />
+              <QuickActionCard
+                href={`/${lang}/backend-admin/conversations`}
+                title="Open conversations"
+                subtitle="Reply across channels"
+                icon="chat"
+                color="amber"
+              />
+            </div>
           </div>
 
           <div className="card">

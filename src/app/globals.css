@@ -92,7 +92,7 @@ body {
 
 /* Card */
 .card {
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   border: 1px solid var(--p-border);
   background: var(--p-surface);
   box-shadow: var(--p-card-shadow);
@@ -387,6 +387,140 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .brand-text {
   color: var(--p-brand);
 }
+
+/* ── Backend-admin SaaS shell (Comptario-inspired) ─────────────── */
+
+.ba-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--p-bg);
+}
+
+.ba-sidebar {
+  width: 17rem;
+  flex-shrink: 0;
+  background: var(--p-sidebar);
+  border-right: 1px solid var(--p-border);
+  box-shadow: var(--p-sidebar-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.ba-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ba-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--p-surface);
+  border-bottom: 1px solid var(--p-border);
+  backdrop-filter: blur(6px);
+}
+
+.ba-nav-group-label {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--p-text-5);
+  padding: 0 0.625rem;
+  margin-bottom: 0.25rem;
+}
+
+.ba-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5625rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-text-3);
+  transition: background 0.15s, color 0.15s;
+}
+.ba-nav-link:hover {
+  background: var(--p-hover);
+  color: var(--p-text-1);
+}
+.ba-nav-link-active {
+  background: var(--p-accent-bg);
+  color: var(--p-accent-text);
+}
+.ba-nav-link-active:hover {
+  background: var(--p-accent-bg);
+  color: var(--p-accent-text);
+}
+
+/* Stat cards with colored icon tile, Comptario-style */
+.stat-card {
+  border-radius: 0.875rem;
+  border: 1px solid var(--p-border);
+  background: var(--p-surface);
+  box-shadow: var(--p-card-shadow);
+  padding: 1.125rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.icon-tile {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.icon-tile svg { width: 1.125rem; height: 1.125rem; }
+
+.icon-tile-blue   { background: #eff6ff; color: #2563eb; }
+.icon-tile-green  { background: #f0fdf4; color: #16a34a; }
+.icon-tile-amber  { background: #fffbeb; color: #d97706; }
+.icon-tile-red    { background: #fef2f2; color: #dc2626; }
+.icon-tile-purple { background: #faf5ff; color: #9333ea; }
+.icon-tile-gray   { background: #f8fafc; color: #475569; }
+
+[data-theme="dark"] .icon-tile-blue   { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+[data-theme="dark"] .icon-tile-green  { background: rgba(34,197,94,0.12);   color: #4ade80; }
+[data-theme="dark"] .icon-tile-amber  { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+[data-theme="dark"] .icon-tile-red    { background: rgba(239,68,68,0.12);   color: #f87171; }
+[data-theme="dark"] .icon-tile-purple { background: rgba(168,85,247,0.12);  color: #c084fc; }
+[data-theme="dark"] .icon-tile-gray   { background: rgba(255,255,255,0.06); color: #9ca3af; }
+
+/* Quick action tiles */
+.quick-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  text-align: left;
+  transition: transform 0.12s, box-shadow 0.12s;
+  color: #ffffff;
+}
+.quick-action:hover { transform: translateY(-1px); }
+.quick-action-icon {
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.quick-action-icon svg { width: 1rem; height: 1rem; }
+.quick-action-blue   { background: linear-gradient(135deg, #6366f1, #4338ca); }
+.quick-action-green  { background: linear-gradient(135deg, #22c55e, #15803d); }
+.quick-action-amber  { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.quick-action-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); }
 
 /* Theme transition */
 *, *::before, *::after {

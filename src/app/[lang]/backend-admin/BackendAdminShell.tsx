@@ -109,6 +109,22 @@ export function RestaurantPicker({
 // Tailwind safelist — keep these classes even when only passed as props:
 // max-w-5xl max-w-7xl space-y-4 space-y-6
 
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export default function BackendAdminShell({
   label,
   title,
@@ -125,6 +141,7 @@ export default function BackendAdminShell({
   const [session, setSession] = useState<BackendLoginResponse | null>(null);
   const [restaurantId, setRestaurantId] = useState('');
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -173,35 +190,137 @@ export default function BackendAdminShell({
 
   if (!bootstrapped) return null;
 
+  if (!session || !restaurantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-5" data-theme="light" style={{ background: 'var(--p-bg)' }}>
+        <div className="w-full max-w-lg space-y-4">
+          <div className="text-center mb-2">
+            <p className="page-label">{label}</p>
+            <h2 className="page-title">{title}</h2>
+            <p className="page-subtitle">{subtitle}</p>
+          </div>
+          {!session ? (
+            <LoginCard
+              email={email}
+              password={password}
+              onEmailChange={setEmail}
+              onPasswordChange={setPassword}
+              onSubmit={handleLogin}
+              status={loginStatus}
+              error={loginError}
+            />
+          ) : (
+            <RestaurantPicker session={session} onSelect={selectRestaurant} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className={contentClass}>
-        <header className="space-y-3">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="ba-shell" data-theme="light">
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`ba-sidebar fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out md:relative md:translate-x-0 md:z-auto ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--p-border)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
+              </svg>
+            </div>
             <div>
+              <p className="text-sm font-bold leading-none" style={{ color: 'var(--p-text-1)' }}>Golden Meat</p>
+              <p className="text-[10px] mt-0.5 font-semibold" style={{ color: 'var(--p-text-5)' }}>Backend Admin</p>
+            </div>
+          </div>
+          <button
+            className="md:hidden p-1.5 rounded-lg transition-all"
+            style={{ color: 'var(--p-text-4)' }}
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <BackendAdminNav onLogout={handleLogout} />
+
+        <div className="px-3 py-3" style={{ borderTop: '1px solid var(--p-border)' }}>
+          <div className="px-3 py-2.5 rounded-lg" style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>Restaurant</p>
+            <p className="text-xs font-semibold truncate mt-0.5" style={{ color: 'var(--p-text-2)' }}>{restaurantId}</p>
+            <button
+              onClick={() => setRestaurantId('')}
+              className="text-[11px] font-semibold mt-1.5"
+              style={{ color: 'var(--p-accent-text)' }}
+            >
+              Change restaurant
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div className="ba-main">
+        <header className="ba-topbar">
+          <div className="flex items-center justify-between gap-3 px-4 md:px-7 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden p-2 rounded-lg"
+                style={{ color: 'var(--p-text-4)', border: '1px solid var(--p-border)' }}
+                aria-label="Open menu"
+              >
+                <MenuIcon />
+              </button>
+              <div className="hidden sm:block min-w-0">
+                <div className="relative">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--p-text-5)' }}>
+                    <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search…"
+                    disabled
+                    className="w-56 rounded-lg pl-9 pr-3 py-2 text-sm outline-none"
+                    style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border)', color: 'var(--p-text-3)' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="hidden sm:flex flex-col items-end leading-none">
+                <span className="text-xs font-semibold" style={{ color: 'var(--p-text-1)' }}>{session.user.email}</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--p-text-5)' }}>{session.user.globalRole ?? 'member'}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'var(--p-accent-bg)', color: 'var(--p-accent-text)' }}>
+                {session.user.email.charAt(0).toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-5 md:p-7 page-enter">
+          <div className={contentClass}>
+            <header className="mb-2">
               <p className="page-label">{label}</p>
               <h2 className="page-title">{title}</h2>
               <p className="page-subtitle">{subtitle}</p>
-            </div>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
+            </header>
 
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : (
-          children({ session, restaurantId, onChangeRestaurant: () => setRestaurantId('') })
-        )}
+            {children({ session, restaurantId, onChangeRestaurant: () => setRestaurantId('') })}
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import { type BackendLoginResponse } from '@/lib/backend-endpoints';
 import BackendAdminNav from './BackendAdminNav';
-import { getBackendAdminDict } from './locale';
+import { getBackendAdminDict, getBackendAdminUi } from './locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -35,6 +35,7 @@ export function LoginCard({
 }) {
   const params = useParams();
   const t = getBackendAdminDict(params.lang).shell;
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <div className="card p-8 max-w-sm">
@@ -44,7 +45,7 @@ export function LoginCard({
       <div className="space-y-3">
         <input
           type="email"
-          placeholder="Email"
+          placeholder={ui.labels.email}
           value={email}
           onChange={(e) => onEmailChange(e.target.value)}
           className="w-full rounded-lg px-3.5 py-2.5 text-sm outline-none"
@@ -52,7 +53,7 @@ export function LoginCard({
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder={ui.labels.password}
           value={password}
           onChange={(e) => onPasswordChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onSubmit()}

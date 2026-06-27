@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminShell from '../BackendAdminShell';
 import {
   getCustomerDetail,
   listCustomers,
@@ -14,23 +14,20 @@ import {
   type CustomerListItem,
   type CustomerListResponse,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
 export default function CustomersClient() {
+  return (
+    <BackendAdminShell label="Customers" title="Customers" subtitle="Customer records from the backend API.">
+      {({ session, restaurantId }) => <CustomersContent session={session} restaurantId={restaurantId} />}
+    </BackendAdminShell>
+  );
+}
+
+function CustomersContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
 
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
@@ -53,20 +50,7 @@ export default function CustomersClient() {
   const [editEmail, setEditEmail] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
-
   const loadList = useCallback(() => {
-    if (!session || !restaurantId) return;
     setListStatus('loading');
     setListError('');
     listCustomers(restaurantId, session.token, {
@@ -116,35 +100,6 @@ export default function CustomersClient() {
     loadDetail();
   }, [loadDetail]);
 
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setListResult(null);
-    setDetail(null);
-  };
-
   const openDetail = (id: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('customerId', id);
@@ -184,35 +139,7 @@ export default function CustomersClient() {
     }
   };
 
-  if (!bootstrapped) return null;
-
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Customers (Beta)</h2>
-            <p className="page-subtitle">
-              Customers from the new backend API. Separate from the production Supabase admin.
-            </p>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3 space-y-4">
               <Filters
@@ -262,9 +189,6 @@ export default function CustomersClient() {
               )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
   );
 }
 

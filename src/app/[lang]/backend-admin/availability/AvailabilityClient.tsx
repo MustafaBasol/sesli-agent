@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminShell from '../BackendAdminShell';
 import {
   createBlackoutDate,
   deactivateBlackoutDate,
@@ -19,8 +19,6 @@ import {
   type ListBlackoutDatesResponse,
   type UpdateAvailabilitySettingsPayload,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -63,15 +61,27 @@ function toSettingsForm(settings: AvailabilitySettings): SettingsFormState {
 }
 
 export default function AvailabilityClient() {
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
+  return (
+    <BackendAdminShell
+      label="Settings"
+      title="Availability"
+      subtitle="Reservation availability settings, opening hours, and blackout dates."
+      contentClass="max-w-5xl mx-auto space-y-6"
+    >
+      {({ session, restaurantId }) => (
+        <AvailabilityContent session={session} restaurantId={restaurantId} />
+      )}
+    </BackendAdminShell>
+  );
+}
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
-
+function AvailabilityContent({
+  session,
+  restaurantId,
+}: {
+  session: BackendLoginResponse;
+  restaurantId: string;
+}) {
   const [loadStatus, setLoadStatus] = useState<Status>('idle');
   const [loadError, setLoadError] = useState('');
   const [settings, setSettings] = useState<AvailabilitySettings | null>(null);
@@ -106,20 +116,7 @@ export default function AvailabilityClient() {
   const [slotCheckError, setSlotCheckError] = useState('');
   const [slotResult, setSlotResult] = useState<AvailabilitySlotsResult | null>(null);
 
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
-
   const loadSettings = useCallback(() => {
-    if (!session || !restaurantId) return;
     setLoadStatus('loading');
     setLoadError('');
     setSaveMessage('');
@@ -163,36 +160,6 @@ export default function AvailabilityClient() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBlackoutList();
   }, [loadBlackoutList]);
-
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setSettings(null);
-    setForm(null);
-    setBlackoutList(null);
-  };
 
   const handleSaveSettings = async () => {
     if (!session || !restaurantId || !settings || !form) return;
@@ -322,35 +289,7 @@ export default function AvailabilityClient() {
     }
   };
 
-  if (!bootstrapped) return null;
-
-  return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-5xl mx-auto space-y-6">
-        <header className="space-y-3">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <p className="page-label">Settings</p>
-              <h2 className="page-title">Availability</h2>
-              <p className="page-subtitle">Reservation availability settings, opening hours, and blackout dates.</p>
-            </div>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : loadStatus === 'loading' ? (
+  return loadStatus === 'loading' ? (
           <div className="card p-10 flex items-center justify-center">
             <div
               className="w-8 h-8 border-2 rounded-full animate-spin"
@@ -439,10 +378,7 @@ export default function AvailabilityClient() {
               result={slotResult}
             />
           </div>
-        )}
-      </div>
-    </div>
-  );
+        );
 }
 
 function SettingsSection({

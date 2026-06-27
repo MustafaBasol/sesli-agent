@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import {
   createMenuCategory,
@@ -18,8 +17,7 @@ import {
   type MenuItemListResponse,
   type MenuStatus,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
+import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
 
 type Status = 'idle' | 'loading' | 'error';
 type Tab = 'categories' | 'items';
@@ -48,15 +46,19 @@ function parseCsv(value: string): string[] {
 }
 
 export default function MenuClient() {
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
+  return (
+    <BackendAdminShell
+      label="Menu"
+      title="Menu"
+      subtitle="Menu categories and items from the new backend API."
+      contentClass="max-w-7xl mx-auto space-y-6"
+    >
+      {(ctx) => <MenuContent {...ctx} />}
+    </BackendAdminShell>
+  );
+}
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
-
+function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
   const [tab, setTab] = useState<Tab>('categories');
 
   // Categories
@@ -116,18 +118,6 @@ export default function MenuClient() {
   const [createItemPrice, setCreateItemPrice] = useState('');
   const [createItemActionStatus, setCreateItemActionStatus] = useState<Status>('idle');
   const [createItemActionError, setCreateItemActionError] = useState('');
-
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
 
   const loadCategories = useCallback(() => {
     if (!session || !restaurantId) return;
@@ -192,35 +182,6 @@ export default function MenuClient() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadItems();
   }, [loadItems]);
-
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setCatListResult(null);
-    setItemListResult(null);
-  };
 
   const selectCategory = (category: MenuCategoryListItem) => {
     setSelectedCategoryId(category.id);
@@ -341,36 +302,7 @@ export default function MenuClient() {
     }
   };
 
-  if (!bootstrapped) return null;
-
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Menu (Beta)</h2>
-            <p className="page-subtitle">
-              Menu categories and items from the new backend API. Separate from the production Supabase admin menu.
-              No Vapi tool reads this data yet.
-            </p>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : (
           <>
             <div className="flex gap-2">
               <button
@@ -993,8 +925,5 @@ export default function MenuClient() {
               </div>
             )}
           </>
-        )}
-      </div>
-    </div>
   );
 }

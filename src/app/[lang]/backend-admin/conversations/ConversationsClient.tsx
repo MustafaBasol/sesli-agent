@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminShell from '../BackendAdminShell';
 import {
   CONVERSATION_STATUSES,
   getConversationDetail,
@@ -17,8 +17,6 @@ import {
   type ConversationStatus,
   type MessageListResponse,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -27,17 +25,16 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function ConversationsClient() {
+  return (
+    <BackendAdminShell label="Inbox" title="Conversations" subtitle="Conversations and messages from the backend API.">
+      {({ session, restaurantId }) => <ConversationsContent session={session} restaurantId={restaurantId} />}
+    </BackendAdminShell>
+  );
+}
+
+function ConversationsContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
 
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -60,20 +57,7 @@ export default function ConversationsClient() {
   const [messagesPagination, setMessagesPagination] = useState<MessageListResponse['pagination'] | null>(null);
   const [messagesPage, setMessagesPage] = useState(1);
 
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
-
   const loadList = useCallback(() => {
-    if (!session || !restaurantId) return;
     setListStatus('loading');
     setListError('');
     listConversations(restaurantId, session.token, {
@@ -155,36 +139,6 @@ export default function ConversationsClient() {
     loadMessages(1, false);
   }, [loadMessages]);
 
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setListResult(null);
-    setDetail(null);
-    setMessages([]);
-  };
-
   const openDetail = (id: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('conversationId', id);
@@ -204,36 +158,7 @@ export default function ConversationsClient() {
     loadMessages(1, false);
   };
 
-  if (!bootstrapped) return null;
-
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Conversations (Beta)</h2>
-            <p className="page-subtitle">
-              Conversations and messages from the new backend API. Separate from the production Supabase admin.
-              Read-only — replying is not available yet.
-            </p>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-2 space-y-4">
               <Filters
@@ -292,9 +217,6 @@ export default function ConversationsClient() {
               )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
   );
 }
 

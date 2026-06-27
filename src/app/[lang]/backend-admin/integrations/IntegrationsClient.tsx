@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminShell from '../BackendAdminShell';
 import {
   INTEGRATION_CHANNELS,
   INTEGRATION_PROVIDERS,
@@ -25,8 +25,6 @@ import {
   type IntegrationSummary,
   type IntegrationTestResult,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -36,17 +34,16 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function IntegrationsClient() {
+  return (
+    <BackendAdminShell label="Integrations" title="Integrations" subtitle="Integration connections managed from the backend API.">
+      {({ session, restaurantId }) => <IntegrationsContent session={session} restaurantId={restaurantId} />}
+    </BackendAdminShell>
+  );
+}
+
+function IntegrationsContent({ session, restaurantId }: { session: BackendLoginResponse; restaurantId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
 
   const [channelFilter, setChannelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -66,20 +63,7 @@ export default function IntegrationsClient() {
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
 
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
-
   const loadList = useCallback(() => {
-    if (!session || !restaurantId) return;
     setListStatus('loading');
     setListError('');
     setForbidden(false);
@@ -127,35 +111,6 @@ export default function IntegrationsClient() {
     loadDetail();
   }, [loadDetail]);
 
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setItems([]);
-    setDetail(null);
-  };
-
   const openDetail = (id: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('integrationId', id);
@@ -181,35 +136,7 @@ export default function IntegrationsClient() {
     return true;
   });
 
-  if (!bootstrapped) return null;
-
-  return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between gap-4">
-          <div>
-            <p className="page-label">Beta</p>
-            <h2 className="page-title">Integrations (Beta)</h2>
-            <p className="page-subtitle">
-              Integration connections from the new backend API. Separate from the production Supabase admin.
-            </p>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
-          />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
-        ) : forbidden ? (
+  return forbidden ? (
           <div className="card p-8 max-w-md text-center">
             <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--p-text-1)' }}>
               No permission
@@ -275,9 +202,6 @@ export default function IntegrationsClient() {
               )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
   );
 }
 

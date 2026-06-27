@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
+import BackendAdminShell from '../BackendAdminShell';
 import {
   confirmReservationRequest,
   getReservationRequestDetail,
@@ -18,8 +18,6 @@ import {
   type ReservationRequestListResponse,
   type ReservationRequestStatus,
 } from '@/lib/backend-endpoints';
-import { LoginCard, RestaurantPicker } from '../BackendAdminBetaClient';
-import BackendAdminNav from '../BackendAdminNav';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -38,17 +36,28 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function ReservationRequestsClient() {
+  return (
+    <BackendAdminShell
+      label="Operations"
+      title="Reservation Requests"
+      subtitle="Review and manage incoming reservation requests."
+    >
+      {({ session, restaurantId }) => (
+        <ReservationRequestsContent session={session} restaurantId={restaurantId} />
+      )}
+    </BackendAdminShell>
+  );
+}
+
+function ReservationRequestsContent({
+  session,
+  restaurantId,
+}: {
+  session: BackendLoginResponse;
+  restaurantId: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [session, setSession] = useState<BackendLoginResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState('');
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginStatus, setLoginStatus] = useState<Status>('idle');
-  const [loginError, setLoginError] = useState('');
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -75,20 +84,7 @@ export default function ReservationRequestsClient() {
   const [editTime, setEditTime] = useState('');
   const [editSpecialRequest, setEditSpecialRequest] = useState('');
 
-  useEffect(() => {
-    const token = backendAuth.getToken();
-    const user = backendAuth.getUser();
-    if (token && user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSession({ token, user, accessibleRestaurantIds: backendAuth.getAccessibleRestaurantIds() });
-      const savedRestaurantId = backendAuth.getSelectedRestaurantId();
-      if (savedRestaurantId) setRestaurantId(savedRestaurantId);
-    }
-    setBootstrapped(true);
-  }, []);
-
   const loadList = useCallback(() => {
-    if (!session || !restaurantId) return;
     setListStatus('loading');
     setListError('');
     listReservationRequests(restaurantId, session.token, {
@@ -115,7 +111,7 @@ export default function ReservationRequestsClient() {
   }, [loadList]);
 
   const loadDetail = useCallback(() => {
-    if (!session || !restaurantId || !selectedRequestId) {
+    if (!selectedRequestId) {
       setDetail(null);
       return;
     }
@@ -141,35 +137,6 @@ export default function ReservationRequestsClient() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadDetail();
   }, [loadDetail]);
-
-  const handleLogin = async () => {
-    setLoginStatus('loading');
-    setLoginError('');
-    try {
-      const result = await backendAuth.login(email, password);
-      setSession(result);
-      if (result.accessibleRestaurantIds.length === 1) {
-        selectRestaurant(result.accessibleRestaurantIds[0]);
-      }
-      setLoginStatus('idle');
-    } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
-      setLoginStatus('error');
-    }
-  };
-
-  const selectRestaurant = (id: string) => {
-    backendAuth.setSelectedRestaurantId(id);
-    setRestaurantId(id);
-  };
-
-  const handleLogout = () => {
-    backendAuth.logout();
-    setSession(null);
-    setRestaurantId('');
-    setListResult(null);
-    setDetail(null);
-  };
 
   const openDetail = (id: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -205,17 +172,17 @@ export default function ReservationRequestsClient() {
   };
 
   const handleConfirm = () => {
-    if (!session || !detail) return;
+    if (!detail) return;
     void runAction(() => confirmReservationRequest(restaurantId, session.token, detail.id), 'Reservation request confirmed.');
   };
 
   const handleReject = () => {
-    if (!session || !detail) return;
+    if (!detail) return;
     void runAction(() => rejectReservationRequest(restaurantId, session.token, detail.id), 'Reservation request rejected.');
   };
 
   const handleSaveEdits = () => {
-    if (!session || !detail) return;
+    if (!detail) return;
     void runAction(
       () =>
         updateReservationRequest(restaurantId, session.token, detail.id, {
@@ -229,96 +196,65 @@ export default function ReservationRequestsClient() {
     );
   };
 
-  if (!bootstrapped) return null;
-
   return (
-    <div className="min-h-screen p-5 md:p-7" style={{ background: 'var(--p-bg)' }}>
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="space-y-3">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <p className="page-label">Operations</p>
-              <h2 className="page-title">Reservation Requests</h2>
-              <p className="page-subtitle">Review and manage incoming reservation requests.</p>
-            </div>
-          </div>
-          {session && <BackendAdminNav onLogout={handleLogout} />}
-        </header>
-
-        {!session ? (
-          <LoginCard
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onSubmit={handleLogin}
-            status={loginStatus}
-            error={loginError}
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className="lg:col-span-3 space-y-4">
+        <Filters
+          statusFilter={statusFilter}
+          onStatusFilterChange={(value) => {
+            setStatusFilter(value);
+            setPage(1);
+          }}
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
+          dateFrom={dateFrom}
+          onDateFromChange={setDateFrom}
+          dateTo={dateTo}
+          onDateToChange={setDateTo}
+          onApply={() => {
+            setPage(1);
+            loadList();
+          }}
+          onRefresh={loadList}
+        />
+        <ListPanel
+          status={listStatus}
+          error={listError}
+          result={listResult}
+          selectedRequestId={selectedRequestId}
+          onSelect={openDetail}
+          onPageChange={setPage}
+        />
+      </div>
+      <div className="lg:col-span-2">
+        {selectedRequestId ? (
+          <DetailPanel
+            status={detailStatus}
+            error={detailError}
+            detail={detail}
+            onClose={closeDetail}
+            actionStatus={actionStatus}
+            actionError={actionError}
+            actionMessage={actionMessage}
+            onConfirm={handleConfirm}
+            onReject={handleReject}
+            editNote={editNote}
+            onEditNoteChange={setEditNote}
+            editPartySize={editPartySize}
+            onEditPartySizeChange={setEditPartySize}
+            editDate={editDate}
+            onEditDateChange={setEditDate}
+            editTime={editTime}
+            onEditTimeChange={setEditTime}
+            editSpecialRequest={editSpecialRequest}
+            onEditSpecialRequestChange={setEditSpecialRequest}
+            onSaveEdits={handleSaveEdits}
           />
-        ) : !restaurantId ? (
-          <RestaurantPicker session={session} onSelect={selectRestaurant} />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-3 space-y-4">
-              <Filters
-                statusFilter={statusFilter}
-                onStatusFilterChange={(value) => {
-                  setStatusFilter(value);
-                  setPage(1);
-                }}
-                searchInput={searchInput}
-                onSearchInputChange={setSearchInput}
-                dateFrom={dateFrom}
-                onDateFromChange={setDateFrom}
-                dateTo={dateTo}
-                onDateToChange={setDateTo}
-                onApply={() => {
-                  setPage(1);
-                  loadList();
-                }}
-                onRefresh={loadList}
-              />
-              <ListPanel
-                status={listStatus}
-                error={listError}
-                result={listResult}
-                selectedRequestId={selectedRequestId}
-                onSelect={openDetail}
-                onPageChange={setPage}
-              />
-            </div>
-            <div className="lg:col-span-2">
-              {selectedRequestId ? (
-                <DetailPanel
-                  status={detailStatus}
-                  error={detailError}
-                  detail={detail}
-                  onClose={closeDetail}
-                  actionStatus={actionStatus}
-                  actionError={actionError}
-                  actionMessage={actionMessage}
-                  onConfirm={handleConfirm}
-                  onReject={handleReject}
-                  editNote={editNote}
-                  onEditNoteChange={setEditNote}
-                  editPartySize={editPartySize}
-                  onEditPartySizeChange={setEditPartySize}
-                  editDate={editDate}
-                  onEditDateChange={setEditDate}
-                  editTime={editTime}
-                  onEditTimeChange={setEditTime}
-                  editSpecialRequest={editSpecialRequest}
-                  onEditSpecialRequestChange={setEditSpecialRequest}
-                  onSaveEdits={handleSaveEdits}
-                />
-              ) : (
-                <div className="card p-8 text-center">
-                  <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
-                    Select a reservation request to view details.
-                  </p>
-                </div>
-              )}
-            </div>
+          <div className="card p-8 text-center">
+            <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>
+              Select a reservation request to view details.
+            </p>
           </div>
         )}
       </div>

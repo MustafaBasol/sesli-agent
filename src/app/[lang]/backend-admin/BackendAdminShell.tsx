@@ -1,14 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname, useRouter } from 'next/navigation';
 import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import { type BackendLoginResponse } from '@/lib/backend-endpoints';
 import BackendAdminNav from './BackendAdminNav';
-import { getBackendAdminDict, getBackendAdminUi } from './locale';
+import { getBackendAdminDict, getBackendAdminUi, resolveBackendAdminLang, type BackendAdminLang } from './locale';
 
 type Status = 'idle' | 'loading' | 'error';
+const languageOptions: { value: BackendAdminLang; label: string }[] = [
+  { value: 'tr', label: 'Türkçe' },
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'Français' },
+];
 
 export type BackendAdminShellCtx = {
   session: BackendLoginResponse;
@@ -131,6 +136,44 @@ function CloseIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
+  );
+}
+
+function LanguageSwitcher() {
+  const params = useParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const langParam = Array.isArray(params.lang) ? params.lang[0] : params.lang;
+  const activeLang = resolveBackendAdminLang(langParam);
+  const ui = getBackendAdminUi(activeLang);
+
+  const handleLanguageChange = (nextLang: BackendAdminLang) => {
+    const segments = pathname.split('/');
+    if (segments.length > 1) {
+      segments[1] = nextLang;
+    }
+    router.push(`${segments.join('/') || `/${nextLang}/backend-admin`}${window.location.search}`);
+  };
+
+  return (
+    <label className="flex items-center gap-2 shrink-0">
+      <span className="hidden sm:inline text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
+        {ui.labels.language}
+      </span>
+      <select
+        value={activeLang}
+        onChange={(e) => handleLanguageChange(e.target.value as BackendAdminLang)}
+        aria-label={ui.labels.language}
+        className="h-9 max-w-[132px] rounded-lg px-2.5 text-xs font-semibold outline-none"
+        style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
+      >
+        {languageOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -317,7 +360,8 @@ export default function BackendAdminShell({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <LanguageSwitcher />
               <div className="hidden sm:flex flex-col items-end leading-none">
                 <span className="text-xs font-semibold" style={{ color: 'var(--p-text-1)' }}>{session.user.email}</span>
                 <span className="text-[10px] font-medium" style={{ color: 'var(--p-text-5)' }}>{session.user.globalRole ?? 'member'}</span>

@@ -64,6 +64,8 @@ services:
       JWT_SECRET: ${BACKEND_JWT_SECRET}
       CORS_ALLOWED_ORIGINS: ${BACKEND_CORS_ALLOWED_ORIGINS}
       LOG_LEVEL: info
+      # Validates every incoming Vapi tool-call request (x-vapi-secret header).
+      VAPI_WEBHOOK_SECRET: ${VAPI_WEBHOOK_SECRET}
       # Optional: credentials encryption key for IntegrationConnection secrets
       # INTEGRATION_CREDENTIALS_ENCRYPTION_KEY: ${BACKEND_INTEGRATION_CREDENTIALS_ENCRYPTION_KEY}
     healthcheck:

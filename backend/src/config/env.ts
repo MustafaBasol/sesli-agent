@@ -40,6 +40,9 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   WEBHOOK_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
   WEBHOOK_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  // Vapi sends this in every tool-call request as `x-vapi-secret`.
+  // Required in production; optional in dev so `npm run dev` works without it.
+  VAPI_WEBHOOK_SECRET: optionalString(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -63,6 +66,10 @@ function loadEnv(): Env {
     throw new Error(
       "CORS_ALLOWED_ORIGINS is required when NODE_ENV=production (comma-separated list of allowed origins)"
     );
+  }
+
+  if (parsed.data.NODE_ENV === "production" && !parsed.data.VAPI_WEBHOOK_SECRET) {
+    throw new Error("VAPI_WEBHOOK_SECRET is required when NODE_ENV=production");
   }
 
   const encryptionKey = parsed.data.INTEGRATION_CREDENTIALS_ENCRYPTION_KEY;

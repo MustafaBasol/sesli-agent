@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import { webhookRateLimiter } from "../../middleware/rateLimit";
+import { vapiWebhookAuth } from "../../middleware/vapiWebhookAuth";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { logger } from "../../utils/logger";
 import { getVapiResponse } from "../../utils/vapi/messages";
@@ -128,8 +129,8 @@ import {
 
 export const vapiWebhookRouter = express.Router();
 
-// Public, key-authenticated surface — rate-limited independently of any
-// user session (see docs/06_SECURITY_AND_TENANCY_RULES.md rate limiting).
+// Auth before rate limit: rejected requests don't consume rate limit budget.
+vapiWebhookRouter.use(vapiWebhookAuth);
 vapiWebhookRouter.use(webhookRateLimiter);
 
 // POST /api/webhooks/vapi/:publicWebhookKey/create-reservation-request

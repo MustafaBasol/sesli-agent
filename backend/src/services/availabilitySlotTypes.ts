@@ -34,6 +34,9 @@ export type AvailabilitySlotResult = {
     time: string;
     available: boolean;
   };
+  /** True when partySize >= restaurant's manualApprovalThreshold. */
+  needsManualApproval?: boolean;
+  manualApprovalThreshold?: number | null;
 };
 
 export const WEEKDAYS = [

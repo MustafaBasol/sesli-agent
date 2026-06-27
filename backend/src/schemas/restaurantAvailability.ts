@@ -24,6 +24,8 @@ export const updateAvailabilitySettingsSchema = z
     minPartySize: z.coerce.number().int().min(1).optional(),
     maxPartySize: z.coerce.number().int().min(1).optional(),
     maxReservationsPerSlot: z.coerce.number().int().min(1).nullable().optional(),
+    manualApprovalThreshold: z.coerce.number().int().min(1).nullable().optional(),
+    autoConfirm: z.boolean().optional(),
     notes: z.string().trim().max(2000).nullable().optional(),
   })
   .strict()

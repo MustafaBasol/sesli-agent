@@ -39,6 +39,8 @@ type SettingsFormState = {
   minPartySize: string;
   maxPartySize: string;
   maxReservationsPerSlot: string;
+  manualApprovalThreshold: string;
+  autoConfirm: boolean;
   openingHoursJson: string;
   notes: string;
 };
@@ -53,6 +55,8 @@ function toSettingsForm(settings: AvailabilitySettings): SettingsFormState {
     minPartySize: String(settings.minPartySize),
     maxPartySize: String(settings.maxPartySize),
     maxReservationsPerSlot: settings.maxReservationsPerSlot != null ? String(settings.maxReservationsPerSlot) : '',
+    manualApprovalThreshold: settings.manualApprovalThreshold != null ? String(settings.manualApprovalThreshold) : '',
+    autoConfirm: settings.autoConfirm,
     openingHoursJson: settings.openingHoursJson != null ? JSON.stringify(settings.openingHoursJson, null, 2) : '',
     notes: settings.notes ?? '',
   };
@@ -219,6 +223,8 @@ export default function AvailabilityClient() {
       minPartySize: Number(form.minPartySize),
       maxPartySize: Number(form.maxPartySize),
       maxReservationsPerSlot: form.maxReservationsPerSlot ? Number(form.maxReservationsPerSlot) : null,
+      manualApprovalThreshold: form.manualApprovalThreshold ? Number(form.manualApprovalThreshold) : null,
+      autoConfirm: form.autoConfirm,
       notes: form.notes.trim() || null,
     };
 
@@ -478,6 +484,16 @@ function SettingsSection({
         <NumberField label="Minimum party size" value={form.minPartySize} readOnly={readOnly} onChange={(v) => set('minPartySize', v)} />
         <NumberField label="Maximum party size" value={form.maxPartySize} readOnly={readOnly} onChange={(v) => set('maxPartySize', v)} />
         <NumberField label="Max reservations per slot (optional)" value={form.maxReservationsPerSlot} readOnly={readOnly} onChange={(v) => set('maxReservationsPerSlot', v)} />
+        <NumberField label="Manual approval threshold (optional, party size ≥ this requires staff confirmation)" value={form.manualApprovalThreshold} readOnly={readOnly} onChange={(v) => set('manualApprovalThreshold', v)} />
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.autoConfirm}
+            disabled={readOnly}
+            onChange={(e) => set('autoConfirm', e.target.checked)}
+          />
+          <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Auto-confirm reservations (skip manual review)</label>
+        </div>
         <div className="md:col-span-2">
           <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
             Opening hours (JSON)

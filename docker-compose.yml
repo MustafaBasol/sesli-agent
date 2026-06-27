@@ -7,6 +7,7 @@ services:
         # Public (non-secret) vars baked in at build time
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA: "true"
     image: sesli-agent:latest
     container_name: sesli-agent
     restart: unless-stopped

@@ -195,6 +195,8 @@ model RestaurantSettings {
   minPartySize                       Int      @default(1)
   maxPartySize                       Int      @default(12)
   maxReservationsPerSlot             Int?
+  manualApprovalThreshold            Int?
+  autoConfirm                        Boolean  @default(false)
   notes                              String?
   createdAt                          DateTime @default(now())
   updatedAt                          DateTime @updatedAt

@@ -15,6 +15,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx src/prisma/seed.ts",
+    "configure:availability": "tsx src/scripts/configureGoldenMeatAvailability.ts",
     "prisma:studio": "prisma studio",
     "test": "npm run test:restaurant-access && npm run test:auth-utils && npm run test:vapi-normalizers && npm run test:vapi-check-availability-adapter && npm run test:vapi-create-reservation-request-adapter && npm run test:vapi-customer-profile-adapter && npm run test:vapi-date-opening-hours-adapter && npm run test:vapi-call-summary-adapter && npm run test:vapi-handoff-to-staff-adapter && npm run test:vapi-cancel-reservation-request-adapter && npm run test:vapi-modify-reservation-request-adapter && npm run test:vapi-menu-info-adapter && npm run test:vapi-item-details-adapter && npm run test:reservation-request-query && npm run test:customer-query && npm run test:conversation-query && npm run test:encryption && npm run test:dashboard-query && npm run test:rate-limit && npm run test:availability-slot-helpers",
     "test:restaurant-access": "tsx src/tests/restaurantAccess.test.ts",

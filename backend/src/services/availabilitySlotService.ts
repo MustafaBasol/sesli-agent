@@ -68,7 +68,13 @@ export async function calculateAvailabilitySlots(query: AvailabilitySlotQuery): 
   }
 
   const settings = await getOrCreateAvailabilitySettings(query.restaurantId);
+  const manualApprovalThreshold = settings.manualApprovalThreshold ?? null;
+  const needsManualApproval =
+    manualApprovalThreshold !== null && query.partySize >= manualApprovalThreshold;
   const result = baseResult(query, restaurant.timezone, settings.defaultReservationDurationMinutes, settings.slotIntervalMinutes);
+  // Attach approval metadata so callers and Vapi adapters can surface it.
+  result.needsManualApproval = needsManualApproval;
+  result.manualApprovalThreshold = manualApprovalThreshold;
 
   // A) restaurant status
   if (restaurant.status !== "active") {

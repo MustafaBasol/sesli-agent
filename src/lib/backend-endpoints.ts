@@ -1203,6 +1203,8 @@ export type AvailabilitySettings = {
   minPartySize: number;
   maxPartySize: number;
   maxReservationsPerSlot: number | null;
+  manualApprovalThreshold: number | null;
+  autoConfirm: boolean;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -1222,6 +1224,8 @@ export type UpdateAvailabilitySettingsPayload = {
   minPartySize?: number;
   maxPartySize?: number;
   maxReservationsPerSlot?: number | null;
+  manualApprovalThreshold?: number | null;
+  autoConfirm?: boolean;
   notes?: string | null;
 };
 

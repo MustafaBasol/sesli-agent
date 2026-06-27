@@ -200,6 +200,7 @@ vapiWebhookRouter.post(
           reservation_request_id: existing.reservationRequestId,
           customer_id: existing.customerId,
           next_step: "awaiting_restaurant_confirmation",
+          duplicate_retry: true,
         });
         return;
       }
@@ -210,6 +211,7 @@ vapiWebhookRouter.post(
     // creation. Never throws the request into the generic error path: a
     // failure here is logged and creation proceeds rather than becoming
     // brittle on an additive safety check.
+    let needsManualApproval = false;
     try {
       const availability = await calculateAvailabilitySlots({
         restaurantId,
@@ -221,6 +223,7 @@ vapiWebhookRouter.post(
         sendVapiToolResponse(res, rawBody, buildAvailabilityBlockedResponse(availability.blockedReason));
         return;
       }
+      needsManualApproval = availability.needsManualApproval ?? false;
     } catch (error) {
       logger.warn(
         { err: error, restaurantId, callId },
@@ -272,7 +275,8 @@ vapiWebhookRouter.post(
         success: true,
         reservation_request_id: result.reservationRequestId,
         customer_id: result.customerId,
-        next_step: "awaiting_restaurant_confirmation",
+        next_step: needsManualApproval ? "awaiting_manual_confirmation" : "awaiting_restaurant_confirmation",
+        ...(needsManualApproval ? { needs_approval: true } : {}),
       });
     } catch (error) {
       logger.error({ err: error, restaurantId, callId }, "vapi create-reservation-request failed");

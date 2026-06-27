@@ -8,11 +8,10 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_ENABLE_BACKEND_ADMIN_BETA: "true"
+        NEXT_PUBLIC_BACKEND_API_URL: "https://api.voice.autoviseo.com/api"
     image: sesli-agent:latest
     container_name: sesli-agent
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
       # Secret vars injected at runtime (never baked into image)
       NODE_ENV: production
@@ -25,12 +24,23 @@ services:
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET}
       RESTAURANT_PHONE_NUMBER: ${RESTAURANT_PHONE_NUMBER}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+      NEXT_PUBLIC_BACKEND_API_URL: "https://api.voice.autoviseo.com/api"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/en"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-net"
+      - "traefik.http.routers.sesli-agent.rule=Host(`voice.autoviseo.com`)"
+      - "traefik.http.routers.sesli-agent.entrypoints=websecure"
+      - "traefik.http.routers.sesli-agent.tls=true"
+      - "traefik.http.routers.sesli-agent.tls.certresolver=httpresolver"
+      - "traefik.http.services.sesli-agent.loadbalancer.server.port=3000"
 
   # ============================================================
   # Phase 45A: New dedicated backend — separate production service

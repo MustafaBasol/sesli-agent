@@ -25,6 +25,10 @@ import { logger } from "./utils/logger";
 export function createApp(): express.Express {
   const app = express();
 
+  // Trust the first proxy hop (Traefik) so X-Forwarded-For is used correctly
+  // by express-rate-limit and other middleware in production.
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   // Empty allow-list (dev/test only — production requires CORS_ALLOWED_ORIGINS,
   // see src/config/env.ts) means "reflect any origin" so local frontend dev

@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import express from "express";
+import { createApp } from "../app";
 import { authRateLimiter, webhookRateLimiter } from "../middleware/rateLimit";
 import { env } from "../config/env";
 
@@ -55,6 +56,10 @@ async function main() {
     assert.equal(allowed, env.WEBHOOK_RATE_LIMIT_MAX, "exactly WEBHOOK_RATE_LIMIT_MAX requests should be allowed");
     assert.equal(blocked, 1, "the request past the limit should be rejected with 429");
   });
+
+  // Verify createApp() sets trust proxy so X-Forwarded-For is honoured behind Traefik
+  const prodApp = createApp();
+  assert.equal(prodApp.get("trust proxy"), 1, "createApp() must set trust proxy to 1 for Traefik");
 
   console.log("rateLimit.test.ts: all checks passed");
 }

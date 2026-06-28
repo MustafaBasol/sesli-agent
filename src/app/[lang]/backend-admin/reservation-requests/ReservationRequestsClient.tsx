@@ -111,7 +111,7 @@ function ReservationRequestsContent({
         setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadReservationRequests);
         setListStatus('error');
       });
-  }, [session, restaurantId, statusFilter, searchInput, dateFrom, dateTo, page]);
+  }, [session, restaurantId, statusFilter, searchInput, dateFrom, dateTo, page, ui.messages.failedToLoadReservationRequests]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -139,7 +139,7 @@ function ReservationRequestsContent({
         setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadReservationRequest);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedRequestId]);
+  }, [session, restaurantId, selectedRequestId, ui.messages.failedToLoadReservationRequest]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -407,7 +407,7 @@ function ListPanel({
           style={{ borderColor: 'var(--p-border)', borderTopColor: 'var(--p-accent)' }}
         />
         <p className="text-xs font-medium uppercase tracking-widest" style={{ color: 'var(--p-text-5)' }}>
-          Loading…
+          {ui.labels.loading}
         </p>
       </div>
     );
@@ -739,6 +739,8 @@ function ConversationSummary({
 }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const ui = getBackendAdminUi(params.lang);
+  const messageLabel = messageCount === 1 ? ui.labels.message : ui.labels.messagesPlural;
 
   return (
     <Link
@@ -746,7 +748,7 @@ function ConversationSummary({
       className="text-xs block"
       style={{ color: 'var(--p-accent-text)' }}
     >
-      Conversation: {status} · {messageCount} message{messageCount === 1 ? '' : 's'}
+      {ui.labels.conversation}: {formatBackendAdminStatus(params.lang, status)} · {messageCount} {messageLabel}
     </Link>
   );
 }
@@ -754,10 +756,11 @@ function ConversationSummary({
 function CustomerField({ customerId, value }: { customerId: string | null; value: string }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>Customer</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>{ui.labels.customer}</p>
       {customerId ? (
         <Link
           href={`/${lang}/backend-admin/customers?customerId=${customerId}`}

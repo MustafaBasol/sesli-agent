@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import {
+  formatBackendAdminChannel,
+  formatBackendAdminProvider,
+  formatBackendAdminStatus,
+  getBackendAdminDict,
+  getBackendAdminUi,
+} from '../locale';
 import {
   INTEGRATION_CHANNELS,
   INTEGRATION_PROVIDERS,
@@ -29,9 +35,9 @@ import {
 
 type Status = 'idle' | 'loading' | 'error';
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, lang }: { status: string; lang: unknown }) {
   const className = status === 'active' ? 'badge badge-green' : status === 'error' ? 'badge badge-red' : 'badge badge-gray';
-  return <span className={className}>{status}</span>;
+  return <span className={className}>{formatBackendAdminStatus(lang, status)}</span>;
 }
 
 export default function IntegrationsClient() {
@@ -50,6 +56,7 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [channelFilter, setChannelFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -84,10 +91,10 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
           setListStatus('idle');
           return;
         }
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load integrations');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadIntegrations);
         setListStatus('error');
       });
-  }, [session, restaurantId]);
+  }, [session, restaurantId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -107,10 +114,10 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load integration');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadIntegration);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedIntegrationId]);
+  }, [session, restaurantId, selectedIntegrationId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -183,6 +190,7 @@ function IntegrationsContent({ session, restaurantId }: { session: BackendLoginR
             <div className="lg:col-span-3">
               {showCreate ? (
                 <CreateForm
+                  t={t}
                   restaurantId={restaurantId}
                   token={session.token}
                   onCancel={() => setShowCreate(false)}
@@ -242,6 +250,8 @@ function Filters({
   onRefresh: () => void;
   onCreate: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -252,7 +262,7 @@ function Filters({
     <div className="card p-4 flex flex-wrap items-end gap-3">
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Channel
+          {ui.labels.channel}
         </label>
         <select
           value={channelFilter}
@@ -263,7 +273,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {INTEGRATION_CHANNELS.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {formatBackendAdminChannel(params.lang, c)}
             </option>
           ))}
         </select>
@@ -281,7 +291,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {INTEGRATION_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {formatBackendAdminStatus(params.lang, s)}
             </option>
           ))}
         </select>
@@ -315,6 +325,8 @@ function ListPanel({
   selectedIntegrationId: string;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -330,7 +342,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load integrations
+          {ui.messages.failedToLoadIntegrations}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -372,6 +384,7 @@ function ListRow({
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
   return (
     <button
       onClick={() => onSelect(item.id)}
@@ -379,14 +392,14 @@ function ListRow({
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
-          {item.displayName || `${item.channel} / ${item.provider}`}
+          {item.displayName || `${formatBackendAdminChannel(params.lang, item.channel)} / ${formatBackendAdminProvider(params.lang, item.provider)}`}
         </p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
-          {item.channel} · {item.provider}
+          {formatBackendAdminChannel(params.lang, item.channel)} · {formatBackendAdminProvider(params.lang, item.provider)}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} lang={params.lang} />
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
           {new Date(item.updatedAt).toLocaleString()}
         </span>
@@ -396,16 +409,20 @@ function ListRow({
 }
 
 function CreateForm({
+  t,
   restaurantId,
   token,
   onCancel,
   onCreated,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   restaurantId: string;
   token: string;
   onCancel: () => void;
   onCreated: (created: IntegrationDetail) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const [channel, setChannel] = useState<IntegrationChannel>('vapi');
   const [provider, setProvider] = useState<IntegrationProvider>('vapi');
   const [displayName, setDisplayName] = useState('');
@@ -434,7 +451,7 @@ function CreateForm({
       setCredentialValue('');
       onCreated(created);
     } catch (err) {
-      setSaveError(err instanceof BackendApiError ? err.message : 'Failed to create integration');
+      setSaveError(err instanceof BackendApiError ? err.message : ui.messages.failedToCreateIntegration);
       setSaveStatus('error');
     }
   };
@@ -448,16 +465,16 @@ function CreateForm({
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-header-title">New integration</h3>
+        <h3 className="card-header-title">{ui.labels.newIntegration}</h3>
         <button onClick={onCancel} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
-          Cancel
+          {ui.labels.cancel}
         </button>
       </div>
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Channel
+              {ui.labels.channel}
             </label>
             <select
               value={channel}
@@ -467,14 +484,14 @@ function CreateForm({
             >
               {INTEGRATION_CHANNELS.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {formatBackendAdminChannel(params.lang, c)}
                 </option>
               ))}
             </select>
           </div>
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Provider
+              {ui.labels.provider}
             </label>
             <select
               value={provider}
@@ -484,7 +501,7 @@ function CreateForm({
             >
               {INTEGRATION_PROVIDERS.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {formatBackendAdminProvider(params.lang, p)}
                 </option>
               ))}
             </select>
@@ -493,7 +510,7 @@ function CreateForm({
 
         <div>
           <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Display name
+            {ui.labels.displayName}
           </label>
           <input
             type="text"
@@ -507,7 +524,7 @@ function CreateForm({
 
         <div>
           <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Initial status
+            {ui.labels.initialStatus}
           </label>
           <select
             value={status}
@@ -517,7 +534,7 @@ function CreateForm({
           >
             {INTEGRATION_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {formatBackendAdminStatus(params.lang, s)}
               </option>
             ))}
           </select>
@@ -525,15 +542,15 @@ function CreateForm({
 
         <div className="pt-2 space-y-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Credential (optional)
+            {ui.labels.credentialOptional}
           </p>
           <p className="text-xs" style={{ color: 'var(--p-text-4)' }}>
-            Stored encrypted on the server. The value is never shown again after saving.
+            {ui.labels.credentialSavedSecurely}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <input
               type="text"
-              placeholder="Field name (e.g. apiKey)"
+              placeholder={ui.labels.fieldNamePlaceholder}
               value={credentialKey}
               onChange={(e) => setCredentialKey(e.target.value)}
               className="rounded-lg px-3 py-2 text-sm outline-none"
@@ -541,7 +558,7 @@ function CreateForm({
             />
             <input
               type="password"
-              placeholder="Secret value"
+              placeholder={ui.labels.secretValue}
               value={credentialValue}
               onChange={(e) => setCredentialValue(e.target.value)}
               className="rounded-lg px-3 py-2 text-sm outline-none"
@@ -557,7 +574,7 @@ function CreateForm({
         )}
 
         <button onClick={handleSubmit} disabled={saveStatus === 'loading'} className="btn-primary w-full justify-center">
-          {saveStatus === 'loading' ? 'Creating...' : 'Create integration'}
+          {saveStatus === 'loading' ? t.common.saving : t.integrations.newIntegration}
         </button>
       </div>
     </div>
@@ -591,6 +608,8 @@ function DetailPanel({
   setActionMessage: (value: string) => void;
   setActionError: (value: string) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editing, setEditing] = useState(false);
   const [editStatus, setEditStatus] = useState<Status>('idle');
@@ -626,7 +645,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load integration
+          {ui.messages.failedToLoadIntegration}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -655,7 +674,7 @@ function DetailPanel({
       setActionMessage(successMessage);
       onRefresh();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : `Failed to ${name}`);
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.actionFailed);
     } finally {
       setBusyAction(null);
     }
@@ -677,10 +696,10 @@ function DetailPanel({
       setCredentialValue('');
       setEditing(false);
       setEditStatus('idle');
-      setActionMessage('Integration updated.');
+      setActionMessage(ui.messages.integrationUpdated);
       onRefresh();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Failed to update integration');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.failedToUpdateIntegration);
       setEditStatus('error');
     }
   };
@@ -693,7 +712,7 @@ function DetailPanel({
       const result = await testIntegration(restaurantId, token, detail.id);
       setTestResult(result);
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Failed to test integration');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.failedToTestIntegration);
     } finally {
       setBusyAction(null);
     }
@@ -701,18 +720,18 @@ function DetailPanel({
 
   const handleRotate = async () => {
     setRotateConfirm(false);
-    await runAction('rotate-webhook-key', () => rotateIntegrationWebhookKey(restaurantId, token, detail.id), 'Webhook key rotated. Old webhook URLs are now invalid.');
+    await runAction('rotate-webhook-key', () => rotateIntegrationWebhookKey(restaurantId, token, detail.id), ui.messages.webhookKeyRotated);
   };
 
   return (
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">{detail.displayName || `${detail.channel} / ${detail.provider}`}</h3>
+          <h3 className="card-header-title">{detail.displayName || `${formatBackendAdminChannel(params.lang, detail.channel)} / ${formatBackendAdminProvider(params.lang, detail.provider)}`}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge status={detail.status} />
+          <StatusBadge status={detail.status} lang={params.lang} />
           <button onClick={onRefresh} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
             {t.common.refresh}
           </button>
@@ -731,19 +750,19 @@ function DetailPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Channel" value={detail.channel} />
-          <Field label="Provider" value={detail.provider} />
-          <Field label="Has credentials" value={detail.hasCredentials ? 'Yes' : 'No'} />
-          <Field label="Public webhook key" value={detail.publicWebhookKey} />
-          <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
-          <Field label="Last connected" value={detail.lastConnectedAt ? new Date(detail.lastConnectedAt).toLocaleString() : '—'} />
-          <Field label="Last tested" value={detail.lastTestedAt ? new Date(detail.lastTestedAt).toLocaleString() : '—'} />
+          <Field label={ui.labels.channel} value={formatBackendAdminChannel(params.lang, detail.channel)} />
+          <Field label={ui.labels.provider} value={formatBackendAdminProvider(params.lang, detail.provider)} />
+          <Field label={ui.labels.hasCredentials} value={detail.hasCredentials ? ui.labels.yes : ui.labels.no} />
+          <Field label={ui.labels.publicWebhookKey} value={detail.publicWebhookKey} />
+          <Field label={ui.labels.created} value={new Date(detail.createdAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.lastConnected} value={detail.lastConnectedAt ? new Date(detail.lastConnectedAt).toLocaleString() : '—'} />
+          <Field label={ui.labels.lastTested} value={detail.lastTestedAt ? new Date(detail.lastTestedAt).toLocaleString() : '—'} />
         </div>
 
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Webhook URL
+            {ui.labels.webhookUrl}
           </p>
           <p className="text-xs mt-1 break-all rounded-lg px-3 py-2" style={{ background: 'var(--p-subtle)', color: 'var(--p-text-2)' }}>
             {detail.webhookUrl}
@@ -753,7 +772,7 @@ function DetailPanel({
         {detail.lastError && (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Last error
+              {ui.labels.lastError}
             </p>
             <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{detail.lastError}</p>
           </div>
@@ -762,21 +781,21 @@ function DetailPanel({
         <div className="flex flex-wrap gap-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           {detail.isActive ? (
             <button
-              onClick={() => runAction('disable', () => disableIntegration(restaurantId, token, detail.id), 'Integration disabled.')}
+              onClick={() => runAction('disable', () => disableIntegration(restaurantId, token, detail.id), ui.messages.integrationDisabled)}
               disabled={busyAction !== null}
               className="text-xs font-semibold px-3 py-2 rounded-lg"
               style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
             >
-              {busyAction === 'disable' ? 'Disabling...' : 'Disable'}
+              {busyAction === 'disable' ? ui.labels.disabling : ui.labels.disable}
             </button>
           ) : (
             <button
-              onClick={() => runAction('enable', () => enableIntegration(restaurantId, token, detail.id), 'Integration enabled.')}
+              onClick={() => runAction('enable', () => enableIntegration(restaurantId, token, detail.id), ui.messages.integrationEnabled)}
               disabled={busyAction !== null}
               className="text-xs font-semibold px-3 py-2 rounded-lg"
               style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
             >
-              {busyAction === 'enable' ? 'Enabling...' : 'Enable'}
+              {busyAction === 'enable' ? ui.labels.enabling : ui.labels.enable}
             </button>
           )}
 
@@ -786,7 +805,7 @@ function DetailPanel({
             className="text-xs font-semibold px-3 py-2 rounded-lg"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            {busyAction === 'test' ? 'Testing...' : 'Test connection'}
+            {busyAction === 'test' ? ui.labels.testing : ui.labels.testConnection}
           </button>
 
           {!rotateConfirm ? (
@@ -796,18 +815,18 @@ function DetailPanel({
               className="text-xs font-semibold px-3 py-2 rounded-lg"
               style={{ border: '1px solid var(--p-border)', color: '#ef4444' }}
             >
-              Rotate webhook key
+              {ui.labels.rotateWebhookKey}
             </button>
           ) : (
             <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ border: '1px solid #ef4444' }}>
               <span className="text-xs font-medium" style={{ color: '#ef4444' }}>
-                Old webhook URLs will stop working. Continue?
+                {ui.labels.rotateWarning}
               </span>
               <button onClick={handleRotate} disabled={busyAction !== null} className="text-xs font-bold" style={{ color: '#ef4444' }}>
-                Confirm
+                {t.common.confirm}
               </button>
               <button onClick={() => setRotateConfirm(false)} className="text-xs font-semibold" style={{ color: 'var(--p-text-4)' }}>
-                Cancel
+                {ui.labels.cancel}
               </button>
             </div>
           )}
@@ -817,7 +836,7 @@ function DetailPanel({
             className="text-xs font-semibold px-3 py-2 rounded-lg"
             style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
           >
-            {editing ? 'Cancel edit' : 'Edit'}
+            {editing ? ui.labels.cancelEdit : ui.labels.edit}
           </button>
         </div>
 
@@ -826,7 +845,7 @@ function DetailPanel({
             className="rounded-lg px-3 py-2 text-xs"
             style={{ background: 'var(--p-subtle)', border: '1px solid var(--p-border-2)', color: 'var(--p-text-2)' }}
           >
-            <span className="font-semibold">{testResult.success ? 'Success' : 'Not successful'}:</span> {testResult.message}
+            <span className="font-semibold">{testResult.success ? ui.labels.success : ui.labels.notSuccessful}:</span> {testResult.message}
           </div>
         )}
 
@@ -834,7 +853,7 @@ function DetailPanel({
           <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                Display name
+                {ui.labels.displayName}
               </label>
               <input
                 type="text"
@@ -847,15 +866,15 @@ function DetailPanel({
 
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                Update credential (optional)
+                {ui.labels.updateCredentialOptional}
               </p>
               <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>
-                Leave blank to keep the current credential unchanged. The value is never shown after saving.
+                {ui.labels.updateCredentialHelp}
               </p>
               <div className="grid grid-cols-2 gap-3 mt-1">
                 <input
                   type="text"
-                  placeholder="Field name (e.g. apiKey)"
+                  placeholder={ui.labels.fieldNamePlaceholder}
                   value={credentialKey}
                   onChange={(e) => setCredentialKey(e.target.value)}
                   className="rounded-lg px-3 py-2 text-sm outline-none"
@@ -863,7 +882,7 @@ function DetailPanel({
                 />
                 <input
                   type="password"
-                  placeholder="Secret value"
+                  placeholder={ui.labels.secretValue}
                   value={credentialValue}
                   onChange={(e) => setCredentialValue(e.target.value)}
                   className="rounded-lg px-3 py-2 text-sm outline-none"
@@ -873,7 +892,7 @@ function DetailPanel({
             </div>
 
             <button onClick={handleSaveEdit} disabled={editStatus === 'loading'} className="btn-primary w-full justify-center">
-              {editStatus === 'loading' ? 'Saving...' : 'Save changes'}
+              {editStatus === 'loading' ? t.common.saving : t.common.save}
             </button>
           </div>
         )}

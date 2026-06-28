@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import { formatBackendAdminStatus, getBackendAdminDict, getBackendAdminUi } from '../locale';
 import {
   createBlackoutDate,
   deactivateBlackoutDate,
@@ -89,6 +89,7 @@ function AvailabilityContent({
 }) {
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [loadStatus, setLoadStatus] = useState<Status>('idle');
   const [loadError, setLoadError] = useState('');
@@ -135,10 +136,10 @@ function AvailabilityContent({
         setLoadStatus('idle');
       })
       .catch((err) => {
-        setLoadError(err instanceof BackendApiError ? err.message : 'Failed to load availability settings');
+        setLoadError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadAvailabilitySettings);
         setLoadStatus('error');
       });
-  }, [session, restaurantId]);
+  }, [session, restaurantId, ui]);
 
   const loadBlackoutList = useCallback(() => {
     if (!session || !restaurantId) return;
@@ -154,10 +155,10 @@ function AvailabilityContent({
         setBlackoutListStatus('idle');
       })
       .catch((err) => {
-        setBlackoutListError(err instanceof BackendApiError ? err.message : 'Failed to load blackout dates');
+        setBlackoutListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadAvailabilitySettings);
         setBlackoutListStatus('error');
       });
-  }, [session, restaurantId, blackoutStatusFilter]);
+  }, [session, restaurantId, blackoutStatusFilter, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -180,7 +181,7 @@ function AvailabilityContent({
       try {
         openingHoursJson = JSON.parse(form.openingHoursJson);
       } catch {
-        setSaveError('Opening hours must be valid JSON.');
+        setSaveError(ui.messages.openingHoursInvalidJson);
         setSaveStatus('error');
         return;
       }
@@ -208,14 +209,14 @@ function AvailabilityContent({
       setSettings(updated);
       setForm(toSettingsForm(updated));
       setSaveStatus('idle');
-      setSaveMessage('Availability settings saved.');
+      setSaveMessage(ui.messages.settingsSaved);
       setReadOnly(false);
     } catch (err) {
       if (err instanceof BackendApiError && err.status === 403) {
         setReadOnly(true);
-        setSaveError('You do not have permission to update availability settings for this restaurant.');
+        setSaveError(ui.messages.noPermissionAvailability);
       } else {
-        setSaveError(err instanceof BackendApiError ? err.message : 'Failed to save availability settings');
+        setSaveError(err instanceof BackendApiError ? err.message : ui.messages.failedToSaveAvailabilitySettings);
       }
       setSaveStatus('error');
     }
@@ -246,7 +247,7 @@ function AvailabilityContent({
       resetCreateForm();
       loadBlackoutList();
     } catch (err) {
-      setCreateBlackoutError(err instanceof BackendApiError ? err.message : 'Failed to create blackout date');
+      setCreateBlackoutError(err instanceof BackendApiError ? err.message : ui.messages.failedToCreateBlackoutDate);
       setCreateBlackoutStatus('error');
     }
   };
@@ -260,7 +261,7 @@ function AvailabilityContent({
       setBlackoutActionStatus('idle');
       loadBlackoutList();
     } catch (err) {
-      setBlackoutActionError(err instanceof BackendApiError ? err.message : 'Failed to deactivate blackout date');
+      setBlackoutActionError(err instanceof BackendApiError ? err.message : ui.messages.failedToDeactivateBlackoutDate);
       setBlackoutActionStatus('error');
     }
   };
@@ -274,7 +275,7 @@ function AvailabilityContent({
       setBlackoutActionStatus('idle');
       loadBlackoutList();
     } catch (err) {
-      setBlackoutActionError(err instanceof BackendApiError ? err.message : 'Failed to reactivate blackout date');
+      setBlackoutActionError(err instanceof BackendApiError ? err.message : ui.messages.failedToReactivateBlackoutDate);
       setBlackoutActionStatus('error');
     }
   };
@@ -292,7 +293,7 @@ function AvailabilityContent({
       setSlotResult(result);
       setSlotCheckStatus('idle');
     } catch (err) {
-      setSlotCheckError(err instanceof BackendApiError ? err.message : 'Failed to check availability');
+      setSlotCheckError(err instanceof BackendApiError ? err.message : ui.messages.failedToCheckAvailability);
       setSlotCheckStatus('error');
     }
   };
@@ -307,7 +308,7 @@ function AvailabilityContent({
         ) : loadStatus === 'error' || !settings || !form ? (
           <div className="card p-6 text-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-              Failed to load availability settings
+              {ui.messages.failedToLoadAvailabilitySettings}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{loadError}</p>
           </div>
@@ -316,7 +317,7 @@ function AvailabilityContent({
             {readOnly && (
               <div className="card p-4" style={{ borderColor: '#f59e0b' }}>
                 <p className="text-sm font-medium" style={{ color: '#b45309' }}>
-                  Your role only allows viewing these settings. Updates are restricted to owners and managers.
+                  {t.settingsPage.readOnlyNotice}
                 </p>
               </div>
             )}
@@ -402,6 +403,8 @@ function SettingsSection({
   onChange: (updater: (prev: SettingsFormState | null) => SettingsFormState | null) => void;
   readOnly: boolean;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const set = <K extends keyof SettingsFormState>(key: K, value: SettingsFormState[K]) =>
     onChange((prev) => (prev ? { ...prev, [key]: value } : prev));
 
@@ -420,13 +423,13 @@ function SettingsSection({
                 disabled={readOnly}
                 onChange={(e) => set('reservationsEnabled', e.target.checked)}
               />
-              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Reservations enabled</label>
+              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>{ui.labels.reservationsEnabled}</label>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Slot interval (minutes)" value={form.slotIntervalMinutes} readOnly={readOnly} onChange={(v) => set('slotIntervalMinutes', v)} />
-              <NumberField label="Default duration (minutes)" value={form.defaultReservationDurationMinutes} readOnly={readOnly} onChange={(v) => set('defaultReservationDurationMinutes', v)} />
-              <NumberField label="Minimum advance (minutes)" value={form.minAdvanceMinutes} readOnly={readOnly} onChange={(v) => set('minAdvanceMinutes', v)} />
-              <NumberField label="Booking window (days)" value={form.bookingWindowDays} readOnly={readOnly} onChange={(v) => set('bookingWindowDays', v)} />
+              <NumberField label={ui.labels.slotIntervalMinutes} value={form.slotIntervalMinutes} readOnly={readOnly} onChange={(v) => set('slotIntervalMinutes', v)} />
+              <NumberField label={ui.labels.defaultDurationMinutes} value={form.defaultReservationDurationMinutes} readOnly={readOnly} onChange={(v) => set('defaultReservationDurationMinutes', v)} />
+              <NumberField label={ui.labels.minAdvanceMinutes} value={form.minAdvanceMinutes} readOnly={readOnly} onChange={(v) => set('minAdvanceMinutes', v)} />
+              <NumberField label={t.availability.sections.bookingWindowDays} value={form.bookingWindowDays} readOnly={readOnly} onChange={(v) => set('bookingWindowDays', v)} />
             </div>
           </div>
         </div>
@@ -437,10 +440,10 @@ function SettingsSection({
           </div>
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Minimum party size" value={form.minPartySize} readOnly={readOnly} onChange={(v) => set('minPartySize', v)} />
-              <NumberField label="Maximum party size" value={form.maxPartySize} readOnly={readOnly} onChange={(v) => set('maxPartySize', v)} />
-              <NumberField label="Max per slot (optional)" value={form.maxReservationsPerSlot} readOnly={readOnly} onChange={(v) => set('maxReservationsPerSlot', v)} />
-              <NumberField label="Manual approval ≥ party size" value={form.manualApprovalThreshold} readOnly={readOnly} onChange={(v) => set('manualApprovalThreshold', v)} />
+              <NumberField label={ui.labels.minPartySize} value={form.minPartySize} readOnly={readOnly} onChange={(v) => set('minPartySize', v)} />
+              <NumberField label={ui.labels.maxPartySize} value={form.maxPartySize} readOnly={readOnly} onChange={(v) => set('maxPartySize', v)} />
+              <NumberField label={ui.labels.maxPerSlotOptional} value={form.maxReservationsPerSlot} readOnly={readOnly} onChange={(v) => set('maxReservationsPerSlot', v)} />
+              <NumberField label={ui.labels.manualApprovalPartySize} value={form.manualApprovalThreshold} readOnly={readOnly} onChange={(v) => set('manualApprovalThreshold', v)} />
             </div>
             <div className="flex items-center gap-2 pt-1">
               <input
@@ -449,7 +452,7 @@ function SettingsSection({
                 disabled={readOnly}
                 onChange={(e) => set('autoConfirm', e.target.checked)}
               />
-              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Auto-confirm reservations (skip manual review)</label>
+              <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>{ui.labels.autoConfirmReservations}</label>
             </div>
           </div>
         </div>
@@ -461,7 +464,7 @@ function SettingsSection({
         </div>
         <div className="p-5">
           <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Opening hours (JSON)
+            {t.availability.sections.openingHoursJson}
           </label>
           <textarea
             value={form.openingHoursJson}
@@ -504,6 +507,8 @@ function NumberField({
   onChange: (value: string) => void;
   readOnly: boolean;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <div>
       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
@@ -522,8 +527,9 @@ function NumberField({
 }
 
 function BlackoutStatusBadge({ status }: { status: BlackoutDateStatus }) {
+  const params = useParams();
   const cls = status === 'active' ? 'badge-green' : 'badge-gray';
-  return <span className={`badge ${cls}`}>{status}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminStatus(params.lang, status)}</span>;
 }
 
 function BlackoutSection({
@@ -583,13 +589,15 @@ function BlackoutSection({
   actionStatus: Status;
   actionError: string;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <div className="card">
       <div className="card-header">
         <h3 className="card-header-title">{t.availability.blackoutDates}</h3>
         {!readOnly && (
           <button onClick={onToggleCreateForm} className="btn-primary" style={{ padding: '0.4375rem 0.875rem', fontSize: '0.75rem' }}>
-            Add blackout date
+            {ui.labels.addBlackoutDate}
           </button>
         )}
       </div>
@@ -607,8 +615,8 @@ function BlackoutSection({
               style={inputStyle}
             >
               <option value="">{t.common.all}</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="active">{formatBackendAdminStatus(params.lang, 'active')}</option>
+              <option value="inactive">{formatBackendAdminStatus(params.lang, 'inactive')}</option>
             </select>
           </div>
           <button onClick={onRefresh} className="btn-ghost">
@@ -623,7 +631,7 @@ function BlackoutSection({
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Date (YYYY-MM-DD)</label>
+                <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.dateYmd}</label>
                 <input
                   type="text"
                   placeholder="2026-12-25"
@@ -639,12 +647,12 @@ function BlackoutSection({
                   checked={createIsFullDay}
                   onChange={(e) => onCreateIsFullDayChange(e.target.checked)}
                 />
-                <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>Full day</label>
+                <label className="text-sm" style={{ color: 'var(--p-text-2)' }}>{ui.labels.fullDay}</label>
               </div>
               {!createIsFullDay && (
                 <>
                   <div>
-                    <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Start (HH:mm)</label>
+                    <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.startHhMm}</label>
                     <input
                       type="text"
                       placeholder="18:00"
@@ -655,7 +663,7 @@ function BlackoutSection({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>End (HH:mm)</label>
+                    <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.endHhMm}</label>
                     <input
                       type="text"
                       placeholder="22:00"
@@ -668,7 +676,7 @@ function BlackoutSection({
                 </>
               )}
               <div className="col-span-2">
-                <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Reason (optional)</label>
+                <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.reasonOptional}</label>
                 <input
                   type="text"
                   value={createReason}
@@ -683,7 +691,7 @@ function BlackoutSection({
               disabled={createStatus === 'loading' || !createLocalDate}
               className="btn-primary"
             >
-              {createStatus === 'loading' ? 'Saving…' : 'Save blackout date'}
+              {createStatus === 'loading' ? t.common.saving : ui.labels.saveBlackoutDate}
             </button>
           </div>
         )}
@@ -708,7 +716,7 @@ function BlackoutSection({
                 <circle cx="12" cy="12" r="9" /><line x1="8" y1="8" x2="16" y2="16" />
               </svg>
             </div>
-            <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>No blackout dates found.</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--p-text-3)' }}>{ui.labels.noBlackoutDates}</p>
           </div>
         ) : (
           <div className="ba-divide">
@@ -747,6 +755,9 @@ function SlotPreviewSection({
   error: string;
   result: AvailabilitySlotsResult | null;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
+
   return (
     <div className="card">
       <div className="card-header">
@@ -754,13 +765,12 @@ function SlotPreviewSection({
       </div>
       <div className="p-5 space-y-4">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Read-only check against the Phase 25 availability slot calculation service. Does not create or modify any
-          reservation.
+          {ui.labels.availabilityCheckHelp}
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Date
+              {ui.labels.date}
             </label>
             <input
               type="date"
@@ -772,7 +782,7 @@ function SlotPreviewSection({
           </div>
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Party size
+              {ui.labels.partySize}
             </label>
             <input
               type="number"
@@ -785,7 +795,7 @@ function SlotPreviewSection({
           </div>
           <div>
             <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-              Preferred time (optional)
+              {ui.labels.preferredTimeOptional}
             </label>
             <input
               type="text"
@@ -801,7 +811,7 @@ function SlotPreviewSection({
             disabled={status === 'loading' || !date || !partySize}
             className="btn-primary"
           >
-            {status === 'loading' ? 'Checking…' : 'Check availability'}
+            {status === 'loading' ? ui.labels.checking : ui.labels.checkAvailability}
           </button>
         </div>
 
@@ -813,7 +823,7 @@ function SlotPreviewSection({
           <div className="space-y-3">
             {result.blockedReason && (
               <p className="text-sm font-semibold" style={{ color: '#b45309' }}>
-                Blocked: {result.blockedReason}
+                {ui.labels.blocked}: {result.blockedReason}
               </p>
             )}
             {result.warnings.length > 0 && (
@@ -824,7 +834,7 @@ function SlotPreviewSection({
               </ul>
             )}
             {result.availableSlots.length === 0 && !result.blockedReason ? (
-              <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>No slots generated for this date.</p>
+              <p className="text-sm" style={{ color: 'var(--p-text-4)' }}>{ui.labels.noSlotsGenerated}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {result.availableSlots.map((slot) => (
@@ -833,7 +843,7 @@ function SlotPreviewSection({
                     className={`badge ${slot.available ? 'badge-green' : 'badge-gray'}`}
                     title={slot.reason ?? ''}
                   >
-                    {slot.time} {slot.available ? `· cap ${slot.capacity}` : `· ${slot.reason}`}
+                    {slot.time} {slot.available ? `· ${ui.labels.capacity} ${slot.capacity}` : `· ${slot.reason}`}
                   </span>
                 ))}
               </div>
@@ -856,12 +866,14 @@ function BlackoutRow({
   onDeactivate: (id: string) => void;
   onReactivate: (id: string) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <div className="flex items-center justify-between gap-3 py-3">
       <div className="min-w-0">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
           {item.localDate}
-          {!item.isFullDay && item.startsAtLocal && item.endsAtLocal ? ` · ${item.startsAtLocal}–${item.endsAtLocal}` : ' · Full day'}
+          {!item.isFullDay && item.startsAtLocal && item.endsAtLocal ? ` · ${item.startsAtLocal}–${item.endsAtLocal}` : ` · ${ui.labels.fullDay}`}
         </p>
         {item.reason && (
           <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>{item.reason}</p>
@@ -872,11 +884,11 @@ function BlackoutRow({
         {!readOnly && (
           item.status === 'active' ? (
             <button onClick={() => onDeactivate(item.id)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>
-              Deactivate
+              {ui.labels.deactivate}
             </button>
           ) : (
             <button onClick={() => onReactivate(item.id)} className="btn-ghost" style={{ padding: '0.25rem 0.625rem', fontSize: '0.75rem' }}>
-              Reactivate
+              {ui.labels.reactivate}
             </button>
           )
         )}

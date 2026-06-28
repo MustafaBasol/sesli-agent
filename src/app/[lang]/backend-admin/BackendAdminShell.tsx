@@ -6,7 +6,13 @@ import { backendAuth } from '@/lib/backend-auth';
 import { BackendApiError } from '@/lib/backend-api';
 import { type BackendLoginResponse } from '@/lib/backend-endpoints';
 import BackendAdminNav from './BackendAdminNav';
-import { getBackendAdminDict, getBackendAdminUi, resolveBackendAdminLang, type BackendAdminLang } from './locale';
+import {
+  formatBackendAdminRole,
+  getBackendAdminDict,
+  getBackendAdminUi,
+  resolveBackendAdminLang,
+  type BackendAdminLang,
+} from './locale';
 
 type Status = 'idle' | 'loading' | 'error';
 const languageOptions: { value: BackendAdminLang; label: string }[] = [
@@ -94,7 +100,7 @@ export function RestaurantPicker({
         {t.selectRestaurant}
       </h3>
       <p className="text-xs mb-4" style={{ color: 'var(--p-text-4)' }}>
-        {t.signedInAs} {session.user.email} ({session.user.globalRole ?? 'no role'})
+        {t.signedInAs} {session.user.email} ({formatBackendAdminRole(params.lang, session.user.globalRole ?? 'member')})
       </p>
 
       {session.accessibleRestaurantIds.length === 0 ? (
@@ -191,7 +197,8 @@ export default function BackendAdminShell({
   children: (ctx: BackendAdminShellCtx) => React.ReactNode;
 }) {
   const params = useParams();
-  const t = getBackendAdminDict(params.lang).shell;
+  const dict = getBackendAdminDict(params.lang);
+  const t = dict.shell;
 
   const [session, setSession] = useState<BackendLoginResponse | null>(null);
   const [restaurantId, setRestaurantId] = useState('');
@@ -227,7 +234,7 @@ export default function BackendAdminShell({
       }
       setLoginStatus('idle');
     } catch (err) {
-      setLoginError(err instanceof BackendApiError ? err.message : 'Login failed');
+      setLoginError(err instanceof BackendApiError ? err.message : t.loginFailed);
       setLoginStatus('error');
     }
   };
@@ -295,14 +302,14 @@ export default function BackendAdminShell({
             </div>
             <div>
               <p className="text-sm font-bold leading-none" style={{ color: 'var(--p-text-1)' }}>Golden Meat</p>
-              <p className="text-[10px] mt-0.5 font-semibold" style={{ color: 'var(--p-text-5)' }}>Backend Admin</p>
+              <p className="text-[10px] mt-0.5 font-semibold" style={{ color: 'var(--p-text-5)' }}>{t.backendAdmin}</p>
             </div>
           </div>
           <button
             className="md:hidden p-1.5 rounded-lg transition-all"
             style={{ color: 'var(--p-text-4)' }}
             onClick={() => setSidebarOpen(false)}
-            aria-label="Close menu"
+            aria-label={dict.common.closeMenu}
           >
             <CloseIcon />
           </button>
@@ -340,7 +347,7 @@ export default function BackendAdminShell({
                 onClick={() => setSidebarOpen(true)}
                 className="md:hidden p-2 rounded-lg"
                 style={{ color: 'var(--p-text-4)', border: '1px solid var(--p-border)' }}
-                aria-label="Open menu"
+                aria-label={dict.common.openMenu}
               >
                 <MenuIcon />
               </button>
@@ -364,7 +371,9 @@ export default function BackendAdminShell({
               <LanguageSwitcher />
               <div className="hidden sm:flex flex-col items-end leading-none">
                 <span className="text-xs font-semibold" style={{ color: 'var(--p-text-1)' }}>{session.user.email}</span>
-                <span className="text-[10px] font-medium" style={{ color: 'var(--p-text-5)' }}>{session.user.globalRole ?? 'member'}</span>
+                <span className="text-[10px] font-medium" style={{ color: 'var(--p-text-5)' }}>
+                  {formatBackendAdminRole(params.lang, session.user.globalRole ?? 'member')}
+                </span>
               </div>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'var(--p-accent-bg)', color: 'var(--p-accent-text)' }}>
                 {session.user.email.charAt(0).toUpperCase()}

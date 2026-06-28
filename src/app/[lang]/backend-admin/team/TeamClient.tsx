@@ -20,13 +20,14 @@ import {
   type TeamMemberStatus,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import { formatBackendAdminRole, formatBackendAdminStatus, getBackendAdminDict, getBackendAdminUi } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
 function RoleBadge({ role }: { role: string }) {
+  const params = useParams();
   const cls = role === 'OWNER' ? 'badge-purple' : role === 'MANAGER' ? 'badge-blue' : 'badge-gray';
-  return <span className={`badge ${cls}`}>{role}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminRole(params.lang, role)}</span>;
 }
 
 export default function TeamClient() {
@@ -50,6 +51,7 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState<TeamRole | ''>('');
@@ -94,10 +96,10 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load team');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadTeam);
         setListStatus('error');
       });
-  }, [session, restaurantId, searchInput, roleFilter, statusFilter, page]);
+  }, [session, restaurantId, searchInput, roleFilter, statusFilter, page, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -119,10 +121,10 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load team member');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadTeamMember);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedUserId]);
+  }, [session, restaurantId, selectedUserId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -157,11 +159,11 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
       const payload: AddTeamMemberPayload = { email: addEmail.trim(), restaurantRole: addRole };
       const created = await addTeamMember(restaurantId, session.token, payload);
       setAddStatus('idle');
-      setAddMessage(`Added ${created.email} as ${created.restaurantRole}.`);
+      setAddMessage(ui.messages.teamMemberAdded(created.email, formatBackendAdminRole(params.lang, created.restaurantRole)));
       setAddEmail('');
       loadList();
     } catch (err) {
-      setAddError(err instanceof BackendApiError ? err.message : 'Failed to add team member');
+      setAddError(err instanceof BackendApiError ? err.message : ui.messages.failedToAddTeamMember);
       setAddStatus('error');
     }
   };
@@ -177,10 +179,10 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
         membershipStatus: editStatus !== detail.membershipStatus ? editStatus : undefined,
       });
       setActionStatus('idle');
-      setActionMessage('Team member updated.');
+      setActionMessage(ui.messages.teamMemberUpdated);
       refreshAll();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setActionStatus('error');
     }
   };
@@ -193,10 +195,10 @@ function TeamContent({ session, restaurantId }: BackendAdminShellCtx) {
     try {
       await removeTeamMember(restaurantId, session.token, detail.userId);
       setActionStatus('idle');
-      setActionMessage('Membership deactivated.');
+      setActionMessage(ui.messages.membershipDeactivated);
       refreshAll();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Remove failed');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.removeFailed);
       setActionStatus('error');
     }
   };
@@ -295,6 +297,8 @@ function AddMemberForm({
   error: string;
   message: string;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -305,7 +309,7 @@ function AddMemberForm({
     <form onSubmit={onSubmit} className="card p-4 flex flex-wrap items-end gap-3">
       <div className="flex-1 min-w-[200px]">
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Add existing user by email
+          {ui.labels.addExistingUserByEmail}
         </label>
         <input
           type="email"
@@ -318,7 +322,7 @@ function AddMemberForm({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Role
+          {ui.labels.role}
         </label>
         <select
           value={role}
@@ -328,20 +332,20 @@ function AddMemberForm({
         >
           {TEAM_ROLES.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {formatBackendAdminRole(params.lang, r)}
             </option>
           ))}
         </select>
       </div>
       <button type="submit" disabled={status === 'loading'} className="btn-primary">
-        Add member
+        {ui.labels.addMember}
       </button>
       {message && <p className="text-xs font-medium w-full" style={{ color: '#15803d' }}>{message}</p>}
       {status === 'error' && (
         <p className="text-xs font-medium w-full" style={{ color: '#ef4444' }}>{error}</p>
       )}
       <p className="text-[10px] w-full" style={{ color: 'var(--p-text-5)' }}>
-        Only existing users can be added in this phase. Inviting brand-new users will be added later.
+        {ui.messages.inviteExistingOnly}
       </p>
     </form>
   );
@@ -368,6 +372,8 @@ function Filters({
   onApply: () => void;
   onRefresh: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -382,7 +388,7 @@ function Filters({
         </label>
         <input
           type="text"
-          placeholder="Name or email"
+          placeholder={`${ui.labels.name} / ${ui.labels.email}`}
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
@@ -392,7 +398,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Role
+          {ui.labels.role}
         </label>
         <select
           value={roleFilter}
@@ -403,7 +409,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {TEAM_ROLES.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {formatBackendAdminRole(params.lang, r)}
             </option>
           ))}
         </select>
@@ -421,7 +427,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {TEAM_MEMBER_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {formatBackendAdminStatus(params.lang, s)}
             </option>
           ))}
         </select>
@@ -457,6 +463,8 @@ function ListPanel({
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -472,7 +480,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load team
+          {ui.messages.failedToLoadTeam}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -502,7 +510,7 @@ function ListPanel({
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Page {result.pagination.page} of {result.pagination.totalPages} · {result.pagination.total} total
+          {ui.labels.pageOfTotal(result.pagination.page, result.pagination.totalPages, result.pagination.total)}
         </p>
         <div className="flex gap-2">
           <button
@@ -536,6 +544,7 @@ function ListRow({
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
   return (
     <button
       onClick={() => onSelect(item.userId)}
@@ -549,7 +558,7 @@ function ListRow({
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <RoleBadge role={item.restaurantRole} />
-        <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{item.membershipStatus}</span>
+        <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{formatBackendAdminStatus(params.lang, item.membershipStatus)}</span>
       </div>
     </button>
   );
@@ -586,6 +595,8 @@ function DetailPanel({
   onSaveRole: () => void;
   onRemove: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -607,7 +618,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load team member
+          {ui.messages.failedToLoadTeamMember}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -621,7 +632,7 @@ function DetailPanel({
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Team member</h3>
+          <h3 className="card-header-title">{t.team.title}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.userId}</p>
         </div>
         <button onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
@@ -638,12 +649,12 @@ function DetailPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Email" value={detail.email} />
-          <Field label="Name" value={detail.name || '—'} />
-          <Field label="Organization role" value={detail.organizationRole || '—'} />
-          <Field label="User status" value={detail.userStatus} />
-          <Field label="Joined" value={new Date(detail.joinedAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.email} value={detail.email} />
+          <Field label={ui.labels.name} value={detail.name || '—'} />
+          <Field label={ui.labels.organizationRole} value={detail.organizationRole || '—'} />
+          <Field label={ui.labels.userStatus} value={formatBackendAdminStatus(params.lang, detail.userStatus)} />
+          <Field label={ui.labels.joined} value={new Date(detail.joinedAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
@@ -652,7 +663,7 @@ function DetailPanel({
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Restaurant role</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.restaurantRole}</label>
               <select
                 value={editRole}
                 onChange={(e) => onEditRoleChange(e.target.value as TeamRole)}
@@ -661,13 +672,13 @@ function DetailPanel({
               >
                 {TEAM_ROLES.map((r) => (
                   <option key={r} value={r}>
-                    {r}
+                    {formatBackendAdminRole(params.lang, r)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Membership status</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.membershipStatus}</label>
               <select
                 value={editStatus}
                 onChange={(e) => onEditStatusChange(e.target.value as TeamMemberStatus)}
@@ -676,7 +687,7 @@ function DetailPanel({
               >
                 {TEAM_MEMBER_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {formatBackendAdminStatus(params.lang, s)}
                   </option>
                 ))}
               </select>

@@ -299,6 +299,8 @@ function Filters({
   onApply: () => void;
   onRefresh: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -320,7 +322,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {RESERVATION_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s.replace('_', ' ')}
+              {formatBackendAdminStatus(params.lang, s)}
             </option>
           ))}
         </select>
@@ -331,7 +333,7 @@ function Filters({
         </label>
         <input
           type="text"
-          placeholder="Customer name or phone"
+          placeholder={`${ui.labels.customer} / ${ui.labels.phone}`}
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
@@ -390,6 +392,8 @@ function ListPanel({
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -405,7 +409,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load reservations
+          {ui.messages.failedToLoadReservations}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -434,7 +438,7 @@ function ListPanel({
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Page {result.pagination.page} of {result.pagination.totalPages} · {result.pagination.total} total
+          {ui.labels.pageOfTotal(result.pagination.page, result.pagination.totalPages, result.pagination.total)}
         </p>
         <div className="flex gap-2">
           <button
@@ -471,6 +475,7 @@ function ListRow({
   onSelect: (id: string) => void;
 }) {
   const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const customerLabel = item.customerName || item.phoneNumber || t.common.guest;
 
   return (
@@ -481,8 +486,8 @@ function ListRow({
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{customerLabel}</p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
-          {item.reservationDate.slice(0, 10)} · {item.reservationTime} · {item.partySize} {t.common.pax} · {item.sourceChannel}
-          {item.tableName ? ` · Table ${item.tableName}` : ''}
+          {item.reservationDate.slice(0, 10)} · {item.reservationTime} · {item.partySize} {t.common.pax} · {formatBackendAdminChannel(params.lang, item.sourceChannel)}
+          {item.tableName ? ` · ${ui.labels.tablePrefix} ${item.tableName}` : ''}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -579,7 +584,7 @@ function DetailPanel({
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Reservation</h3>
+          <h3 className="card-header-title">{t.reservations.title}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -600,11 +605,11 @@ function DetailPanel({
 
         <div className="grid grid-cols-2 gap-3 text-sm">
           <CustomerField customerId={detail.customerId} value={detail.customer?.fullName || '—'} />
-          <Field label="Phone" value={detail.customer?.phoneNumber || '—'} />
-          <Field label="Source" value={detail.sourceChannel} />
-          <Field label="Table" value={detail.table ? `${detail.table.tableNumber} (${detail.table.capacity} pax)` : '—'} />
-          <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.phone} value={detail.customer?.phoneNumber || '—'} />
+          <Field label={ui.labels.source} value={formatBackendAdminChannel(params.lang, detail.sourceChannel)} />
+          <Field label={ui.labels.table} value={detail.table ? `${detail.table.tableNumber} (${detail.table.capacity} ${t.common.pax})` : '—'} />
+          <Field label={ui.labels.created} value={new Date(detail.createdAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
         {detail.reservationRequest && (
@@ -625,7 +630,7 @@ function DetailPanel({
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{t.common.status}</label>
               <select
                 value={editStatus}
                 onChange={(e) => onEditStatusChange(e.target.value as ReservationStatus)}
@@ -634,13 +639,13 @@ function DetailPanel({
               >
                 {RESERVATION_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {s.replace('_', ' ')}
+                    {formatBackendAdminStatus(params.lang, s)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Party size</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.partySize}</label>
               <input
                 type="number"
                 min={1}
@@ -652,7 +657,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Date</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.date}</label>
               <input
                 type="date"
                 value={editDate}
@@ -662,7 +667,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Time</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.time}</label>
               <input
                 type="time"
                 value={editTime}
@@ -673,7 +678,7 @@ function DetailPanel({
             </div>
           </div>
           <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Internal note</label>
+            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.internalNote}</label>
             <textarea
               value={editNote}
               onChange={(e) => onEditNoteChange(e.target.value)}
@@ -683,17 +688,17 @@ function DetailPanel({
             />
           </div>
           <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table</label>
+            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.table}</label>
             <select
               value={editAssignedTableId}
               onChange={(e) => onEditAssignedTableIdChange(e.target.value)}
               className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
               style={inputStyle}
             >
-              <option value="">Unassigned</option>
+              <option value="">{ui.labels.unassigned}</option>
               {tables.map((t) => (
                 <option key={t.id} value={t.id}>
-                  Table {t.tableNumber} ({t.capacity} pax{t.location ? `, ${t.location}` : ''})
+                  {ui.labels.tablePrefix} {t.tableNumber} ({t.capacity} {getBackendAdminDict(params.lang).common.pax}{t.location ? `, ${t.location}` : ''})
                 </option>
               ))}
             </select>
@@ -719,10 +724,11 @@ function Field({ label, value }: { label: string; value: string }) {
 function CustomerField({ customerId, value }: { customerId: string | null; value: string }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>Customer</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>{ui.labels.customer}</p>
       {customerId ? (
         <Link
           href={`/${lang}/backend-admin/customers?customerId=${customerId}`}
@@ -749,6 +755,7 @@ function ReservationRequestSummaryLink({
 }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <div className="space-y-1">
@@ -757,10 +764,10 @@ function ReservationRequestSummaryLink({
         className="text-xs block"
         style={{ color: 'var(--p-accent-text)' }}
       >
-        Originating request: {status.replace('_', ' ')}
+        {ui.labels.originatingRequest}: {formatBackendAdminStatus(params.lang, status)}
       </Link>
       {specialRequest && (
-        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>Special request: {specialRequest}</p>
+        <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{ui.labels.specialRequest}: {specialRequest}</p>
       )}
     </div>
   );
@@ -769,6 +776,7 @@ function ReservationRequestSummaryLink({
 function ConversationSummaryLink({ conversationId, status }: { conversationId: string; status: string }) {
   const params = useParams();
   const lang = typeof params.lang === 'string' ? params.lang : 'en';
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <Link
@@ -776,7 +784,7 @@ function ConversationSummaryLink({ conversationId, status }: { conversationId: s
       className="text-xs block"
       style={{ color: 'var(--p-accent-text)' }}
     >
-      Conversation: {status}
+      {ui.labels.conversation}: {formatBackendAdminStatus(params.lang, status)}
     </Link>
   );
 }

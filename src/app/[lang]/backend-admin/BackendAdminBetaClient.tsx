@@ -67,6 +67,8 @@ function DashboardContent({
   restaurantId: string;
   onChangeRestaurant: () => void;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang).dashboard;
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState('');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -92,14 +94,14 @@ function DashboardContent({
       })
       .catch((err) => {
         if (!isActive) return;
-        setError(err instanceof BackendApiError ? err.message : 'Failed to load dashboard data');
+        setError(err instanceof BackendApiError ? err.message : t.fetchFailed);
         setStatus('error');
       });
 
     return () => {
       isActive = false;
     };
-  }, [session, restaurantId]);
+  }, [session, restaurantId, t.fetchFailed]);
 
   return (
     <DashboardView
@@ -403,8 +405,8 @@ function CountBadge({ label, value, urgent = false }: { label: string; value: nu
 function RecentListCard<T extends { id: string }>({
   title,
   viewAllHref,
-  viewAllLabel = 'View all →',
-  emptyLabel = 'No data yet',
+  viewAllLabel = '',
+  emptyLabel = '',
   items,
   renderItem,
   badge,

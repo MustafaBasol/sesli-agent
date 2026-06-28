@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import {
+  formatBackendAdminChannel,
+  formatBackendAdminProvider,
+  formatBackendAdminStatus,
+  getBackendAdminDict,
+  getBackendAdminUi,
+} from '../locale';
 import {
   CONVERSATION_STATUSES,
   getConversationDetail,
@@ -21,9 +27,9 @@ import {
 
 type Status = 'idle' | 'loading' | 'error';
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, lang }: { status: string; lang: unknown }) {
   const cls = status === 'open' ? 'badge-blue' : status === 'pending' ? 'badge-amber' : 'badge-gray';
-  return <span className={`badge ${cls}`}>{status}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminStatus(lang, status)}</span>;
 }
 
 export default function ConversationsClient() {
@@ -42,6 +48,7 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -80,10 +87,10 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load conversations');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadConversations);
         setListStatus('error');
       });
-  }, [session, restaurantId, statusFilter, channelFilter, providerFilter, searchInput, page]);
+  }, [session, restaurantId, statusFilter, channelFilter, providerFilter, searchInput, page, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -103,10 +110,10 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load conversation');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadConversation);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedConversationId]);
+  }, [session, restaurantId, selectedConversationId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -134,11 +141,11 @@ function ConversationsContent({ session, restaurantId }: { session: BackendLogin
           setMessagesStatus('idle');
         })
         .catch((err) => {
-          setMessagesError(err instanceof BackendApiError ? err.message : 'Failed to load messages');
+          setMessagesError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadMessages);
           setMessagesStatus('error');
         });
     },
-    [session, restaurantId, selectedConversationId]
+    [session, restaurantId, selectedConversationId, ui]
   );
 
   useEffect(() => {
@@ -260,6 +267,8 @@ function Filters({
   onApply: () => void;
   onRefresh: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -281,14 +290,14 @@ function Filters({
           <option value="">{t.common.all}</option>
           {CONVERSATION_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {formatBackendAdminStatus(params.lang, s)}
             </option>
           ))}
         </select>
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Channel
+          {ui.labels.channel}
         </label>
         <input
           type="text"
@@ -302,7 +311,7 @@ function Filters({
       </div>
       <div>
         <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          Provider
+          {ui.labels.provider}
         </label>
         <input
           type="text"
@@ -320,7 +329,7 @@ function Filters({
         </label>
         <input
           type="text"
-          placeholder="Name, phone, or handle"
+          placeholder={`${ui.labels.name}, ${ui.labels.phoneHandle}`}
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
@@ -359,6 +368,8 @@ function ListPanel({
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -374,7 +385,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load conversations
+          {ui.messages.failedToLoadConversations}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -399,12 +410,12 @@ function ListPanel({
     <div className="card">
       <div className="ba-divide">
         {result.data.map((item) => (
-          <ListRow key={item.id} item={item} isSelected={item.id === selectedConversationId} onSelect={onSelect} />
+          <ListRow key={item.id} t={t} item={item} isSelected={item.id === selectedConversationId} onSelect={onSelect} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Page {result.pagination.page} of {result.pagination.totalPages} · {result.pagination.total} total
+          {ui.labels.pageOfTotal(result.pagination.page, result.pagination.totalPages, result.pagination.total)}
         </p>
         <div className="flex gap-2">
           <button
@@ -430,17 +441,21 @@ function ListPanel({
 }
 
 function ListRow({
+  t,
   item,
   isSelected,
   onSelect,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   item: ConversationListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
   const label =
-    item.customer?.fullName || item.customerName || item.customerPhone || item.customerHandle || 'Unknown';
+    item.customer?.fullName || item.customerName || item.customerPhone || item.customerHandle || t.common.guest;
   const handle = item.customerPhone || item.customerHandle || '—';
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
 
   return (
     <button
@@ -450,21 +465,21 @@ function ListRow({
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{label}</p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
-          {handle} · {item.channel}
-          {item.provider ? ` (${item.provider})` : ''}
+          {handle} · {formatBackendAdminChannel(params.lang, item.channel)}
+          {item.provider ? ` (${formatBackendAdminProvider(params.lang, item.provider)})` : ''}
         </p>
         {item.lastMessagePreview && (
           <p className="text-xs truncate mt-0.5" style={{ color: 'var(--p-text-5)' }}>{item.lastMessagePreview}</p>
         )}
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} lang={params.lang} />
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
           {item.lastMessageAt ? new Date(item.lastMessageAt).toLocaleString() : '—'}
         </span>
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
-          {item.messageCount} msg{item.messageCount === 1 ? '' : 's'} · {item.reservationRequestCount} req
-          {item.reservationRequestCount === 1 ? '' : 's'}
+          {item.messageCount} {item.messageCount === 1 ? ui.labels.message : ui.labels.messagesPlural} · {item.reservationRequestCount}{' '}
+          {item.reservationRequestCount === 1 ? ui.labels.request : ui.labels.requestsPlural}
         </span>
       </div>
     </button>
@@ -496,6 +511,8 @@ function DetailPanel({
   messagesPagination: MessageListResponse['pagination'] | null;
   onLoadMore: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -511,7 +528,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load conversation
+          {ui.messages.failedToLoadConversation}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -521,18 +538,18 @@ function DetailPanel({
     );
   }
 
-  const label = detail.customer?.fullName || detail.customerName || detail.customerPhone || detail.customerHandle || 'Unknown';
+  const label = detail.customer?.fullName || detail.customerName || detail.customerPhone || detail.customerHandle || t.common.guest;
   const canLoadMore = messagesPagination ? messagesPagination.page < messagesPagination.totalPages : false;
 
   return (
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Conversation</h3>
+          <h3 className="card-header-title">{ui.labels.conversation}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge status={detail.status} />
+          <StatusBadge status={detail.status} lang={params.lang} />
           <button onClick={onRefresh} className="text-xs font-semibold" style={{ color: 'var(--p-accent-text)' }}>
             {t.common.refresh}
           </button>
@@ -544,12 +561,12 @@ function DetailPanel({
 
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Customer" value={label} />
-          <Field label="Phone / handle" value={detail.customerPhone || detail.customerHandle || '—'} />
-          <Field label="Channel" value={`${detail.channel}${detail.provider ? ` (${detail.provider})` : ''}`} />
-          <Field label="Last message" value={detail.lastMessageAt ? new Date(detail.lastMessageAt).toLocaleString() : '—'} />
-          <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.customer} value={label} />
+          <Field label={ui.labels.phoneHandle} value={detail.customerPhone || detail.customerHandle || '—'} />
+          <Field label={ui.labels.channel} value={`${formatBackendAdminChannel(params.lang, detail.channel)}${detail.provider ? ` (${formatBackendAdminProvider(params.lang, detail.provider)})` : ''}`} />
+          <Field label={ui.labels.lastMessage} value={detail.lastMessageAt ? new Date(detail.lastMessageAt).toLocaleString() : '—'} />
+          <Field label={ui.labels.created} value={new Date(detail.createdAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
         <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
@@ -558,7 +575,7 @@ function DetailPanel({
               {t.conversations.messages}
             </p>
             {messagesStatus === 'loading' && (
-              <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Loading...</span>
+              <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.loading}</span>
             )}
           </div>
 
@@ -604,6 +621,7 @@ function DetailPanel({
 }
 
 function MessageRow({ message }: { message: ConversationMessage }) {
+  const params = useParams();
   const isOutbound = message.direction === 'outbound';
   return (
     <div
@@ -615,7 +633,7 @@ function MessageRow({ message }: { message: ConversationMessage }) {
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-          {message.direction} · {message.senderType}
+          {formatBackendAdminStatus(params.lang, message.direction)} · {formatBackendAdminStatus(params.lang, message.senderType)}
         </span>
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
           {new Date(message.createdAt).toLocaleString()}
@@ -626,10 +644,10 @@ function MessageRow({ message }: { message: ConversationMessage }) {
       </p>
       <div className="flex items-center gap-2 mt-1">
         <span className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>
-          {message.channel}
-          {message.provider ? ` (${message.provider})` : ''}
+          {formatBackendAdminChannel(params.lang, message.channel)}
+          {message.provider ? ` (${formatBackendAdminProvider(params.lang, message.provider)})` : ''}
         </span>
-        {message.status && <span className="badge badge-gray">{message.status}</span>}
+        {message.status && <span className="badge badge-gray">{formatBackendAdminStatus(params.lang, message.status)}</span>}
       </div>
     </div>
   );

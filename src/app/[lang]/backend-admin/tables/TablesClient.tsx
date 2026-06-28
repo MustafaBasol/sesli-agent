@@ -16,13 +16,14 @@ import {
   type RestaurantTableStatus,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import { formatBackendAdminStatus, getBackendAdminDict, getBackendAdminUi } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
 function StatusBadge({ status }: { status: string }) {
+  const params = useParams();
   const cls = status === 'active' ? 'badge-green' : 'badge-gray';
-  return <span className={`badge ${cls}`}>{status}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminStatus(params.lang, status)}</span>;
 }
 
 export default function TablesClient() {
@@ -46,6 +47,7 @@ function TablesContent({ session, restaurantId }: BackendAdminShellCtx) {
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -92,10 +94,10 @@ function TablesContent({ session, restaurantId }: BackendAdminShellCtx) {
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load tables');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadTables);
         setListStatus('error');
       });
-  }, [session, restaurantId, statusFilter, searchInput, page]);
+  }, [session, restaurantId, statusFilter, searchInput, page, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -119,10 +121,10 @@ function TablesContent({ session, restaurantId }: BackendAdminShellCtx) {
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load table');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadTable);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedTableId]);
+  }, [session, restaurantId, selectedTableId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -160,10 +162,10 @@ function TablesContent({ session, restaurantId }: BackendAdminShellCtx) {
         status: editStatus,
       });
       setActionStatus('idle');
-      setActionMessage('Table updated.');
+      setActionMessage(ui.messages.tableUpdated);
       refreshAll();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setActionStatus('error');
     }
   };
@@ -188,7 +190,7 @@ function TablesContent({ session, restaurantId }: BackendAdminShellCtx) {
       loadList();
       openDetail(created.id);
     } catch (err) {
-      setCreateActionError(err instanceof BackendApiError ? err.message : 'Create failed');
+      setCreateActionError(err instanceof BackendApiError ? err.message : ui.messages.createFailed);
       setCreateActionStatus('error');
     }
   };
@@ -296,6 +298,8 @@ function Filters({
   onRefresh: () => void;
   onAddTable: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -317,7 +321,7 @@ function Filters({
           <option value="">{t.common.all}</option>
           {TABLE_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {formatBackendAdminStatus(params.lang, s)}
             </option>
           ))}
         </select>
@@ -328,7 +332,7 @@ function Filters({
         </label>
         <input
           type="text"
-          placeholder="Table number or location"
+          placeholder={ui.labels.tableSearchPlaceholder}
           value={searchInput}
           onChange={(e) => onSearchInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && onApply()}
@@ -384,6 +388,9 @@ function CreateForm({
   actionStatus: Status;
   actionError: string;
 }) {
+  const params = useParams();
+  const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -393,14 +400,14 @@ function CreateForm({
   return (
     <div className="card p-4 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-        New table
+        {ui.labels.newTable}
       </p>
       {actionStatus === 'error' && (
         <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{actionError}</p>
       )}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table number</label>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.tableNumber}</label>
           <input
             type="text"
             value={tableNumber}
@@ -410,7 +417,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Capacity</label>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.capacity}</label>
           <input
             type="number"
             min={1}
@@ -422,7 +429,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Location</label>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.location}</label>
           <input
             type="text"
             value={location}
@@ -432,7 +439,7 @@ function CreateForm({
           />
         </div>
         <div>
-          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{t.common.status}</label>
           <select
             value={status}
             onChange={(e) => onStatusChange(e.target.value as RestaurantTableStatus)}
@@ -441,7 +448,7 @@ function CreateForm({
           >
             {TABLE_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {formatBackendAdminStatus(params.lang, s)}
               </option>
             ))}
           </select>
@@ -454,14 +461,14 @@ function CreateForm({
           className="text-xs font-semibold px-3 py-2 rounded-lg"
           style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
         >
-          Save table
+          {ui.labels.saveTable}
         </button>
         <button
           onClick={onCancel}
           className="text-xs font-semibold px-3 py-2 rounded-lg"
           style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
         >
-          Cancel
+          {ui.labels.cancel}
         </button>
       </div>
     </div>
@@ -485,6 +492,8 @@ function ListPanel({
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -500,7 +509,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load tables
+          {ui.messages.failedToLoadTables}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -526,12 +535,12 @@ function ListPanel({
     <div className="card">
       <div className="ba-divide">
         {result.data.map((item) => (
-          <ListRow key={item.id} item={item} isSelected={item.id === selectedTableId} onSelect={onSelect} />
+          <ListRow key={item.id} t={t} item={item} isSelected={item.id === selectedTableId} onSelect={onSelect} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Page {result.pagination.page} of {result.pagination.totalPages} · {result.pagination.total} total
+          {ui.labels.pageOfTotal(result.pagination.page, result.pagination.totalPages, result.pagination.total)}
         </p>
         <div className="flex gap-2">
           <button
@@ -557,14 +566,18 @@ function ListPanel({
 }
 
 function ListRow({
+  t,
   item,
   isSelected,
   onSelect,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   item: RestaurantTableListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <button
       onClick={() => onSelect(item.id)}
@@ -572,11 +585,11 @@ function ListRow({
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>
-          Table {item.tableNumber}
+          {ui.labels.tablePrefix} {item.tableNumber}
         </p>
         <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
-          {item.capacity} pax{item.location ? ` · ${item.location}` : ''}
-          {item.upcomingReservationCount > 0 ? ` · ${item.upcomingReservationCount} upcoming` : ''}
+          {item.capacity} {t.common.pax}{item.location ? ` · ${item.location}` : ''}
+          {item.upcomingReservationCount > 0 ? ` · ${item.upcomingReservationCount} ${ui.labels.upcoming}` : ''}
         </p>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -623,6 +636,8 @@ function DetailPanel({
   onEditStatusChange: (value: RestaurantTableStatus) => void;
   onSaveEdits: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -644,7 +659,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load table
+          {ui.messages.failedToLoadTable}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -658,7 +673,7 @@ function DetailPanel({
     <div className="card">
       <div className="card-header">
         <div>
-          <h3 className="card-header-title">Table {detail.tableNumber}</h3>
+          <h3 className="card-header-title">{ui.labels.tablePrefix} {detail.tableNumber}</h3>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--p-text-5)' }}>{detail.id}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -678,23 +693,23 @@ function DetailPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Capacity" value={`${detail.capacity} pax`} />
-          <Field label="Location" value={detail.location || '—'} />
-          <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.capacity} value={`${detail.capacity} ${t.common.pax}`} />
+          <Field label={ui.labels.location} value={detail.location || '—'} />
+          <Field label={ui.labels.created} value={new Date(detail.createdAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
         <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Upcoming reservations ({detail.upcomingReservationCount})
+            {ui.labels.upcomingReservations} ({detail.upcomingReservationCount})
           </p>
           {detail.upcomingReservations.length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>No upcoming reservations.</p>
+            <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>{ui.labels.noUpcomingReservations}</p>
           ) : (
             <div className="space-y-1.5">
               {detail.upcomingReservations.map((r) => (
                 <div key={r.id} className="text-xs flex items-center justify-between gap-2" style={{ color: 'var(--p-text-3)' }}>
-                  <span className="truncate">{r.customerName || 'Guest'} · {r.partySize} pax</span>
+                  <span className="truncate">{r.customerName || t.common.guest} · {r.partySize} {t.common.pax}</span>
                   <span className="shrink-0">{r.reservationDate.slice(0, 10)} {r.reservationTime}</span>
                 </div>
               ))}
@@ -704,11 +719,11 @@ function DetailPanel({
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-            Edit table
+            {ui.labels.editTable}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Table number</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.tableNumber}</label>
               <input
                 type="text"
                 value={editTableNumber}
@@ -718,7 +733,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Capacity</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.capacity}</label>
               <input
                 type="number"
                 min={1}
@@ -730,7 +745,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Location</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.location}</label>
               <input
                 type="text"
                 value={editLocation}
@@ -740,7 +755,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{t.common.status}</label>
               <select
                 value={editStatus}
                 onChange={(e) => onEditStatusChange(e.target.value as RestaurantTableStatus)}
@@ -749,7 +764,7 @@ function DetailPanel({
               >
                 {TABLE_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {formatBackendAdminStatus(params.lang, s)}
                   </option>
                 ))}
               </select>

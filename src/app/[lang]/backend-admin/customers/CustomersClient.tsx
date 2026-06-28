@@ -5,7 +5,12 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { BackendApiError } from '@/lib/backend-api';
 import BackendAdminShell from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import {
+  formatBackendAdminChannel,
+  formatBackendAdminStatus,
+  getBackendAdminDict,
+  getBackendAdminUi,
+} from '../locale';
 import {
   getCustomerDetail,
   listCustomers,
@@ -34,6 +39,7 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
   const searchParams = useSearchParams();
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
 
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
@@ -69,10 +75,10 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
         setListStatus('idle');
       })
       .catch((err) => {
-        setListError(err instanceof BackendApiError ? err.message : 'Failed to load customers');
+        setListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadCustomers);
         setListStatus('error');
       });
-  }, [session, restaurantId, searchInput, page]);
+  }, [session, restaurantId, searchInput, page, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -96,10 +102,10 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
         setDetailStatus('idle');
       })
       .catch((err) => {
-        setDetailError(err instanceof BackendApiError ? err.message : 'Failed to load customer');
+        setDetailError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadCustomer);
         setDetailStatus('error');
       });
-  }, [session, restaurantId, selectedCustomerId]);
+  }, [session, restaurantId, selectedCustomerId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -137,10 +143,10 @@ function CustomersContent({ session, restaurantId }: { session: BackendLoginResp
         notes: editNotes.trim() ? editNotes.trim() : null,
       });
       setActionStatus('idle');
-      setActionMessage('Customer updated.');
+      setActionMessage(ui.messages.customerUpdated);
       refreshAll();
     } catch (err) {
-      setActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setActionStatus('error');
     }
   };
@@ -220,6 +226,8 @@ function Filters({
   onApply: () => void;
   onRefresh: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -273,6 +281,9 @@ function ListPanel({
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
+
   if (status === 'loading') {
     return (
       <div className="card p-10 flex items-center justify-center">
@@ -288,7 +299,7 @@ function ListPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load customers
+          {ui.messages.failedToLoadCustomers}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
       </div>
@@ -314,12 +325,12 @@ function ListPanel({
     <div className="card">
       <div className="ba-divide">
         {result.data.map((item) => (
-          <ListRow key={item.id} item={item} isSelected={item.id === selectedCustomerId} onSelect={onSelect} />
+          <ListRow key={item.id} t={t} item={item} isSelected={item.id === selectedCustomerId} onSelect={onSelect} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-          Page {result.pagination.page} of {result.pagination.totalPages} · {result.pagination.total} total
+          {ui.labels.pageOfTotal(result.pagination.page, result.pagination.totalPages, result.pagination.total)}
         </p>
         <div className="flex gap-2">
           <button
@@ -345,15 +356,17 @@ function ListPanel({
 }
 
 function ListRow({
+  t,
   item,
   isSelected,
   onSelect,
 }: {
+  t: ReturnType<typeof getBackendAdminDict>;
   item: CustomerListItem;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) {
-  const label = item.fullName || item.phoneNumber || item.email || 'Unnamed';
+  const label = item.fullName || item.phoneNumber || item.email || t.common.guest;
   const lastActivity = item.lastContactAt ?? item.lastVisitAt ?? item.createdAt;
 
   return (
@@ -415,6 +428,8 @@ function DetailPanel({
   onEditNotesChange: (value: string) => void;
   onSaveEdits: () => void;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   const inputStyle = {
     background: 'var(--p-subtle)',
     border: '1px solid var(--p-border)',
@@ -436,7 +451,7 @@ function DetailPanel({
     return (
       <div className="card p-6 text-center">
         <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-          Failed to load customer
+          {ui.messages.failedToLoadCustomer}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{error}</p>
         <button onClick={onClose} className="text-xs font-semibold mt-3" style={{ color: 'var(--p-accent-text)' }}>
@@ -467,10 +482,10 @@ function DetailPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <Field label="Total reservations" value={String(detail.totalReservations)} />
-          <Field label="Last visit" value={detail.lastVisitAt ? new Date(detail.lastVisitAt).toLocaleString() : '—'} />
-          <Field label="Created" value={new Date(detail.createdAt).toLocaleString()} />
-          <Field label="Updated" value={new Date(detail.updatedAt).toLocaleString()} />
+          <Field label={ui.labels.totalReservations} value={String(detail.totalReservations)} />
+          <Field label={ui.labels.lastVisit} value={detail.lastVisitAt ? new Date(detail.lastVisitAt).toLocaleString() : '—'} />
+          <Field label={ui.labels.created} value={new Date(detail.createdAt).toLocaleString()} />
+          <Field label={ui.labels.updated} value={new Date(detail.updatedAt).toLocaleString()} />
         </div>
 
         <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--p-border-2)' }}>
@@ -478,7 +493,7 @@ function DetailPanel({
             {t.common.editSafeFields}
           </p>
           <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Full name</label>
+            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.fullName}</label>
             <input
               type="text"
               value={editFullName}
@@ -489,7 +504,7 @@ function DetailPanel({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Phone number</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.phoneNumber}</label>
               <input
                 type="text"
                 value={editPhoneNumber}
@@ -499,7 +514,7 @@ function DetailPanel({
               />
             </div>
             <div>
-              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Email</label>
+              <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.email}</label>
               <input
                 type="email"
                 value={editEmail}
@@ -510,7 +525,7 @@ function DetailPanel({
             </div>
           </div>
           <div>
-            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Notes</label>
+            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.notes}</label>
             <textarea
               value={editNotes}
               onChange={(e) => onEditNotesChange(e.target.value)}
@@ -539,9 +554,9 @@ function DetailPanel({
                 <div key={req.id} className="flex items-center justify-between gap-2 text-xs">
                   <span style={{ color: 'var(--p-text-3)' }}>
                     {req.reservationDate ? req.reservationDate.slice(0, 10) : '—'} · {req.reservationTime ?? '—'} ·{' '}
-                    {req.partySize ?? '—'} pax
+                    {req.partySize ?? '—'} {t.common.pax}
                   </span>
-                  <span className="badge badge-gray shrink-0">{req.status.replace('_', ' ')}</span>
+                  <span className="badge badge-gray shrink-0">{formatBackendAdminStatus(params.lang, req.status)}</span>
                 </div>
               ))}
             </div>
@@ -579,9 +594,9 @@ function RecentConversations({
             className="flex items-center justify-between gap-2 text-xs"
           >
             <span className="truncate" style={{ color: 'var(--p-accent-text)' }}>
-              {conv.lastMessagePreview || conv.channel}
+              {conv.lastMessagePreview || formatBackendAdminChannel(params.lang, conv.channel)}
             </span>
-            <span className="badge badge-gray shrink-0">{conv.status}</span>
+            <span className="badge badge-gray shrink-0">{formatBackendAdminStatus(params.lang, conv.status)}</span>
           </Link>
         ))}
       </div>

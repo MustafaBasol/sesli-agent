@@ -11,7 +11,7 @@ import {
   type UpdateRestaurantSettingsPayload,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import { formatBackendAdminStatus, getBackendAdminDict, getBackendAdminUi } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -54,6 +54,7 @@ export default function SettingsClient() {
 function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
   const [loadStatus, setLoadStatus] = useState<Status>('idle');
   const [loadError, setLoadError] = useState('');
   const [settings, setSettings] = useState<RestaurantSettings | null>(null);
@@ -76,10 +77,10 @@ function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
         setLoadStatus('idle');
       })
       .catch((err) => {
-        setLoadError(err instanceof BackendApiError ? err.message : 'Failed to load settings');
+        setLoadError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadSettings);
         setLoadStatus('error');
       });
-  }, [session, restaurantId]);
+  }, [session, restaurantId, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -106,14 +107,14 @@ function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
       setSettings(updated);
       setForm(toFormState(updated));
       setSaveStatus('idle');
-      setSaveMessage('Settings saved.');
+      setSaveMessage(ui.messages.settingsSaved);
       setReadOnly(false);
     } catch (err) {
       if (err instanceof BackendApiError && err.status === 403) {
         setReadOnly(true);
-        setSaveError('You do not have permission to update settings for this restaurant.');
+        setSaveError(ui.messages.noPermissionSettings);
       } else {
-        setSaveError(err instanceof BackendApiError ? err.message : 'Failed to save settings');
+        setSaveError(err instanceof BackendApiError ? err.message : ui.messages.failedToSaveSettings);
       }
       setSaveStatus('error');
     }
@@ -130,7 +131,7 @@ function SettingsContent({ session, restaurantId }: BackendAdminShellCtx) {
         ) : loadStatus === 'error' || !settings || !form ? (
           <div className="card p-6 text-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>
-              Failed to load settings
+              {ui.messages.failedToLoadSettings}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{loadError}</p>
           </div>
@@ -197,6 +198,8 @@ function FieldInput({
   readOnly: boolean;
   type?: string;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <div>
       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
@@ -236,20 +239,23 @@ function ProfileSection({
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
   readOnly: boolean;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
+
   return (
     <div className="card">
       <div className="card-header">
         <h3 className="card-header-title">{t.settingsPage.restaurantProfile}</h3>
-        <span className="badge badge-gray">{settings.status}</span>
+        <span className="badge badge-gray">{formatBackendAdminStatus(params.lang, settings.status)}</span>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldInput
-          label="Name"
+          label={ui.labels.name}
           value={form.name}
           readOnly={readOnly}
           onChange={(value) => onChange((prev) => (prev ? { ...prev, name: value } : prev))}
         />
-        <ReadOnlyField label="Slug" value={settings.slug} />
+        <ReadOnlyField label={ui.labels.slug} value={settings.slug} />
       </div>
       <p className="px-5 pb-4 text-[10px]" style={{ color: 'var(--p-text-5)' }}>
         {t.settingsPage.slugHint}
@@ -269,6 +275,7 @@ function ContactSection({
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
   readOnly: boolean;
 }) {
+  const ui = getBackendAdminUi(useParams().lang);
   return (
     <div className="card">
       <div className="card-header">
@@ -276,13 +283,13 @@ function ContactSection({
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldInput
-          label="Phone"
+          label={ui.labels.phone}
           value={form.phone}
           readOnly={readOnly}
           onChange={(value) => onChange((prev) => (prev ? { ...prev, phone: value } : prev))}
         />
         <FieldInput
-          label="Email"
+          label={ui.labels.email}
           type="email"
           value={form.email}
           readOnly={readOnly}
@@ -290,7 +297,7 @@ function ContactSection({
         />
         <div className="md:col-span-2">
           <FieldInput
-            label="Address"
+            label={ui.labels.address}
             value={form.address}
             readOnly={readOnly}
             onChange={(value) => onChange((prev) => (prev ? { ...prev, address: value } : prev))}
@@ -312,6 +319,7 @@ function LocalizationSection({
   onChange: (updater: (prev: FormState | null) => FormState | null) => void;
   readOnly: boolean;
 }) {
+  const ui = getBackendAdminUi(useParams().lang);
   return (
     <div className="card">
       <div className="card-header">
@@ -319,13 +327,13 @@ function LocalizationSection({
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <FieldInput
-          label="Timezone"
+          label={ui.labels.timezone}
           value={form.timezone}
           readOnly={readOnly}
           onChange={(value) => onChange((prev) => (prev ? { ...prev, timezone: value } : prev))}
         />
         <FieldInput
-          label="Default language"
+          label={ui.labels.defaultLanguage}
           value={form.defaultLanguage}
           readOnly={readOnly}
           onChange={(value) => onChange((prev) => (prev ? { ...prev, defaultLanguage: value } : prev))}
@@ -342,15 +350,17 @@ function OrganizationSection({
   t: ReturnType<typeof getBackendAdminDict>;
   settings: RestaurantSettings;
 }) {
+  const params = useParams();
+  const ui = getBackendAdminUi(params.lang);
   return (
     <div className="card">
       <div className="card-header">
         <h3 className="card-header-title">{t.settingsPage.organization}</h3>
-        <span className="badge badge-gray">{settings.organization.status}</span>
+        <span className="badge badge-gray">{formatBackendAdminStatus(params.lang, settings.organization.status)}</span>
       </div>
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReadOnlyField label="Name" value={settings.organization.name} />
-        <ReadOnlyField label="Created" value={new Date(settings.organization.createdAt).toLocaleString()} />
+        <ReadOnlyField label={ui.labels.name} value={settings.organization.name} />
+        <ReadOnlyField label={ui.labels.created} value={new Date(settings.organization.createdAt).toLocaleString()} />
       </div>
     </div>
   );

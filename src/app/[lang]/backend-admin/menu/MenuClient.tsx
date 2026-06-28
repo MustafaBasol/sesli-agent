@@ -19,7 +19,7 @@ import {
   type MenuStatus,
 } from '@/lib/backend-endpoints';
 import BackendAdminShell, { type BackendAdminShellCtx } from '../BackendAdminShell';
-import { getBackendAdminDict } from '../locale';
+import { formatBackendAdminStatus, getBackendAdminDict, getBackendAdminUi } from '../locale';
 
 type Status = 'idle' | 'loading' | 'error';
 type Tab = 'categories' | 'items';
@@ -31,8 +31,9 @@ const inputStyle = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const params = useParams();
   const cls = status === 'active' ? 'badge-green' : 'badge-gray';
-  return <span className={`badge ${cls}`}>{status}</span>;
+  return <span className={`badge ${cls}`}>{formatBackendAdminStatus(params.lang, status)}</span>;
 }
 
 function formatPrice(priceCents: number | null, currency: string): string {
@@ -66,6 +67,7 @@ export default function MenuClient() {
 function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
   const params = useParams();
   const t = getBackendAdminDict(params.lang);
+  const ui = getBackendAdminUi(params.lang);
   const [tab, setTab] = useState<Tab>('categories');
 
   // Categories
@@ -141,10 +143,10 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
         setCatListStatus('idle');
       })
       .catch((err) => {
-        setCatListError(err instanceof BackendApiError ? err.message : 'Failed to load categories');
+        setCatListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadCategories);
         setCatListStatus('error');
       });
-  }, [session, restaurantId, catStatusFilter, catSearchInput, catPage]);
+  }, [session, restaurantId, catStatusFilter, catSearchInput, catPage, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -180,10 +182,10 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
         setItemListStatus('idle');
       })
       .catch((err) => {
-        setItemListError(err instanceof BackendApiError ? err.message : 'Failed to load items');
+        setItemListError(err instanceof BackendApiError ? err.message : ui.messages.failedToLoadItems);
         setItemListStatus('error');
       });
-  }, [session, restaurantId, itemCategoryFilter, itemStatusFilter, itemAvailFilter, itemSearchInput, itemPage]);
+  }, [session, restaurantId, itemCategoryFilter, itemStatusFilter, itemAvailFilter, itemSearchInput, itemPage, ui]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -213,11 +215,11 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
         status: editCatStatus,
       });
       setCatActionStatus('idle');
-      setCatActionMessage('Category updated.');
+      setCatActionMessage(ui.messages.categoryUpdated);
       loadCategories();
       loadAllCategories();
     } catch (err) {
-      setCatActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setCatActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setCatActionStatus('error');
     }
   };
@@ -238,7 +240,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
       loadCategories();
       loadAllCategories();
     } catch (err) {
-      setCreateCatActionError(err instanceof BackendApiError ? err.message : 'Create failed');
+      setCreateCatActionError(err instanceof BackendApiError ? err.message : ui.messages.createFailed);
       setCreateCatActionStatus('error');
     }
   };
@@ -278,10 +280,10 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
         status: editItemStatus,
       });
       setItemActionStatus('idle');
-      setItemActionMessage('Item updated.');
+      setItemActionMessage(ui.messages.itemUpdated);
       loadItems();
     } catch (err) {
-      setItemActionError(err instanceof BackendApiError ? err.message : 'Update failed');
+      setItemActionError(err instanceof BackendApiError ? err.message : ui.messages.updateFailed);
       setItemActionStatus('error');
     }
   };
@@ -304,7 +306,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
       loadItems();
       selectItem(created);
     } catch (err) {
-      setCreateItemActionError(err instanceof BackendApiError ? err.message : 'Create failed');
+      setCreateItemActionError(err instanceof BackendApiError ? err.message : ui.messages.createFailed);
       setCreateItemActionStatus('error');
     }
   };
@@ -356,7 +358,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         <option value="">{t.common.all}</option>
                         {MENU_STATUSES.map((s) => (
                           <option key={s} value={s}>
-                            {s}
+                            {formatBackendAdminStatus(params.lang, s)}
                           </option>
                         ))}
                       </select>
@@ -367,7 +369,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       </label>
                       <input
                         type="text"
-                        placeholder="Category name"
+                        placeholder={ui.labels.categoryName}
                         value={catSearchInput}
                         onChange={(e) => setCatSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && (setCatPage(1), loadCategories())}
@@ -396,14 +398,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   {showCreateCat && (
                     <div className="card p-4 space-y-3">
                       <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        New category
+                        {ui.labels.newCategory}
                       </p>
                       {createCatActionStatus === 'error' && (
                         <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{createCatActionError}</p>
                       )}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Name</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.name}</label>
                           <input
                             type="text"
                             value={createCatName}
@@ -413,7 +415,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Sort order</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.sortOrder}</label>
                           <input
                             type="number"
                             value={createCatSortOrder}
@@ -430,14 +432,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
                         >
-                          Save category
+                          {ui.labels.saveCategory}
                         </button>
                         <button
                           onClick={() => setShowCreateCat(false)}
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                         >
-                          Cancel
+                          {ui.labels.cancel}
                         </button>
                       </div>
                     </div>
@@ -449,7 +451,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     </div>
                   ) : catListStatus === 'error' ? (
                     <div className="card p-6 text-center">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>Failed to load categories</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>{ui.messages.failedToLoadCategories}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{catListError}</p>
                     </div>
                   ) : !catListResult || catListResult.data.length === 0 ? (
@@ -484,7 +486,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       </div>
                       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
                         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-                          Page {catListResult.pagination.page} of {catListResult.pagination.totalPages} · {catListResult.pagination.total} total
+                          {ui.labels.pageOfTotal(catListResult.pagination.page, catListResult.pagination.totalPages, catListResult.pagination.total)}
                         </p>
                         <div className="flex gap-2">
                           <button
@@ -523,13 +525,13 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   ) : (
                     <div className="card">
                       <div className="card-header">
-                        <h3 className="card-header-title">Edit category</h3>
+                        <h3 className="card-header-title">{ui.labels.category}</h3>
                       </div>
                       <div className="p-5 space-y-3">
                         {catActionMessage && <p className="text-xs font-medium" style={{ color: '#15803d' }}>{catActionMessage}</p>}
                         {catActionStatus === 'error' && <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{catActionError}</p>}
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Name</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.name}</label>
                           <input
                             type="text"
                             value={editCatName}
@@ -539,7 +541,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Description</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.description}</label>
                           <textarea
                             value={editCatDescription}
                             onChange={(e) => setEditCatDescription(e.target.value)}
@@ -550,7 +552,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Sort order</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.sortOrder}</label>
                             <input
                               type="number"
                               value={editCatSortOrder}
@@ -560,7 +562,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             />
                           </div>
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{t.common.status}</label>
                             <select
                               value={editCatStatus}
                               onChange={(e) => setEditCatStatus(e.target.value as MenuStatus)}
@@ -568,7 +570,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                               style={inputStyle}
                             >
                               {MENU_STATUSES.map((s) => (
-                                <option key={s} value={s}>{s}</option>
+                                <option key={s} value={s}>{formatBackendAdminStatus(params.lang, s)}</option>
                               ))}
                             </select>
                           </div>
@@ -592,7 +594,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   <div className="card p-4 flex flex-wrap items-end gap-3">
                     <div>
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Category
+                        {ui.labels.category}
                       </label>
                       <select
                         value={itemCategoryFilter}
@@ -603,7 +605,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         className="block rounded-lg px-3 py-2 text-sm outline-none mt-1"
                         style={inputStyle}
                       >
-                        <option value="">All</option>
+                        <option value="">{t.common.all}</option>
                         {allCategories.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -624,13 +626,13 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       >
                         <option value="">{t.common.all}</option>
                         {MENU_STATUSES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
+                          <option key={s} value={s}>{formatBackendAdminStatus(params.lang, s)}</option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        Available
+                        {ui.labels.available}
                       </label>
                       <select
                         value={itemAvailFilter}
@@ -642,8 +644,8 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         style={inputStyle}
                       >
                         <option value="">{t.common.all}</option>
-                        <option value="true">Available</option>
-                        <option value="false">Unavailable</option>
+                        <option value="true">{ui.labels.available}</option>
+                        <option value="false">{ui.labels.unavailable}</option>
                       </select>
                     </div>
                     <div className="flex-1 min-w-[160px]">
@@ -652,7 +654,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       </label>
                       <input
                         type="text"
-                        placeholder="Item name or description"
+                        placeholder={`${ui.labels.name} / ${ui.labels.description}`}
                         value={itemSearchInput}
                         onChange={(e) => setItemSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && (setItemPage(1), loadItems())}
@@ -681,14 +683,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   {showCreateItem && (
                     <div className="card p-4 space-y-3">
                       <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--p-text-5)' }}>
-                        New item
+                        {ui.labels.newItem}
                       </p>
                       {createItemActionStatus === 'error' && (
                         <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{createItemActionError}</p>
                       )}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Name</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.name}</label>
                           <input
                             type="text"
                             value={createItemName}
@@ -698,26 +700,26 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Category</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.category}</label>
                           <select
                             value={createItemCategoryId}
                             onChange={(e) => setCreateItemCategoryId(e.target.value)}
                             className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                             style={inputStyle}
                           >
-                            <option value="">Uncategorized</option>
+                            <option value="">{ui.labels.uncategorized}</option>
                             {allCategories.map((c) => (
                               <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Price</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.price}</label>
                           <input
                             type="number"
                             step="0.01"
                             min="0"
-                            placeholder="Optional"
+                            placeholder={ui.labels.optional}
                             value={createItemPrice}
                             onChange={(e) => setCreateItemPrice(e.target.value)}
                             className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
@@ -732,14 +734,14 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ background: 'var(--p-accent)', color: 'var(--p-accent-contrast, #fff)' }}
                         >
-                          Save item
+                          {ui.labels.saveItem}
                         </button>
                         <button
                           onClick={() => setShowCreateItem(false)}
                           className="text-xs font-semibold px-3 py-2 rounded-lg"
                           style={{ border: '1px solid var(--p-border)', color: 'var(--p-text-2)' }}
                         >
-                          Cancel
+                          {ui.labels.cancel}
                         </button>
                       </div>
                     </div>
@@ -751,7 +753,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                     </div>
                   ) : itemListStatus === 'error' ? (
                     <div className="card p-6 text-center">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>Failed to load items</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--p-text-1)' }}>{ui.messages.failedToLoadItems}</p>
                       <p className="text-xs mt-1" style={{ color: 'var(--p-text-4)' }}>{itemListError}</p>
                     </div>
                   ) : !itemListResult || itemListResult.data.length === 0 ? (
@@ -778,7 +780,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                               <p className="text-sm font-semibold truncate" style={{ color: 'var(--p-text-1)' }}>{item.name}</p>
                               <p className="text-xs truncate" style={{ color: 'var(--p-text-5)' }}>
                                 {formatPrice(item.priceCents, item.currency)}
-                                {!item.isAvailable ? ' · unavailable' : ''}
+                                {!item.isAvailable ? ` · ${ui.labels.unavailable}` : ''}
                               </p>
                             </div>
                             <StatusBadge status={item.status} />
@@ -787,7 +789,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                       </div>
                       <div className="flex items-center justify-between gap-3 px-5 py-3.5">
                         <p className="text-xs" style={{ color: 'var(--p-text-5)' }}>
-                          Page {itemListResult.pagination.page} of {itemListResult.pagination.totalPages} · {itemListResult.pagination.total} total
+                          {ui.labels.pageOfTotal(itemListResult.pagination.page, itemListResult.pagination.totalPages, itemListResult.pagination.total)}
                         </p>
                         <div className="flex gap-2">
                           <button
@@ -826,13 +828,13 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                   ) : (
                     <div className="card">
                       <div className="card-header">
-                        <h3 className="card-header-title">Edit item</h3>
+                        <h3 className="card-header-title">{ui.labels.editItem}</h3>
                       </div>
                       <div className="p-5 space-y-3">
                         {itemActionMessage && <p className="text-xs font-medium" style={{ color: '#15803d' }}>{itemActionMessage}</p>}
                         {itemActionStatus === 'error' && <p className="text-xs font-medium" style={{ color: '#ef4444' }}>{itemActionError}</p>}
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Name</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.name}</label>
                           <input
                             type="text"
                             value={editItemName}
@@ -842,7 +844,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Description</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.description}</label>
                           <textarea
                             value={editItemDescription}
                             onChange={(e) => setEditItemDescription(e.target.value)}
@@ -853,21 +855,21 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Category</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.category}</label>
                             <select
                               value={editItemCategoryId}
                               onChange={(e) => setEditItemCategoryId(e.target.value)}
                               className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
                               style={inputStyle}
                             >
-                              <option value="">Uncategorized</option>
+                              <option value="">{ui.labels.uncategorized}</option>
                               {allCategories.map((c) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Status</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{t.common.status}</label>
                             <select
                               value={editItemStatus}
                               onChange={(e) => setEditItemStatus(e.target.value as MenuStatus)}
@@ -875,17 +877,17 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                               style={inputStyle}
                             >
                               {MENU_STATUSES.map((s) => (
-                                <option key={s} value={s}>{s}</option>
+                                <option key={s} value={s}>{formatBackendAdminStatus(params.lang, s)}</option>
                               ))}
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Price</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.price}</label>
                             <input
                               type="number"
                               step="0.01"
                               min="0"
-                              placeholder="Optional"
+                              placeholder={ui.labels.optional}
                               value={editItemPrice}
                               onChange={(e) => setEditItemPrice(e.target.value)}
                               className="block w-full rounded-lg px-3 py-2 text-sm outline-none mt-1"
@@ -893,7 +895,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             />
                           </div>
                           <div>
-                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Currency</label>
+                            <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.currency}</label>
                             <input
                               type="text"
                               value={editItemCurrency}
@@ -909,10 +911,10 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                             checked={editItemAvailable}
                             onChange={(e) => setEditItemAvailable(e.target.checked)}
                           />
-                          Available
+                          {ui.labels.available}
                         </label>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Allergens (comma-separated)</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.allergensComma}</label>
                           <input
                             type="text"
                             value={editItemAllergens}
@@ -922,7 +924,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Dietary tags (comma-separated)</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.dietaryTagsComma}</label>
                           <input
                             type="text"
                             value={editItemDietary}
@@ -932,7 +934,7 @@ function MenuContent({ session, restaurantId }: BackendAdminShellCtx) {
                           />
                         </div>
                         <div>
-                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>Aliases (comma-separated)</label>
+                          <label className="text-[10px]" style={{ color: 'var(--p-text-5)' }}>{ui.labels.aliasesComma}</label>
                           <input
                             type="text"
                             value={editItemAliases}
